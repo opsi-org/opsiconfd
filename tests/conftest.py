@@ -14,10 +14,11 @@ import sys
 import threading
 import time
 import traceback
+from collections.abc import Callable, Coroutine, Generator
 from pathlib import Path
 from tempfile import mkdtemp
 from types import FrameType
-from typing import Any, Callable, Coroutine, Generator
+from typing import Any
 from unittest.mock import patch
 
 from _pytest.logging import LogCaptureHandler
@@ -53,14 +54,14 @@ def signal_handler(self: Manager, signum: int, frame: FrameType | None) -> None:
 # Set a different redis key prefix to not interfere with running tests
 app.app_state_redis_key = "pytest:main_application:app_state"
 Manager.orig_signal_handler = Manager.signal_handler  # ty: ignore[unresolved-attribute]
-Manager.signal_handler = signal_handler  # ty: ignore[invalid-assignment]
+Manager.signal_handler = signal_handler
 
 
 def emit(*args: Any, **kwargs: Any) -> None:
 	pass
 
 
-LogCaptureHandler.emit = emit  # ty: ignore[invalid-assignment]
+LogCaptureHandler.emit = emit
 
 
 @hookimpl()
@@ -171,16 +172,13 @@ def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> Generator[None, Resu
 	reset_redis_pools()
 
 	for wait in range(6):
-		left_over_threads = (
-			set(
-				t
-				for t in threading.enumerate()
-				if t.is_alive()
-				# and t.name != "AnyIO worker thread"
-				and "ThreadPoolExecutor" not in str((getattr(t, "_args", None) or [None])[0])
-			)
-			- start_threads
-		)
+		left_over_threads = {
+			t
+			for t in threading.enumerate()
+			if t.is_alive()
+			# and t.name != "AnyIO worker thread"
+			and "ThreadPoolExecutor" not in str((getattr(t, "_args", None) or [None])[0])
+		} - start_threads
 		if not left_over_threads:
 			break
 		if wait >= 5:

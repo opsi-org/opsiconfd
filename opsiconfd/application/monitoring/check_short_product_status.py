@@ -60,15 +60,14 @@ def check_short_product_status(backend: Backend, product_id: str | None = None, 
 		return generate_response(State.UNKNOWN, f"No ProductStates found for product '{product_id}'")
 
 	for poc in product_on_clients:
-		if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":
+		if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":  # noqa: SIM102
 			if poc.clientId not in product_problems_on_clients:
 				product_problems_on_clients.append(poc.clientId)
 				continue
 
-		if poc.actionRequest != "none":
-			if poc.clientId not in action_request_on_clients:
-				action_request_on_clients.append(poc.clientId)
-				continue
+		if poc.actionRequest != "none" and poc.clientId not in action_request_on_clients:
+			action_request_on_clients.append(poc.clientId)
+			continue
 
 		if not poc.productVersion or not poc.packageVersion:
 			continue

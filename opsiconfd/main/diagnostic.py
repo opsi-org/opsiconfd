@@ -14,7 +14,6 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Literal, cast
 
 from opsi.compression import compress
 from rich.console import Console
@@ -33,7 +32,7 @@ def _switch_to_run_as_user() -> None:
 		return
 	try:
 		switch_to_user(config.run_as_user)
-	except Exception:
+	except Exception:  # noqa: S110
 		pass
 
 
@@ -47,7 +46,7 @@ def diagnostic_data_main() -> None:
 	console = Console(quiet=config.quiet)
 
 	def data_filename() -> str:
-		now = datetime.now().strftime("%Y%m%d-%H%M%S")
+		now = datetime.now().strftime("%Y%m%d-%H%M%S")  # noqa: DTZ005
 		return f"opsiconfd-diagnostic-data-{now}.json.lz4"
 
 	try:
@@ -65,10 +64,10 @@ def diagnostic_data_main() -> None:
 			diagnostic_data = asyncio.run(get_diagnostic_data())
 			data = json.dumps(diagnostic_data, cls=DataclassCapableJSONEncoder, indent=2).encode("utf-8")
 			if (suffix := data_file.suffix.strip(".").lower()) in ("lz4", "gz"):
-				data = compress(data, compression=cast(Literal["lz4", "gz"], suffix))
+				data = compress(data, compression=suffix)
 
 			data_file.write_bytes(data)
-			console.print(f"Diagnostic data file '{str(data_file)}' successfully created.")
+			console.print(f"Diagnostic data file '{data_file!s}' successfully created.")
 	except KeyboardInterrupt:
 		logger.error("Generation of diagnostic data interrupted")
 		console.quiet = False
@@ -77,7 +76,7 @@ def diagnostic_data_main() -> None:
 	except Exception as err:
 		logger.error(err, exc_info=True)
 		console.quiet = False
-		daf = f" '{str(data_file)}'" if data_file else ""
+		daf = f" '{data_file!s}'" if data_file else ""
 		console.print(f"[bold red]Failed to create diagnostic data file{daf}: {err}[/bold red]")
 		sys.exit(1)
 

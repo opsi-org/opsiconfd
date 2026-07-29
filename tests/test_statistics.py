@@ -336,20 +336,20 @@ def test_node_metrics_collector() -> None:
 	metrics_collector = NodeMetricsCollector()
 
 	asyncio.run(metrics_collector._fetch_values())
-	assert list(metrics_collector._values["node:avg_load"].values())[0]
+	assert next(iter(metrics_collector._values["node:avg_load"].values()))
 	assert not metrics_collector._values["node:sum_network_bits_sent"]
 	assert not metrics_collector._values["node:sum_network_bits_received"]
 	assert not metrics_collector._values["node:avg_redis_cpu_time"]
-	assert list(metrics_collector._values["node:avg_redis_memory_used"].values())[0]
+	assert next(iter(metrics_collector._values["node:avg_redis_memory_used"].values()))
 	assert metrics_collector._values["node:avg_mysql_processes"]
 	assert metrics_collector._values["node:avg_mysql_queries"]
 
 	asyncio.run(metrics_collector._fetch_values())
-	assert list(metrics_collector._values["node:avg_load"].values())[0]
-	assert list(metrics_collector._values["node:sum_network_bits_sent"].values())[0]
-	assert list(metrics_collector._values["node:sum_network_bits_received"].values())[0]
-	assert list(metrics_collector._values["node:avg_redis_cpu_time"].values())[0]
-	assert list(metrics_collector._values["node:avg_redis_memory_used"].values())[0]
+	assert next(iter(metrics_collector._values["node:avg_load"].values()))
+	assert next(iter(metrics_collector._values["node:sum_network_bits_sent"].values()))
+	assert next(iter(metrics_collector._values["node:sum_network_bits_received"].values()))
+	assert next(iter(metrics_collector._values["node:avg_redis_cpu_time"].values()))
+	assert next(iter(metrics_collector._values["node:avg_redis_memory_used"].values()))
 	assert metrics_collector._values["node:avg_mysql_processes"]
 	assert metrics_collector._values["node:avg_mysql_queries"]
 
@@ -377,7 +377,7 @@ def test_setup_metric_downsampling() -> None:
 	metric_rgistry = MetricsRegistry()
 
 	class MockRedisClient:
-		cmds = []
+		cmds = []  # noqa: RUF012
 
 		def execute_command(self, cmd: str) -> Any:
 			self.cmds.append(cmd)
@@ -408,7 +408,7 @@ def test_setup_metric_downsampling() -> None:
 
 		elif cmd[0] == "TS.CREATERULE":
 			_orig_key, agg = cmd[2].rsplit(":", 1)
-			downsampling = [d for d in metric.downsampling if d[0] == agg][0]
+			downsampling = next(d for d in metric.downsampling if d[0] == agg)
 			assert cmd[3] == "AGGREGATION"
 			assert cmd[4] == downsampling[2].value.lower()
 			assert int(cmd[5]) == TIME_BUCKET_DURATIONS_MS[agg]

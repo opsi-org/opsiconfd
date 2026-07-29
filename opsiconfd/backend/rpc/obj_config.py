@@ -44,7 +44,7 @@ class RPCConfigMixin(Protocol):
 		config = to_object_class(config, Config)
 		query, data = self._mysql.insert_query(table="CONFIG", obj=config, ace=ace, create=create, set_null=set_null)
 		modify_values = create or data.get("possibleValues") is not None
-		with self._mysql.session(session) as session:
+		with self._mysql.session(session) as session:  # noqa
 			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}) if lock else nullcontext():
 				if modify_values:
 					session.execute("DELETE FROM `CONFIG_VALUE` WHERE configId = :id", params=data)
@@ -77,10 +77,9 @@ class RPCConfigMixin(Protocol):
 	def config_createObjects(self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config) -> None:
 		ace = self._get_ace("config_createObjects")
 		configs = to_object_class_list(configs, Config)
-		with self._mysql.session() as session:
-			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}):
-				for config in configs:
-					self._config_insert_object(config=config, ace=ace, create=True, set_null=True, session=session, lock=False)
+		with self._mysql.session() as session, self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}):
+			for config in configs:
+				self._config_insert_object(config=config, ace=ace, create=True, set_null=True, session=session, lock=False)
 		if not self.events_enabled:
 			return
 		for config in configs:
@@ -90,10 +89,9 @@ class RPCConfigMixin(Protocol):
 	def config_updateObjects(self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config) -> None:
 		ace = self._get_ace("config_updateObjects")
 		configs = to_object_class_list(configs, Config)
-		with self._mysql.session() as session:
-			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}):
-				for config in configs:
-					self._config_insert_object(config=config, ace=ace, create=True, set_null=False, session=session, lock=False)
+		with self._mysql.session() as session, self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}):
+			for config in configs:
+				self._config_insert_object(config=config, ace=ace, create=True, set_null=False, session=session, lock=False)
 		if not self.events_enabled:
 			return
 		for config in configs:

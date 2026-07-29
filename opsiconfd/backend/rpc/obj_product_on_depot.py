@@ -9,7 +9,7 @@ opsiconfd.backend.rpc.product_on_depot
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
 from opsi.opsi.service.model.object import ProductOnDepot
@@ -153,7 +153,7 @@ class RPCProductOnDepotMixin(Protocol):
 					`depotId` = :depot_id
 				""",
 				params={
-					"installation_time": datetime.now(tz=timezone.utc),
+					"installation_time": datetime.now(tz=UTC),
 					"product_id": productId,
 					"product_version": productVersion,
 					"package_version": packageVersion,

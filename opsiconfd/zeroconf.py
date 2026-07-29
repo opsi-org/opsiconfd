@@ -53,13 +53,13 @@ async def register_opsi_services() -> None:
 	address6 = None
 	try:
 		address = ipaddress.ip_address(socket.getaddrinfo(FQDN, None, socket.AF_INET)[0][-1][0])
-	except socket.error as err:
+	except OSError as err:
 		logger.warning("Failed to get IPv4 address for '%s': %s", FQDN, err)
-		address == get_primary_ip_interface(socket.AF_INET).ip
+		address = get_primary_ip_interface(socket.AF_INET).ip
 
 	try:
 		address6 = ipaddress.ip_address(socket.getaddrinfo(FQDN, None, socket.AF_INET6)[0][-1][0])
-	except socket.error as err:
+	except OSError as err:
 		logger.debug("Failed to get IPv6 address for '%s': %s", FQDN, err)
 		try:
 			address6 = get_primary_ip_interface(socket.AF_INET6).ip
@@ -83,7 +83,6 @@ async def register_opsi_services() -> None:
 
 
 async def unregister_opsi_services() -> None:
-	global _zeroconf, _info
 	if not _zeroconf or not _info:
 		return
 	logger.notice("Unregister zeroconf service")

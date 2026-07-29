@@ -377,7 +377,7 @@ def test_server_overload(
 		session_middleware = None
 		middleware = app.middleware_stack
 		while True:
-			middleware = getattr(middleware, "app")
+			middleware = middleware.app  # ty: ignore[unresolved-attribute]
 			if isinstance(middleware, SessionMiddleware):
 				session_middleware = middleware
 				break

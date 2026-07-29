@@ -10,7 +10,7 @@ redis tests
 import asyncio
 import re
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from random import randbytes
 from threading import Thread
 from unittest.mock import patch
@@ -283,18 +283,17 @@ def test_delete_redis_lock(config: Config) -> None:  # noqa: F811
 	for lock_name in lock_names:
 		assert not client.get(f"{base_key}:{lock_name}")
 
-	with redis_lock("test-lock1", acquire_timeout=1.0):
-		with redis_lock("test-lock2", acquire_timeout=1.0):
-			with redis_lock("test-lock3", acquire_timeout=1.0):
-				# Locks acquired
-				for lock_name in lock_names:
-					assert client.get(f"{base_key}:{lock_name}")
-				delete_locks("test-lock1", "test-lock3")
-				assert not client.get(f"{base_key}:test-lock1")
-				assert client.get(f"{base_key}:test-lock2")
-				assert not client.get(f"{base_key}:test-lock3")
-				delete_locks()
-				assert not client.get(f"{base_key}:test-lock2")
+	with redis_lock("test-lock1", acquire_timeout=1.0), redis_lock("test-lock2", acquire_timeout=1.0):
+		with redis_lock("test-lock3", acquire_timeout=1.0):
+			# Locks acquired
+			for lock_name in lock_names:
+				assert client.get(f"{base_key}:{lock_name}")
+			delete_locks("test-lock1", "test-lock3")
+			assert not client.get(f"{base_key}:test-lock1")
+			assert client.get(f"{base_key}:test-lock2")
+			assert not client.get(f"{base_key}:test-lock3")
+			delete_locks()
+			assert not client.get(f"{base_key}:test-lock2")
 
 
 async def test_async_delete_redis_lock(config: Config) -> None:  # noqa: F811
@@ -307,18 +306,17 @@ async def test_async_delete_redis_lock(config: Config) -> None:  # noqa: F811
 	for lock_name in lock_names:
 		assert not await client.get(f"{base_key}:{lock_name}")
 
-	with redis_lock("test-lock1", acquire_timeout=1.0):
-		with redis_lock("test-lock2", acquire_timeout=1.0):
-			with redis_lock("test-lock3", acquire_timeout=1.0):
-				# Locks acquired
-				for lock_name in lock_names:
-					assert await client.get(f"{base_key}:{lock_name}")
-				await async_delete_locks("test-lock1", "test-lock3")
-				assert not await client.get(f"{base_key}:test-lock1")
-				assert await client.get(f"{base_key}:test-lock2")
-				assert not await client.get(f"{base_key}:test-lock3")
-				await async_delete_locks()
-				assert not await client.get(f"{base_key}:test-lock2")
+	with redis_lock("test-lock1", acquire_timeout=1.0), redis_lock("test-lock2", acquire_timeout=1.0):
+		with redis_lock("test-lock3", acquire_timeout=1.0):
+			# Locks acquired
+			for lock_name in lock_names:
+				assert await client.get(f"{base_key}:{lock_name}")
+			await async_delete_locks("test-lock1", "test-lock3")
+			assert not await client.get(f"{base_key}:test-lock1")
+			assert await client.get(f"{base_key}:test-lock2")
+			assert not await client.get(f"{base_key}:test-lock3")
+			await async_delete_locks()
+			assert not await client.get(f"{base_key}:test-lock2")
 
 
 async def test_dump_restore(config: Config) -> None:  # noqa: F811
@@ -346,7 +344,7 @@ async def test_dump_restore(config: Config) -> None:  # noqa: F811
 
 	collector = NodeMetricsCollector()
 	with patch("opsiconfd.metrics.collector.unix_timestamp", mock_unix_timestamp):
-		now_ts = int(datetime.now(tz=timezone.utc).timestamp() * 1000)
+		now_ts = int(datetime.now(tz=UTC).timestamp() * 1000)
 		num_values = 7200
 		start_ts = now_ts - num_values * 1000
 		for val_num in range(num_values):
@@ -375,7 +373,7 @@ async def test_dump_restore(config: Config) -> None:  # noqa: F811
 			if not key.endswith((":minute", ":hour")):
 				assert len(info["rules"]) == 2
 				for rule in info["rules"]:
-					assert rule[0] in (f"{key}:minute".encode("utf-8"), f"{key}:hour".encode("utf-8"))
+					assert rule[0] in (f"{key}:minute".encode(), f"{key}:hour".encode())
 
 			cmd = ("TS.RANGE", key, start_ts, now_ts, "AGGREGATION", "avg", 1000)
 			# print(cmd)

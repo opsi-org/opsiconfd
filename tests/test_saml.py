@@ -5,7 +5,7 @@
 
 import json
 from base64 import b64encode
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -59,7 +59,7 @@ def test_saml_login(
 	expected_status_code: int,
 	expected_text: str,
 ) -> None:
-	now = datetime.now(tz=timezone.utc)
+	now = datetime.now(tz=UTC)
 	not_before = now - timedelta(seconds=10)
 	not_on_or_after = now + timedelta(seconds=expiration_seconds)
 	not_before_str = not_before.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
@@ -147,7 +147,7 @@ def test_saml_login(
 		res = test_client.get("/auth/saml/login", follow_redirects=False)
 		assert res.status_code == 307
 		assert res.headers["location"].startswith(saml_idp_sso_url + "?")
-		cookie = list(test_client.cookies.jar)[0]
+		cookie = next(iter(test_client.cookies.jar))
 		session_id = cookie.value
 		data: dict[str, str] = {
 			"SAMLResponse": b64encode(saml_response.encode()).decode(),
@@ -198,7 +198,7 @@ def test_saml_keycloak_group_membership(
 	config: Config,  # noqa: F811
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
-	now = datetime.now(tz=timezone.utc)
+	now = datetime.now(tz=UTC)
 	not_before = now - timedelta(seconds=10)
 	not_on_or_after = now + timedelta(seconds=10)
 	not_before_str = not_before.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
@@ -284,7 +284,7 @@ def test_saml_keycloak_group_membership(
 		res = test_client.get("/auth/saml/login", follow_redirects=False)
 		assert res.status_code == 307
 		assert res.headers["location"].startswith(saml_idp_sso_url + "?")
-		cookie = list(test_client.cookies.jar)[0]
+		cookie = next(iter(test_client.cookies.jar))
 		session_id = cookie.value
 		data: dict[str, str] = {
 			"SAMLResponse": b64encode(saml_response.encode()).decode(),
@@ -420,14 +420,12 @@ def test_setup_saml_configuration(tmp_path: Path, capsys: CaptureFixture) -> Non
 		"configure_saml": True,
 		"non_interactive": True,
 	}
-	with get_config(conf):
-		with pytest.raises(ValueError, match="Interactive setup or unattended configuration required"):
-			setup()
+	with get_config(conf), pytest.raises(ValueError, match="Interactive setup or unattended configuration required"):
+		setup()
 
 	conf["unattended"] = '{"url": "https://keycloak.opsi.test/realms/master/protocol/saml/descriptor"}'
-	with get_config(conf):
-		with pytest.raises(ValueError, match="idp_metadata_url not set in unattended configuration"):
-			setup()
+	with get_config(conf), pytest.raises(ValueError, match="idp_metadata_url not set in unattended configuration"):
+		setup()
 
 	with http_test_server(response_body=IDP_METDATA_XML.encode("utf-8")) as server:
 		conf["unattended"] = f'{{"idp_metadata_url": "http://localhost:{server.port}/saml/descriptor"}}'

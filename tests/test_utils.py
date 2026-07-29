@@ -122,7 +122,7 @@ def test_get_primary_ip_interface() -> None:
 		),
 	),
 )
-def test_aes_encrypt_decrypt(password: str, plaintext: bytes, exc: type[Exception | None]) -> None:
+def test_aes_encrypt_decrypt(password: str, plaintext: bytes, exc: type[Exception] | None) -> None:
 	ctx = pytest.raises(exc) if exc else nullcontext()
 	with ctx:
 		ciphertext, key_salt, mac_tag, nonce = aes_encrypt_with_password(plaintext=plaintext, password=password)
@@ -209,16 +209,18 @@ def test_get_encryption_key() -> None:
 		assert key_id == "0"
 		assert key == bytes.fromhex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
 
-	with get_config(
-		{
-			"database-encryption-keys": [
-				"key2=0123456789abcdef",
-			]
-		}
+	with (
+		get_config(
+			{
+				"database-encryption-keys": [
+					"key2=0123456789abcdef",
+				]
+			}
+		),
+		pytest.raises(ValueError, match="No valid encryption keys configured"),
 	):
-		with pytest.raises(ValueError, match="No valid encryption keys configured"):
-			get_encryption_key.cache_clear()
-			get_encryption_key()
+		get_encryption_key.cache_clear()
+		get_encryption_key()
 
 
 def test_encrypt_decrypt() -> None:

@@ -8,12 +8,13 @@ opsiconfd.backend.rpc.extender
 """
 
 import inspect
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
 from inspect import isfunction
 from pathlib import Path
 from types import MethodType
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 from opsiconfd.config import config
 from opsiconfd.logging import logger
@@ -36,7 +37,7 @@ class ExtenderMethod:
 
 
 class RPCExtenderMixin(Protocol):
-	_extender_method_info: list[ExtenderMethod] = []
+	_extender_method_info: list[ExtenderMethod] = []  # noqa: RUF012
 
 	def __init__(self) -> None:
 		for file in sorted(Path(config.extension_config_dir).glob("*.conf")):
@@ -44,7 +45,7 @@ class RPCExtenderMixin(Protocol):
 			try:
 				loc: dict[str, Any] = {}
 				if file.is_file():
-					exec(compile(file.read_bytes(), "<string>", "exec"), None, loc)
+					exec(compile(file.read_bytes(), "<string>", "exec"), None, loc)  # noqa: S102
 				for function_name, function in loc.items():
 					if not function_name.startswith("_") and isfunction(function):
 						logger.info("Adding rpc extension method '%s'", function_name)

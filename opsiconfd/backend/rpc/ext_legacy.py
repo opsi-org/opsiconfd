@@ -13,7 +13,8 @@ import re
 import socket
 import time
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Generator, Protocol
+from collections.abc import Generator
+from typing import TYPE_CHECKING, Any, Protocol
 
 from opsi.exception import (
 	BackendAuthenticationError,
@@ -208,7 +209,7 @@ class RPCExtLegacyMixin(Protocol):
 
 		bool_values = frozenset(["yes", "no", "on", "off", "1", "0", "true", "false"])
 
-		def get_new_configs() -> Generator[BoolConfig | UnicodeConfig, None, None]:
+		def get_new_configs() -> Generator[BoolConfig | UnicodeConfig]:
 			has_no_object_id = bool(objectId is None)
 			for config_id, value in config.items():
 				if has_no_object_id or config_id not in known_config_ids:
@@ -217,7 +218,7 @@ class RPCExtLegacyMixin(Protocol):
 					else:
 						yield UnicodeConfig(id=config_id, defaultValues=[value], possibleValues=[value], editable=True, multiValue=False)
 
-		def get_new_config_states() -> Generator[ConfigState, None, None]:
+		def get_new_config_states() -> Generator[ConfigState]:
 			if objectId is not None:
 				for config_id, value in config.items():
 					if value.lower() in bool_values:
@@ -902,11 +903,7 @@ class RPCExtLegacyMixin(Protocol):
 		if not depotId:
 			return [self._product_to_hash(product) for product in self.product_getObjects()]
 
-		result = []
-		for products in self.getProducts_hash(depotIds=[depotId]).values():
-			for product_hash in products.values():
-				result.append(product_hash)
-		return result
+		return [product_hash for products in self.getProducts_hash(depotIds=[depotId]).values() for product_hash in products.values()]
 
 	@rpc_method(deprecated=True, alternative_method="product_getIdents", check_acl=False)
 	def getProductIds_list(
@@ -1419,7 +1416,7 @@ class RPCExtLegacyMixin(Protocol):
 		:param properties: <property-id> <value> pairs of properties to set.
 		:param objectId: ID of the object to set the values for or `None`.
 		"""
-		property_ids = set(to_product_property_id(ppi) for ppi in properties)
+		property_ids = {to_product_property_id(ppi) for ppi in properties}
 		property_classes = {}
 		property_multi_value = {}
 		for prop in self.productProperty_getObjects(productId=productId, propertyId=property_ids):
@@ -1445,7 +1442,7 @@ class RPCExtLegacyMixin(Protocol):
 				logger.debug("Property %s is bool.", property_id)
 				new_properties[to_product_property_id(property_id)] = [to_bool(value)]
 			else:
-				raise ValueError(f"Property type of {property_type!r} currently unhandled")
+				raise TypeError(f"Property type of {property_type!r} currently unhandled")
 
 		product_property_states = []
 		if objectId:
@@ -2024,7 +2021,7 @@ class RPCExtLegacyMixin(Protocol):
 					pass
 
 			if not license_key:
-				raise err
+				raise
 
 		return license_key
 

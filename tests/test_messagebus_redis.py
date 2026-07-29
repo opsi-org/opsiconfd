@@ -105,7 +105,7 @@ async def test_message_reader_cancel_get_stream_entries() -> None:
 
 	# With every add_channels call the xread call is canceled
 	# Assert that the reader still receives messages in time
-	for message_num in range(0, 300):
+	for message_num in range(300):
 		channel = f"host:test-channel{message_num}"
 		await reader.add_channels({channel: ">"})
 		await send_message(Message(id=f"00000000-0000-4000-8000-00000000{message_num:04}", type="test", sender="*", channel=channel))
@@ -170,7 +170,7 @@ async def test_message_reader_user_channel(config: Config) -> None:  # noqa: F81
 		for idx, received in enumerate(reader.received):
 			assert received[1].type == "test"
 			assert received[1].id == f"00000000-0000-4000-8000-00000000000{idx + 1}"
-			assert received[2] == f"context_data{idx + 1}".encode("utf-8")
+			assert received[2] == f"context_data{idx + 1}".encode()
 
 	# We did not ACK any message, so last-delivered-id has to be None
 	last_id = await redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "last-delivered-id")
@@ -197,7 +197,7 @@ async def test_message_reader_user_channel(config: Config) -> None:  # noqa: F81
 	for idx, received in enumerate(reader1.received):
 		assert received[1].type == "test"
 		assert received[1].id == f"00000000-0000-4000-8000-00000000000{idx + 1}"
-		assert received[2] == f"context_data{idx + 1}".encode("utf-8")
+		assert received[2] == f"context_data{idx + 1}".encode()
 		# ACK message
 		await reader1.ack_message(channel, received[0])
 	last_acked_redis_id = reader1.received[5][0]
@@ -464,7 +464,7 @@ async def test_message_reader_survives_recreate_channel(config: Config) -> None:
 async def test_message_trim_to_maxlen(config: Config) -> None:  # noqa: F811
 	channel = "event:test_reader"
 	redis = await async_redis_client()
-	for count in range(0, 1500):
+	for count in range(1500):
 		await send_message(Message(id=f"00000000-0000-4000-8000-00000000{count:04}", type="test", sender="*", channel=channel))
 
 	await asyncio.sleep(1)
@@ -488,7 +488,7 @@ async def test_cleanup_channels(config: Config, backend: UnprotectedBackend, red
 	await create_session_channel(owner_id=user_id, purpose="test 1", session_id=session1_id)
 	await create_session_channel(owner_id=user_id, purpose="test 2", session_id=session2_id)
 
-	for count in range(0, 5):
+	for count in range(5):
 		await send_message(
 			Message(id=f"00000000-0000-4000-8000-00000000{count:04}", type="test", sender=user_id, channel="host:test-client-act.opsi.org")
 		)

@@ -4,7 +4,7 @@
 # License: AGPL-3.0-only
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
@@ -42,7 +42,7 @@ class DeprecatedCallCheck(Check):
 		interface = backend.get_method_interface(self.method)
 		applications = sorted(set(decode_redis_result(redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:{self.method}:clients"))))
 		last_call = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{self.method}:last_call"))
-		last_call_dt = datetime.fromisoformat(last_call.replace("Z", "")).astimezone(timezone.utc)
+		last_call_dt = datetime.fromisoformat(last_call.replace("Z", "")).astimezone(UTC)
 		last_call = last_call_dt.strftime("%Y-%m-%d %H:%M:%S")
 		message = f"Deprecated method {self.method!r} was called {calls} times.\n"
 		if interface and interface.drop_version:

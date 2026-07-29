@@ -9,10 +9,11 @@ test opsiconfd.backend.rpc.obj_config
 
 import asyncio
 import time
+from collections.abc import Generator
 from pathlib import Path
 from threading import Thread
 from time import sleep
-from typing import Any, Generator
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -38,7 +39,7 @@ from tests.utils import (  # noqa: F401
 
 
 @pytest.fixture()
-def acl_file(tmp_path: Path) -> Generator[Path, None, None]:
+def acl_file(tmp_path: Path) -> Generator[Path]:
 	_acl_file = tmp_path / "acl.conf"
 	data = (
 		f"config_getObjects    : sys_user({ADMIN_USER}); opsi_depotserver; opsi_client\n"
@@ -269,7 +270,7 @@ async def test_config_updateMessageOfTheDay(backend: UnprotectedBackend) -> None
 		client_ids: list[str],
 		method: str,
 		params: list[Any] | None = None,
-		timeout: float | int | None = None,
+		timeout: float | None = None,
 		messagebus_only: bool = False,
 	) -> dict[str, dict[str, Any]]:
 		rpcs.append((client_ids, method, params, timeout, messagebus_only))

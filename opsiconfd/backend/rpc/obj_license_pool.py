@@ -34,7 +34,7 @@ class RPCLicensePoolMixin(Protocol):
 		lock: bool = True,
 	) -> None:
 		query, data = self._mysql.insert_query(table="LICENSE_POOL", obj=license_pool, ace=ace, create=create, set_null=set_null)
-		with self._mysql.session(session) as session:
+		with self._mysql.session(session) as session:  # noqa
 			with (
 				self._mysql.table_lock(session, {"LICENSE_POOL": "WRITE", "PRODUCT_ID_TO_LICENSE_POOL": "WRITE"}) if lock else nullcontext()
 			):
@@ -70,7 +70,7 @@ class RPCLicensePoolMixin(Protocol):
 	def licensePool_createObjects(self: BackendProtocol, licensePools: list[dict] | list[LicensePool] | dict | LicensePool) -> None:
 		self._assert_module("license_management")
 		ace = self._get_ace("licensePool_createObjects")
-		with self._mysql.session() as session:
+		with self._mysql.session() as session:  # noqa: SIM117
 			with self._mysql.table_lock(session, {"LICENSE_POOL": "WRITE", "PRODUCT_ID_TO_LICENSE_POOL": "WRITE"}):
 				for license_pool in to_list(licensePools):
 					license_pool = to_object_class(license_pool, LicensePool)
@@ -81,7 +81,7 @@ class RPCLicensePoolMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def licensePool_updateObjects(self: BackendProtocol, licensePools: list[dict] | list[LicensePool] | dict | LicensePool) -> None:
 		ace = self._get_ace("licensePool_updateObjects")
-		with self._mysql.session() as session:
+		with self._mysql.session() as session:  # noqa: SIM117
 			with self._mysql.table_lock(session, {"LICENSE_POOL": "WRITE", "PRODUCT_ID_TO_LICENSE_POOL": "WRITE"}):
 				for license_pool in to_list(licensePools):
 					license_pool = to_object_class(license_pool, LicensePool)

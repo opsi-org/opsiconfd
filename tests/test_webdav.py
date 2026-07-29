@@ -13,7 +13,7 @@ import re
 import shutil
 from pathlib import Path
 from string import ascii_letters
-from typing import BinaryIO, Type
+from typing import BinaryIO
 from unittest.mock import patch
 
 import pytest
@@ -222,7 +222,7 @@ def test_webdav_ignore_case_download(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 	filename: str,
 	path: str,
-	exception: Type[Exception],
+	exception: type[Exception],
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	base_dir = "/var/lib/opsi/depot"

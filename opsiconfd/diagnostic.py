@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import os
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -68,13 +68,13 @@ def get_lsb_release() -> dict[str, str]:
 
 def get_client_info() -> dict[str, int]:
 	logger.debug("get_client_info")
-	now = datetime.now()
+	now = datetime.now(tz=UTC)
 	backend = get_unprotected_backend()
 	data: dict[str, int] = {"client_count": 0, "active_client_count": 0}
 
 	for host in backend.host_getObjects(type="OpsiClient", attributes=["id", "lastSeen"]):
 		data["client_count"] += 1
-		if host.lastSeen and (now - datetime.fromisoformat(host.lastSeen)).days < 365:
+		if host.lastSeen and (now - datetime.fromisoformat(host.lastSeen).replace(tzinfo=UTC)).days < 365:
 			data["active_client_count"] += 1
 
 	return data

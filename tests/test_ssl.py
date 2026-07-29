@@ -13,8 +13,8 @@ import re
 import time
 from pathlib import Path
 from typing import Any
+from unittest import mock
 
-import mock
 import pytest
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
@@ -237,9 +237,7 @@ def test_create_ca(tmp_path: Path) -> None:
 				assert isinstance(cert, x509.Certificate)
 
 				ca_crt = load_opsi_ca_cert()
-				assert (
-					ca_crt.not_valid_after_utc - datetime.datetime.now(tz=datetime.timezone.utc)
-				).days == conf.ssl_ca_cert_valid_days - 1
+				assert (ca_crt.not_valid_after_utc - datetime.datetime.now(tz=datetime.UTC)).days == conf.ssl_ca_cert_valid_days - 1
 
 				info = get_opsi_ca_cert_info()
 
@@ -281,7 +279,7 @@ def test_create_ca_permitted_domains(tmp_path: Path) -> None:
 		setup_opsi_ca()
 		ca_cert = load_opsi_ca_cert()
 
-		name_constraints = [extension for extension in ca_cert.extensions if extension.oid == x509.OID_NAME_CONSTRAINTS][0]
+		name_constraints = next(extension for extension in ca_cert.extensions if extension.oid == x509.OID_NAME_CONSTRAINTS)
 		assert name_constraints.critical
 		assert name_constraints.value.permitted_subtrees[0].value == ssl_ca_permitted_domains[0]
 		assert name_constraints.value.permitted_subtrees[1].value == ssl_ca_permitted_domains[1]
@@ -290,22 +288,24 @@ def test_create_ca_permitted_domains(tmp_path: Path) -> None:
 def test_ca_key_fallback(tmp_path: Path) -> None:
 	ssl_ca_cert = tmp_path / "opsi-ca-cert.pem"
 	ssl_ca_key = tmp_path / "opsi-ca-key.pem"
-	with get_config(
-		{"ssl_ca_cert": str(ssl_ca_cert), "ssl_ca_key": str(ssl_ca_key), "ssl_ca_key_passphrase": CA_KEY_DEFAULT_PASSPHRASE}
-	) as conf:
-		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			(ca_crt, ca_key) = create_ca(subject={"CN": "opsi CA", "OU": "opsi@opsi.org", "emailAddress": "opsi@opsi.org"}, valid_days=100)
-			store_opsi_ca_key(ca_key)
-			store_opsi_ca_cert(ca_crt)
+	with (
+		get_config(
+			{"ssl_ca_cert": str(ssl_ca_cert), "ssl_ca_key": str(ssl_ca_key), "ssl_ca_key_passphrase": CA_KEY_DEFAULT_PASSPHRASE}
+		) as conf,
+		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
+	):
+		(ca_crt, ca_key) = create_ca(subject={"CN": "opsi CA", "OU": "opsi@opsi.org", "emailAddress": "opsi@opsi.org"}, valid_days=100)
+		store_opsi_ca_key(ca_key)
+		store_opsi_ca_cert(ca_crt)
 
-			new_passphrase = "new-secret"
-			with pytest.raises(RuntimeError, match=r".*Incorrect password, could not decrypt key.*"):
-				read_key_from_file(conf.ssl_ca_key, new_passphrase)
+		new_passphrase = "new-secret"
+		with pytest.raises(RuntimeError, match=r".*Incorrect password, could not decrypt key.*"):
+			read_key_from_file(conf.ssl_ca_key, new_passphrase)
 
-			conf.ssl_ca_key_passphrase = new_passphrase
-			# Test fallback, should reencrypt key with the new passphrase
-			load_opsi_ca_key()
-			read_key_from_file(ssl_ca_key, new_passphrase)
+		conf.ssl_ca_key_passphrase = new_passphrase
+		# Test fallback, should reencrypt key with the new passphrase
+		load_opsi_ca_key()
+		read_key_from_file(ssl_ca_key, new_passphrase)
 
 
 def test_server_key_fallback(tmp_path: Path) -> None:
@@ -314,34 +314,34 @@ def test_server_key_fallback(tmp_path: Path) -> None:
 	ssl_server_cert = tmp_path / "opsi-server-cert.pem"
 	ssl_server_key = tmp_path / "opsi-server-key.pem"
 
-	with get_config(
-		{
-			"ssl_ca_cert": str(ssl_ca_cert),
-			"ssl_ca_key": str(ssl_ca_key),
-			"ssl_ca_key_passphrase": "ca-secret",
-			"ssl_server_cert": str(ssl_server_cert),
-			"ssl_server_key": str(ssl_server_key),
-			"ssl_server_key_passphrase": SERVER_KEY_DEFAULT_PASSPHRASE,
-		}
-	) as conf:
-		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch(
-				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
-			):
-				setup_opsi_ca()
+	with (
+		get_config(
+			{
+				"ssl_ca_cert": str(ssl_ca_cert),
+				"ssl_ca_key": str(ssl_ca_key),
+				"ssl_ca_key_passphrase": "ca-secret",
+				"ssl_server_cert": str(ssl_server_cert),
+				"ssl_server_key": str(ssl_server_key),
+				"ssl_server_key_passphrase": SERVER_KEY_DEFAULT_PASSPHRASE,
+			}
+		) as conf,
+		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
+		mock.patch("opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)),
+	):
+		setup_opsi_ca()
 
-				(srv_crt, srv_key) = create_local_server_cert(renew=False)
-				store_local_server_key(srv_key)
-				store_local_server_cert(srv_crt)
+		(srv_crt, srv_key) = create_local_server_cert(renew=False)
+		store_local_server_key(srv_key)
+		store_local_server_cert(srv_crt)
 
-				new_passphrase = "new-server-key-secret"
-				with pytest.raises(RuntimeError, match=r".*Incorrect password, could not decrypt key.*"):
-					read_key_from_file(conf.ssl_server_key, new_passphrase)
+		new_passphrase = "new-server-key-secret"
+		with pytest.raises(RuntimeError, match=r".*Incorrect password, could not decrypt key.*"):
+			read_key_from_file(conf.ssl_server_key, new_passphrase)
 
-				conf.ssl_server_key_passphrase = new_passphrase
-				# Test fallback, should reencrypt key with the new passphrase
-				load_local_server_key()
-				read_key_from_file(conf.ssl_server_key, new_passphrase)
+		conf.ssl_server_key_passphrase = new_passphrase
+		# Test fallback, should reencrypt key with the new passphrase
+		load_local_server_key()
+		read_key_from_file(conf.ssl_server_key, new_passphrase)
 
 
 @pytest.mark.parametrize(
@@ -493,9 +493,9 @@ def test_renew_expired_ca(tmp_path: Path, additional_certs: list[str]) -> None:
 					assert additional_cert.strip() in data
 
 			# Check CA
-			assert (datetime.datetime.now(tz=datetime.timezone.utc) - get_opsi_ca_cert_info()["not_before"]).days >= 10
+			assert (datetime.datetime.now(tz=datetime.UTC) - get_opsi_ca_cert_info()["not_before"]).days >= 10
 			ca_crt = load_opsi_ca_cert()
-			assert (ca_crt.not_valid_after_utc - datetime.datetime.now(tz=datetime.timezone.utc)).days == 299
+			assert (ca_crt.not_valid_after_utc - datetime.datetime.now(tz=datetime.UTC)).days == 299
 
 			assert os.path.exists(conf.ssl_ca_key)
 			assert os.path.exists(conf.ssl_ca_cert)
@@ -503,7 +503,7 @@ def test_renew_expired_ca(tmp_path: Path, additional_certs: list[str]) -> None:
 			ca_key = load_opsi_ca_key()
 
 			# Check server_cert
-			assert (datetime.datetime.now(tz=datetime.timezone.utc) - get_server_cert_info()["not_before"]).days >= 10
+			assert (datetime.datetime.now(tz=datetime.UTC) - get_server_cert_info()["not_before"]).days >= 10
 			server_crt = load_local_server_cert()
 			validate_cert(server_crt, ca_crt)
 
@@ -548,7 +548,7 @@ def test_renew_expired_ca(tmp_path: Path, additional_certs: list[str]) -> None:
 			# Recreation needed
 			time.sleep(2)
 			setup_opsi_ca()
-			assert (datetime.datetime.now(tz=datetime.timezone.utc) - get_opsi_ca_cert_info()["not_before"]).days == 0
+			assert (datetime.datetime.now(tz=datetime.UTC) - get_opsi_ca_cert_info()["not_before"]).days == 0
 			ca_crt = load_opsi_ca_cert()
 			assert mtime != ssl_ca_cert.lstat().st_mtime
 			# Key must stay the same
@@ -626,86 +626,86 @@ def test_letsencrypt_certificate_chain(tmp_path: Path) -> None:
 		letsencrypt_ca_subject = {"CN": "R10", "O": "Let's Encrypt", "C": "US"}
 		server_subject = {"CN": server_cn, "emailAddress": "opsi@acme.org"}
 
-		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch(
+		with (
+			mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
+			mock.patch(
 				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
+			),
+		):
+			configserver_setup_opsi_ca()
+
+			(root_ca_crt, root_ca_key) = create_ca(subject=root_ca_subject, valid_days=10000)
+			(letsencrypt_ca_crt, letsencrypt_ca_key) = create_ca(
+				subject=letsencrypt_ca_subject, ca_key=root_ca_key, ca_cert=root_ca_crt, valid_days=00
+			)
+			(srv_crt, srv_key) = create_server_cert(
+				subject=server_subject,
+				valid_days=1000,
+				ip_addresses=set(),
+				hostnames={server_cn},
+				ca_key=letsencrypt_ca_key,
+				ca_cert=letsencrypt_ca_crt,
+			)
+			store_local_server_key(srv_key)
+			store_local_server_cert(srv_crt)
+
+			ca_certs = get_ca_certs()
+			assert len(ca_certs) == 1
+			assert ca_certs[0].subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
+
+			with pytest.raises(
+				verification.VerificationError,
+				match=f"Failed to verify certificate, issuer certificate of certificate .*{server_cn}.* not found",
 			):
-				configserver_setup_opsi_ca()
-
-				(root_ca_crt, root_ca_key) = create_ca(subject=root_ca_subject, valid_days=10000)
-				(letsencrypt_ca_crt, letsencrypt_ca_key) = create_ca(
-					subject=letsencrypt_ca_subject, ca_key=root_ca_key, ca_cert=root_ca_crt, valid_days=00
-				)
-				(srv_crt, srv_key) = create_server_cert(
-					subject=server_subject,
-					valid_days=1000,
-					ip_addresses=set(),
-					hostnames={server_cn},
-					ca_key=letsencrypt_ca_key,
-					ca_cert=letsencrypt_ca_crt,
-				)
-				store_local_server_key(srv_key)
-				store_local_server_cert(srv_crt)
-
-				ca_certs = get_ca_certs()
-				assert len(ca_certs) == 1
-				assert ca_certs[0].subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
-
-				with pytest.raises(
-					verification.VerificationError,
-					match=f"Failed to verify certificate, issuer certificate of certificate .*{server_cn}.* not found",
-				):
-					validate_cert(srv_crt, ca_certs)
-
-				store_opsi_ca_cert(letsencrypt_ca_crt)
-				ca_certs = get_ca_certs()
-				assert len(ca_certs) == 2
-
-				with pytest.raises(
-					verification.VerificationError,
-					match="Failed to verify certificate, issuer certificate of certificate .*R10.* not found",
-				):
-					validate_cert(srv_crt, ca_certs)
-
-				store_opsi_ca_cert(root_ca_crt)
-				ca_certs = get_ca_certs()
-				assert len(ca_certs) == 3
-
 				validate_cert(srv_crt, ca_certs)
 
-				# Must not be changed
-				setup_opsi_ca()
-				assert get_ca_certs() == ca_certs
-				assert load_local_server_cert() == srv_crt
+			store_opsi_ca_cert(letsencrypt_ca_crt)
+			ca_certs = get_ca_certs()
+			assert len(ca_certs) == 2
 
-				ssl_ca_cert.unlink()
-				store_opsi_ca_cert(root_ca_crt)
-				store_opsi_ca_cert(letsencrypt_ca_crt)
+			with pytest.raises(
+				verification.VerificationError,
+				match="Failed to verify certificate, issuer certificate of certificate .*R10.* not found",
+			):
+				validate_cert(srv_crt, ca_certs)
 
-				# Must recreate OPSI CA and not change server cert
+			store_opsi_ca_cert(root_ca_crt)
+			ca_certs = get_ca_certs()
+			assert len(ca_certs) == 3
+
+			validate_cert(srv_crt, ca_certs)
+
+			# Must not be changed
+			setup_opsi_ca()
+			assert get_ca_certs() == ca_certs
+			assert load_local_server_cert() == srv_crt
+
+			ssl_ca_cert.unlink()
+			store_opsi_ca_cert(root_ca_crt)
+			store_opsi_ca_cert(letsencrypt_ca_crt)
+
+			# Must recreate OPSI CA and not change server cert
+			setup_ssl()
+			ca_certs = get_ca_certs()
+			assert len(ca_certs) == 3
+			for ca_cert in ca_certs:
+				assert ca_cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value in ("opsi CA", "R10", "ISRG Root X1")
+			assert load_local_server_cert() == srv_crt
+
+			opsi_ca_crt = load_opsi_ca_cert()
+			ssl_ca_cert.unlink()
+			store_opsi_ca_cert(opsi_ca_crt)
+			store_opsi_ca_cert(letsencrypt_ca_crt)
+
+			# Chain of trust is broken, root CA is missing, must fetch new letsencrypt certificate
+			with mock.patch("opsiconfd.ssl.perform_certificate_signing_request", lambda *args: [srv_crt, letsencrypt_ca_crt, root_ca_crt]):
 				setup_ssl()
-				ca_certs = get_ca_certs()
-				assert len(ca_certs) == 3
-				for ca_cert in ca_certs:
-					assert ca_cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value in ("opsi CA", "R10", "ISRG Root X1")
-				assert load_local_server_cert() == srv_crt
 
-				opsi_ca_crt = load_opsi_ca_cert()
-				ssl_ca_cert.unlink()
-				store_opsi_ca_cert(opsi_ca_crt)
-				store_opsi_ca_cert(letsencrypt_ca_crt)
-
-				# Chain of trust is broken, root CA is missing, must fetch new letsencrypt certificate
-				with mock.patch(
-					"opsiconfd.ssl.perform_certificate_signing_request", lambda *args: [srv_crt, letsencrypt_ca_crt, root_ca_crt]
-				):
-					setup_ssl()
-
-				ca_certs = get_ca_certs()
-				assert len(ca_certs) == 3
-				for ca_cert in ca_certs:
-					assert ca_cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value in ("opsi CA", "R10", "ISRG Root X1")
-				assert load_local_server_cert() == srv_crt
+			ca_certs = get_ca_certs()
+			assert len(ca_certs) == 3
+			for ca_cert in ca_certs:
+				assert ca_cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value in ("opsi CA", "R10", "ISRG Root X1")
+			assert load_local_server_cert() == srv_crt
 
 
 @pytest.mark.filterwarnings("ignore:Parsed a serial number which wasn't positive")
@@ -727,60 +727,62 @@ def test_intermediate_ca(tmp_path: Path) -> None:
 		ca_subject = {"CN": "ACME Root CA", "emailAddress": "ca@acme.org"}
 		opsi_ca_subject = {"CN": "opsi CA", "emailAddress": "ca@opsi.org"}
 
-		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch(
+		with (
+			mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
+			mock.patch(
 				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
+			),
+		):
+			(ca_crt, ca_key) = create_ca(subject=ca_subject, valid_days=10000)
+			(opsi_ca_crt, opsi_ca_key) = create_ca(
+				subject=opsi_ca_subject, valid_days=conf.ssl_ca_cert_valid_days, ca_key=ca_key, ca_cert=ca_crt
+			)
+
+			assert is_self_signed(ca_crt)
+			assert not is_self_signed(opsi_ca_crt)
+
+			store_opsi_ca_key(opsi_ca_key)
+			store_opsi_ca_cert(opsi_ca_crt)
+			ssl_ca_cert.write_text(as_pem(ca_crt) + as_pem(opsi_ca_crt), encoding="utf-8")
+
+			assert not opsi_ca_is_self_signed()
+
+			validate_cert(opsi_ca_crt, ca_crt)
+			with pytest.raises(verification.VerificationError, match=r".*Failed to verify certificate"):
+				validate_cert(ca_crt, get_trusted_certs())
+
+			# CA key and cert must not be changed
+			setup_opsi_ca()
+			assert opsi_ca_crt == load_opsi_ca_cert()
+			assert opsi_ca_key.private_bytes(
+				encoding=serialization.Encoding.PEM,
+				format=serialization.PrivateFormat.TraditionalOpenSSL,
+				encryption_algorithm=serialization.NoEncryption(),
+			) == load_opsi_ca_key().private_bytes(
+				encoding=serialization.Encoding.PEM,
+				format=serialization.PrivateFormat.TraditionalOpenSSL,
+				encryption_algorithm=serialization.NoEncryption(),
+			)
+
+			setup_server_cert()
+			srv_crt = load_local_server_cert()
+			assert isinstance(srv_crt, x509.Certificate)
+			assert srv_crt.issuer == opsi_ca_crt.subject
+
+			# Try to renew OPSI CA which must fail
+			(opsi_ca_crt, opsi_ca_key) = create_ca(
+				subject=opsi_ca_subject, valid_days=conf.ssl_ca_cert_renew_days - 10, ca_key=ca_key, ca_cert=ca_crt
+			)
+			store_opsi_ca_key(opsi_ca_key)
+			store_opsi_ca_cert(opsi_ca_crt)
+			with pytest.raises(
+				RuntimeError,
+				match=(
+					r"OPSI CA needs to be renewed and is an intermediate CA \(issuer='ACME Root CA'\)\. "
+					r"Please update the current CA certificate.*and key.*manually\."
+				),
 			):
-				(ca_crt, ca_key) = create_ca(subject=ca_subject, valid_days=10000)
-				(opsi_ca_crt, opsi_ca_key) = create_ca(
-					subject=opsi_ca_subject, valid_days=conf.ssl_ca_cert_valid_days, ca_key=ca_key, ca_cert=ca_crt
-				)
-
-				assert is_self_signed(ca_crt)
-				assert not is_self_signed(opsi_ca_crt)
-
-				store_opsi_ca_key(opsi_ca_key)
-				store_opsi_ca_cert(opsi_ca_crt)
-				ssl_ca_cert.write_text(as_pem(ca_crt) + as_pem(opsi_ca_crt), encoding="utf-8")
-
-				assert not opsi_ca_is_self_signed()
-
-				validate_cert(opsi_ca_crt, ca_crt)
-				with pytest.raises(verification.VerificationError, match=r".*Failed to verify certificate"):
-					validate_cert(ca_crt, get_trusted_certs())
-
-				# CA key and cert must not be changed
 				setup_opsi_ca()
-				assert opsi_ca_crt == load_opsi_ca_cert()
-				assert opsi_ca_key.private_bytes(
-					encoding=serialization.Encoding.PEM,
-					format=serialization.PrivateFormat.TraditionalOpenSSL,
-					encryption_algorithm=serialization.NoEncryption(),
-				) == load_opsi_ca_key().private_bytes(
-					encoding=serialization.Encoding.PEM,
-					format=serialization.PrivateFormat.TraditionalOpenSSL,
-					encryption_algorithm=serialization.NoEncryption(),
-				)
-
-				setup_server_cert()
-				srv_crt = load_local_server_cert()
-				assert isinstance(srv_crt, x509.Certificate)
-				assert srv_crt.issuer == opsi_ca_crt.subject
-
-				# Try to renew OPSI CA which must fail
-				(opsi_ca_crt, opsi_ca_key) = create_ca(
-					subject=opsi_ca_subject, valid_days=conf.ssl_ca_cert_renew_days - 10, ca_key=ca_key, ca_cert=ca_crt
-				)
-				store_opsi_ca_key(opsi_ca_key)
-				store_opsi_ca_cert(opsi_ca_crt)
-				with pytest.raises(
-					RuntimeError,
-					match=(
-						r"OPSI CA needs to be renewed and is an intermediate CA \(issuer='ACME Root CA'\)\. "
-						r"Please update the current CA certificate.*and key.*manually\."
-					),
-				):
-					setup_opsi_ca()
 
 
 def test_create_local_server_cert(tmp_path: Path) -> None:
@@ -789,42 +791,40 @@ def test_create_local_server_cert(tmp_path: Path) -> None:
 	ssl_server_cert = tmp_path / "opsi-server-cert.pem"
 	ssl_server_key = tmp_path / "opsi-server-key.pem"
 
-	with get_config(
-		{
-			"ssl_ca_cert": str(ssl_ca_cert),
-			"ssl_ca_key": str(ssl_ca_key),
-			"ssl_ca_key_passphrase": "secret",
-			"ssl_server_cert": str(ssl_server_cert),
-			"ssl_server_key": str(ssl_server_key),
-			"ssl_server_key_passphrase": "secret",
-		}
-	) as conf:
-		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch(
-				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
-			):
-				setup_opsi_ca()
-				setup_server_cert()
-				assert "-----BEGIN CERTIFICATE-----" in ssl_server_cert.read_text(encoding="utf-8")
-				assert "-----BEGIN ENCRYPTED PRIVATE KEY-----" in ssl_server_key.read_text(encoding="utf-8")
-				key = read_key_from_file(conf.ssl_server_key, "secret")
-				assert isinstance(key, rsa.RSAPrivateKey)
-				key = load_local_server_key()
-				assert isinstance(key, rsa.RSAPrivateKey)
-				with pytest.raises(RuntimeError, match=r".*Incorrect password, could not decrypt key.*"):
-					key = read_key_from_file(conf.ssl_server_key, "wrong")
+	with (
+		get_config(
+			{
+				"ssl_ca_cert": str(ssl_ca_cert),
+				"ssl_ca_key": str(ssl_ca_key),
+				"ssl_ca_key_passphrase": "secret",
+				"ssl_server_cert": str(ssl_server_cert),
+				"ssl_server_key": str(ssl_server_key),
+				"ssl_server_key_passphrase": "secret",
+			}
+		) as conf,
+		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
+		mock.patch("opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)),
+	):
+		setup_opsi_ca()
+		setup_server_cert()
+		assert "-----BEGIN CERTIFICATE-----" in ssl_server_cert.read_text(encoding="utf-8")
+		assert "-----BEGIN ENCRYPTED PRIVATE KEY-----" in ssl_server_key.read_text(encoding="utf-8")
+		key = read_key_from_file(conf.ssl_server_key, "secret")
+		assert isinstance(key, rsa.RSAPrivateKey)
+		key = load_local_server_key()
+		assert isinstance(key, rsa.RSAPrivateKey)
+		with pytest.raises(RuntimeError, match=r".*Incorrect password, could not decrypt key.*"):
+			key = read_key_from_file(conf.ssl_server_key, "wrong")
 
-				cert = load_cert(conf.ssl_server_cert)
-				assert isinstance(cert, x509.Certificate)
+		cert = load_cert(conf.ssl_server_cert)
+		assert isinstance(cert, x509.Certificate)
 
-				cert = load_local_server_cert()
-				assert isinstance(cert, x509.Certificate)
+		cert = load_local_server_cert()
+		assert isinstance(cert, x509.Certificate)
 
-				assert (
-					cert.not_valid_after_utc - datetime.datetime.now(tz=datetime.timezone.utc)
-				).days == conf.ssl_server_cert_valid_days - 1
-				assert cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == get_configserver_id()
-				assert cert.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
+		assert (cert.not_valid_after_utc - datetime.datetime.now(tz=datetime.UTC)).days == conf.ssl_server_cert_valid_days - 1
+		assert cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == get_configserver_id()
+		assert cert.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
 
 
 def test_keep_uib_opsi_ca_server_cert(tmp_path: Path) -> None:
@@ -833,35 +833,35 @@ def test_keep_uib_opsi_ca_server_cert(tmp_path: Path) -> None:
 	ssl_server_cert = tmp_path / "opsi-server-cert.pem"
 	ssl_server_key = tmp_path / "opsi-server-key.pem"
 
-	with get_config(
-		{
-			"ssl_ca_cert": str(ssl_ca_cert),
-			"ssl_ca_key": str(ssl_ca_key),
-			"ssl_ca_key_passphrase": "secret",
-			"ssl_ca_subject_cn": "uib opsi CA",
-			"ssl_server_cert": str(ssl_server_cert),
-			"ssl_server_key": str(ssl_server_key),
-			"ssl_server_key_passphrase": "secret",
-		}
-	) as conf:
-		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch(
-				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
-			):
-				setup_opsi_ca()
-				setup_server_cert()
-				cert = load_local_server_cert()
-				assert isinstance(cert, x509.Certificate)
+	with (
+		get_config(
+			{
+				"ssl_ca_cert": str(ssl_ca_cert),
+				"ssl_ca_key": str(ssl_ca_key),
+				"ssl_ca_key_passphrase": "secret",
+				"ssl_ca_subject_cn": "uib opsi CA",
+				"ssl_server_cert": str(ssl_server_cert),
+				"ssl_server_key": str(ssl_server_key),
+				"ssl_server_key_passphrase": "secret",
+			}
+		) as conf,
+		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
+		mock.patch("opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)),
+	):
+		setup_opsi_ca()
+		setup_server_cert()
+		cert = load_local_server_cert()
+		assert isinstance(cert, x509.Certificate)
 
-				assert cert.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "uib opsi CA"
+		assert cert.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "uib opsi CA"
 
-				conf.ssl_ca_subject_cn = "opsi CA"
-				ssl_ca_cert.unlink()
-				ssl_ca_key.unlink()
-				setup_opsi_ca()
-				setup_server_cert()
-				# Keep server cert issued by "uib OPSI CA"
-				assert cert.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "uib opsi CA"
+		conf.ssl_ca_subject_cn = "opsi CA"
+		ssl_ca_cert.unlink()
+		ssl_ca_key.unlink()
+		setup_opsi_ca()
+		setup_server_cert()
+		# Keep server cert issued by "uib OPSI CA"
+		assert cert.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "uib opsi CA"
 
 
 def test_recreate_server_key(tmp_path: Path) -> None:
@@ -870,71 +870,71 @@ def test_recreate_server_key(tmp_path: Path) -> None:
 	ssl_server_cert = tmp_path / "opsi-server-cert.pem"
 	ssl_server_key = tmp_path / "opsi-server-key.pem"
 
-	with get_config(
-		{
-			"ssl_ca_cert": str(ssl_ca_cert),
-			"ssl_ca_key": str(ssl_ca_key),
-			"ssl_ca_key_passphrase": "secret",
-			"ssl_server_cert": str(ssl_server_cert),
-			"ssl_server_key": str(ssl_server_key),
-			"ssl_server_key_passphrase": "secret",
-		}
+	with (
+		get_config(
+			{
+				"ssl_ca_cert": str(ssl_ca_cert),
+				"ssl_ca_key": str(ssl_ca_key),
+				"ssl_ca_key_passphrase": "secret",
+				"ssl_server_cert": str(ssl_server_cert),
+				"ssl_server_key": str(ssl_server_key),
+				"ssl_server_key_passphrase": "secret",
+			}
+		),
+		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
+		mock.patch("opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)),
 	):
-		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch(
-				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
-			):
-				setup_opsi_ca()
+		setup_opsi_ca()
 
-				(srv_crt, srv_key) = create_local_server_cert(renew=False)
-				store_local_server_key(srv_key)
-				store_local_server_cert(srv_crt)
+		(srv_crt, srv_key) = create_local_server_cert(renew=False)
+		store_local_server_key(srv_key)
+		store_local_server_cert(srv_crt)
 
-				key1 = load_local_server_key()
-				assert srv_key.private_bytes(
-					encoding=serialization.Encoding.PEM,
-					format=serialization.PrivateFormat.TraditionalOpenSSL,
-					encryption_algorithm=serialization.NoEncryption(),
-				) == key1.private_bytes(
-					encoding=serialization.Encoding.PEM,
-					format=serialization.PrivateFormat.TraditionalOpenSSL,
-					encryption_algorithm=serialization.NoEncryption(),
-				)
+		key1 = load_local_server_key()
+		assert srv_key.private_bytes(
+			encoding=serialization.Encoding.PEM,
+			format=serialization.PrivateFormat.TraditionalOpenSSL,
+			encryption_algorithm=serialization.NoEncryption(),
+		) == key1.private_bytes(
+			encoding=serialization.Encoding.PEM,
+			format=serialization.PrivateFormat.TraditionalOpenSSL,
+			encryption_algorithm=serialization.NoEncryption(),
+		)
 
-				# Keep key
-				(srv_crt, srv_key) = create_local_server_cert(renew=True)
-				assert srv_key.private_bytes(
-					encoding=serialization.Encoding.PEM,
-					format=serialization.PrivateFormat.TraditionalOpenSSL,
-					encryption_algorithm=serialization.NoEncryption(),
-				) == key1.private_bytes(
-					encoding=serialization.Encoding.PEM,
-					format=serialization.PrivateFormat.TraditionalOpenSSL,
-					encryption_algorithm=serialization.NoEncryption(),
-				)
+		# Keep key
+		(srv_crt, srv_key) = create_local_server_cert(renew=True)
+		assert srv_key.private_bytes(
+			encoding=serialization.Encoding.PEM,
+			format=serialization.PrivateFormat.TraditionalOpenSSL,
+			encryption_algorithm=serialization.NoEncryption(),
+		) == key1.private_bytes(
+			encoding=serialization.Encoding.PEM,
+			format=serialization.PrivateFormat.TraditionalOpenSSL,
+			encryption_algorithm=serialization.NoEncryption(),
+		)
 
-				(srv_crt, srv_key) = create_local_server_cert(renew=True)
-				assert srv_key.private_bytes(
-					encoding=serialization.Encoding.PEM,
-					format=serialization.PrivateFormat.TraditionalOpenSSL,
-					encryption_algorithm=serialization.NoEncryption(),
-				) == key1.private_bytes(
-					encoding=serialization.Encoding.PEM,
-					format=serialization.PrivateFormat.TraditionalOpenSSL,
-					encryption_algorithm=serialization.NoEncryption(),
-				)
+		(srv_crt, srv_key) = create_local_server_cert(renew=True)
+		assert srv_key.private_bytes(
+			encoding=serialization.Encoding.PEM,
+			format=serialization.PrivateFormat.TraditionalOpenSSL,
+			encryption_algorithm=serialization.NoEncryption(),
+		) == key1.private_bytes(
+			encoding=serialization.Encoding.PEM,
+			format=serialization.PrivateFormat.TraditionalOpenSSL,
+			encryption_algorithm=serialization.NoEncryption(),
+		)
 
-				# New key
-				(srv_crt, srv_key) = create_local_server_cert(renew=False)
-				assert srv_key.private_bytes(
-					encoding=serialization.Encoding.PEM,
-					format=serialization.PrivateFormat.TraditionalOpenSSL,
-					encryption_algorithm=serialization.NoEncryption(),
-				) != key1.private_bytes(
-					encoding=serialization.Encoding.PEM,
-					format=serialization.PrivateFormat.TraditionalOpenSSL,
-					encryption_algorithm=serialization.NoEncryption(),
-				)
+		# New key
+		(srv_crt, srv_key) = create_local_server_cert(renew=False)
+		assert srv_key.private_bytes(
+			encoding=serialization.Encoding.PEM,
+			format=serialization.PrivateFormat.TraditionalOpenSSL,
+			encryption_algorithm=serialization.NoEncryption(),
+		) != key1.private_bytes(
+			encoding=serialization.Encoding.PEM,
+			format=serialization.PrivateFormat.TraditionalOpenSSL,
+			encryption_algorithm=serialization.NoEncryption(),
+		)
 
 
 def test_change_hostname(tmp_path: Path) -> None:
@@ -943,84 +943,84 @@ def test_change_hostname(tmp_path: Path) -> None:
 	ssl_server_cert = tmp_path / "opsi-server-cert.pem"
 	ssl_server_key = tmp_path / "opsi-server-key.pem"
 
-	with get_config(
-		{
-			"ssl_ca_cert": str(ssl_ca_cert),
-			"ssl_ca_key": str(ssl_ca_key),
-			"ssl_ca_key_passphrase": "secret",
-			"ssl_server_cert": str(ssl_server_cert),
-			"ssl_server_key": str(ssl_server_key),
-			"ssl_server_key_passphrase": "secret",
-		}
+	with (
+		get_config(
+			{
+				"ssl_ca_cert": str(ssl_ca_cert),
+				"ssl_ca_key": str(ssl_ca_key),
+				"ssl_ca_key_passphrase": "secret",
+				"ssl_server_cert": str(ssl_server_cert),
+				"ssl_server_key": str(ssl_server_key),
+				"ssl_server_key_passphrase": "secret",
+			}
+		),
+		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
+		mock.patch("opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)),
 	):
-		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch(
-				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
+		setup_opsi_ca()
+		with mock.patch("opsiconfd.ssl.get_server_cn", lambda: "host.domain.tld"):
+			assert opsiconfd.ssl.get_server_cn() == "host.domain.tld"
+			setup_server_cert()
+
+			cert1 = load_local_server_cert()
+			key1 = load_local_server_key()
+
+			assert cert1.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "host.domain.tld"
+
+			alt_names = [extension for extension in cert1.extensions if extension.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME]
+			cert_hns = [str(v) for v in alt_names[0].value.get_values_for_type(x509.DNSName)]
+			assert "host.domain.tld" in cert_hns
+
+		with mock.patch("opsiconfd.ssl.get_server_cn", lambda: "new-host.domain.tld"):
+			setup_server_cert()
+
+			cert2 = load_local_server_cert()
+			key2 = load_local_server_key()
+
+			assert cert2.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "new-host.domain.tld"
+
+			alt_names = [extension for extension in cert2.extensions if extension.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME]
+			cert_hns = [str(v) for v in alt_names[0].value.get_values_for_type(x509.DNSName)]
+			assert "new-host.domain.tld" in cert_hns
+
+			assert key2.private_bytes(
+				encoding=serialization.Encoding.PEM,
+				format=serialization.PrivateFormat.TraditionalOpenSSL,
+				encryption_algorithm=serialization.NoEncryption(),
+			) != key1.private_bytes(
+				encoding=serialization.Encoding.PEM,
+				format=serialization.PrivateFormat.TraditionalOpenSSL,
+				encryption_algorithm=serialization.NoEncryption(),
+			)
+			with get_config(
+				{
+					"ssl_server_cert_sans": ["alias1.domain.tld", "alias2.domain.tld", "172.16.1.2", "2001:db8:a0b:12f0::1"],
+				}
 			):
-				setup_opsi_ca()
-				with mock.patch("opsiconfd.ssl.get_server_cn", lambda: "host.domain.tld"):
-					assert opsiconfd.ssl.get_server_cn() == "host.domain.tld"
-					setup_server_cert()
+				setup_server_cert()
 
-					cert1 = load_local_server_cert()
-					key1 = load_local_server_key()
+				cert3 = load_local_server_cert()
+				key3 = load_local_server_key()
 
-					assert cert1.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "host.domain.tld"
+				assert cert3.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "new-host.domain.tld"
 
-					alt_names = [extension for extension in cert1.extensions if extension.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME]
-					cert_hns = [str(v) for v in alt_names[0].value.get_values_for_type(x509.DNSName)]
-					assert "host.domain.tld" in cert_hns
+				alt_names = [extension for extension in cert3.extensions if extension.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME]
+				cert_hns = [str(v) for v in alt_names[0].value.get_values_for_type(x509.DNSName)]
+				cert_ips = [str(v) for v in alt_names[0].value.get_values_for_type(x509.IPAddress)]
+				assert "alias1.domain.tld" in cert_hns
+				assert "alias2.domain.tld" in cert_hns
+				assert "172.16.1.2" in cert_ips
+				assert "2001:db8:a0b:12f0::1" in cert_ips
 
-				with mock.patch("opsiconfd.ssl.get_server_cn", lambda: "new-host.domain.tld"):
-					setup_server_cert()
-
-					cert2 = load_local_server_cert()
-					key2 = load_local_server_key()
-
-					assert cert2.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "new-host.domain.tld"
-
-					alt_names = [extension for extension in cert2.extensions if extension.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME]
-					cert_hns = [str(v) for v in alt_names[0].value.get_values_for_type(x509.DNSName)]
-					assert "new-host.domain.tld" in cert_hns
-
-					assert key2.private_bytes(
-						encoding=serialization.Encoding.PEM,
-						format=serialization.PrivateFormat.TraditionalOpenSSL,
-						encryption_algorithm=serialization.NoEncryption(),
-					) != key1.private_bytes(
-						encoding=serialization.Encoding.PEM,
-						format=serialization.PrivateFormat.TraditionalOpenSSL,
-						encryption_algorithm=serialization.NoEncryption(),
-					)
-					with get_config(
-						{
-							"ssl_server_cert_sans": ["alias1.domain.tld", "alias2.domain.tld", "172.16.1.2", "2001:db8:a0b:12f0::1"],
-						}
-					):
-						setup_server_cert()
-
-						cert3 = load_local_server_cert()
-						key3 = load_local_server_key()
-
-						assert cert3.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "new-host.domain.tld"
-
-						alt_names = [extension for extension in cert3.extensions if extension.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME]
-						cert_hns = [str(v) for v in alt_names[0].value.get_values_for_type(x509.DNSName)]
-						cert_ips = [str(v) for v in alt_names[0].value.get_values_for_type(x509.IPAddress)]
-						assert "alias1.domain.tld" in cert_hns
-						assert "alias2.domain.tld" in cert_hns
-						assert "172.16.1.2" in cert_ips
-						assert "2001:db8:a0b:12f0::1" in cert_ips
-
-						assert key2.private_bytes(
-							encoding=serialization.Encoding.PEM,
-							format=serialization.PrivateFormat.TraditionalOpenSSL,
-							encryption_algorithm=serialization.NoEncryption(),
-						) != key3.private_bytes(
-							encoding=serialization.Encoding.PEM,
-							format=serialization.PrivateFormat.TraditionalOpenSSL,
-							encryption_algorithm=serialization.NoEncryption(),
-						)
+				assert key2.private_bytes(
+					encoding=serialization.Encoding.PEM,
+					format=serialization.PrivateFormat.TraditionalOpenSSL,
+					encryption_algorithm=serialization.NoEncryption(),
+				) != key3.private_bytes(
+					encoding=serialization.Encoding.PEM,
+					format=serialization.PrivateFormat.TraditionalOpenSSL,
+					encryption_algorithm=serialization.NoEncryption(),
+				)
 
 
 def test_change_ip(tmp_path: Path) -> None:
@@ -1029,52 +1029,52 @@ def test_change_ip(tmp_path: Path) -> None:
 	ssl_server_cert = tmp_path / "opsi-server-cert.pem"
 	ssl_server_key = tmp_path / "opsi-server-key.pem"
 
-	with get_config(
-		{
-			"ssl_ca_cert": str(ssl_ca_cert),
-			"ssl_ca_key": str(ssl_ca_key),
-			"ssl_ca_key_passphrase": "secret",
-			"ssl_server_cert": str(ssl_server_cert),
-			"ssl_server_key": str(ssl_server_key),
-			"ssl_server_key_passphrase": "secret",
-		}
+	with (
+		get_config(
+			{
+				"ssl_ca_cert": str(ssl_ca_cert),
+				"ssl_ca_key": str(ssl_ca_key),
+				"ssl_ca_key_passphrase": "secret",
+				"ssl_server_cert": str(ssl_server_cert),
+				"ssl_server_key": str(ssl_server_key),
+				"ssl_server_key_passphrase": "secret",
+			}
+		),
+		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
+		mock.patch("opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)),
 	):
-		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch(
-				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
-			):
-				setup_opsi_ca()
-				with mock.patch("opsiconfd.ssl.get_ips", lambda: {"127.0.0.1", "1.1.1.1"}):
-					assert opsiconfd.ssl.get_ips() == {"127.0.0.1", "1.1.1.1"}
-					setup_server_cert()
+		setup_opsi_ca()
+		with mock.patch("opsiconfd.ssl.get_ips", lambda: {"127.0.0.1", "1.1.1.1"}):
+			assert opsiconfd.ssl.get_ips() == {"127.0.0.1", "1.1.1.1"}
+			setup_server_cert()
 
-					cert1 = load_local_server_cert()
-					key1 = load_local_server_key()
+			cert1 = load_local_server_cert()
+			key1 = load_local_server_key()
 
-					alt_names = [extension for extension in cert1.extensions if extension.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME]
-					cert_ips = {str(v) for v in alt_names[0].value.get_values_for_type(x509.IPAddress)}
-					assert "1.1.1.1" in cert_ips
+			alt_names = [extension for extension in cert1.extensions if extension.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME]
+			cert_ips = {str(v) for v in alt_names[0].value.get_values_for_type(x509.IPAddress)}
+			assert "1.1.1.1" in cert_ips
 
-				with mock.patch("opsiconfd.ssl.get_ips", lambda: {"127.0.0.1", "2.2.2.2"}):
-					setup_server_cert()
+		with mock.patch("opsiconfd.ssl.get_ips", lambda: {"127.0.0.1", "2.2.2.2"}):
+			setup_server_cert()
 
-					cert2 = load_local_server_cert()
-					key2 = load_local_server_key()
+			cert2 = load_local_server_cert()
+			key2 = load_local_server_key()
 
-					alt_names = [extension for extension in cert2.extensions if extension.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME]
-					cert_ips = {str(v) for v in alt_names[0].value.get_values_for_type(x509.IPAddress)}
-					assert "2.2.2.2" in cert_ips
-					assert "1.1.1.1" not in cert_ips
+			alt_names = [extension for extension in cert2.extensions if extension.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME]
+			cert_ips = {str(v) for v in alt_names[0].value.get_values_for_type(x509.IPAddress)}
+			assert "2.2.2.2" in cert_ips
+			assert "1.1.1.1" not in cert_ips
 
-					assert key2.private_bytes(
-						encoding=serialization.Encoding.PEM,
-						format=serialization.PrivateFormat.TraditionalOpenSSL,
-						encryption_algorithm=serialization.NoEncryption(),
-					) != key1.private_bytes(
-						encoding=serialization.Encoding.PEM,
-						format=serialization.PrivateFormat.TraditionalOpenSSL,
-						encryption_algorithm=serialization.NoEncryption(),
-					)
+			assert key2.private_bytes(
+				encoding=serialization.Encoding.PEM,
+				format=serialization.PrivateFormat.TraditionalOpenSSL,
+				encryption_algorithm=serialization.NoEncryption(),
+			) != key1.private_bytes(
+				encoding=serialization.Encoding.PEM,
+				format=serialization.PrivateFormat.TraditionalOpenSSL,
+				encryption_algorithm=serialization.NoEncryption(),
+			)
 
 
 def test_ca_certs_cache(tmp_path: Path) -> None:

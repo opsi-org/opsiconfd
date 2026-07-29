@@ -112,7 +112,7 @@ def test_audit_software(backend: UnprotectedBackend) -> None:  # noqa: F811
 	assert len(auditSoftwareOnClients) == 2
 	for auditSoftwareOnClient in auditSoftwareOnClients:
 		assert auditSoftwareOnClient.name == "package0"
-		auditSoftwareOnClient.usageFrequency == 123
+		assert auditSoftwareOnClient.usageFrequency == 123
 
 	backend.auditSoftwareOnClient_deleteObjects(auditSoftwareOnClients[0])
 	assert len(backend.auditSoftwareOnClient_getObjects(name="package0")) == 1

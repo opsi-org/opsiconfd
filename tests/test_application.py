@@ -9,8 +9,8 @@ test application
 
 import asyncio
 import time
+from collections.abc import Generator
 from threading import Event, Thread
-from typing import Generator
 
 import pytest
 from fastapi import status
@@ -58,7 +58,7 @@ class AppStateReaderThread(Thread):
 
 
 @pytest.fixture
-def app_state_reader(config: Config) -> Generator[AppStateReaderThread, None, None]:  # noqa: F811
+def app_state_reader(config: Config) -> Generator[AppStateReaderThread]:  # noqa: F811
 	thread = AppStateReaderThread(f"{config.redis_key('state')}:application:app_state")
 	thread.start()
 	yield thread
@@ -139,9 +139,8 @@ def test_maintenance(
 			assert response.text == "pytest"
 
 			print("Test messagebus connect")
-			with pytest.raises(WebSocketDisconnect) as excinfo:
-				with test_client.websocket_connect("/messagebus/v1") as websocket:
-					pass
+			with pytest.raises(WebSocketDisconnect) as excinfo, test_client.websocket_connect("/messagebus/v1") as websocket:
+				pass
 			assert excinfo.value.code == status.WS_1013_TRY_AGAIN_LATER
 			assert excinfo.value.reason == "pytest\nRetry-After: 11"
 

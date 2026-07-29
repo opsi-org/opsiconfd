@@ -125,10 +125,9 @@ def test_set_config(
 
 
 def test_setup() -> None:
-	with patch("opsiconfd.setup.setup") as mock_setup:
-		with get_config({"action": "setup"}):
-			main()
-			mock_setup.assert_called_once_with(explicit=True)
+	with patch("opsiconfd.setup.setup") as mock_setup, get_config({"action": "setup"}):
+		main()
+		mock_setup.assert_called_once_with(explicit=True)
 
 
 def test_log_viewer() -> None:
@@ -146,20 +145,18 @@ def test_log_viewer() -> None:
 def test_reload() -> None:
 	mpid = get_manager_process()[0]
 	if mpid:
-		with patch("os.kill") as mock_kill:
-			with get_config({"action": "reload"}):
-				main()
-				mock_kill.assert_called_once_with(mpid, signal.SIGHUP)
+		with patch("os.kill") as mock_kill, get_config({"action": "reload"}):
+			main()
+			mock_kill.assert_called_once_with(mpid, signal.SIGHUP)
 
 
 def test_force_stop() -> None:
 	mpid: int | None = get_manager_process()[0]
 	if mpid:
-		with patch("os.kill") as mock_kill:
-			with get_config({"action": "force-stop"}):
-				main()
-				mock_kill.assert_called_with(mpid, signal.SIGINT)
-				assert mock_kill.call_count == 2
+		with patch("os.kill") as mock_kill, get_config({"action": "force-stop"}):
+			main()
+			mock_kill.assert_called_with(mpid, signal.SIGINT)
+			assert mock_kill.call_count == 2
 
 
 def test_diagnostic_data(capsys: CaptureFixture[str], tmp_path: Path) -> None:

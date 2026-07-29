@@ -8,7 +8,7 @@ check tests
 """
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest import mock
 
 import pytest
@@ -78,13 +78,13 @@ def test_health_check() -> None:
 def test_checks_and_skip_checks() -> None:
 	with get_config({"checks": ["redis", "mysql", "ssl"]}):
 		register_checks()
-		len(check_manager.check_ids) == 3
-		len(check_manager.possible_checks) == 20
+		assert len(check_manager.check_ids) == 3
+		assert len(check_manager.possible_checks) == 20
 
 	with get_config({"skip_checks": ["redis", "mysql", "ssl"]}):
 		register_checks()
-		len(check_manager.check_ids) == 20
-		len(check_manager.possible_checks) == 3
+		assert len(check_manager.check_ids) == 20
+		assert len(check_manager.possible_checks) == 3
 
 
 def test_check_opsi_config_checkmk(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
@@ -127,7 +127,7 @@ def test_check_opsi_config_nagios_and_zabbix(test_client: OpsiconfdTestClient) -
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
-	result = result = check_manager.get("opsi_config").run(clear_cache=True)
+	result = check_manager.get("opsi_config").run(clear_cache=True)
 	nagios = result.to_nagios()
 	assert nagios.startswith("OK")
 	assert result.check.name in nagios
@@ -138,7 +138,7 @@ def test_check_opsi_config_nagios_and_zabbix(test_client: OpsiconfdTestClient) -
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
-	result = result = check_manager.get("opsi_config").run(clear_cache=True)
+	result = check_manager.get("opsi_config").run(clear_cache=True)
 	nagios = result.to_nagios()
 	assert nagios.startswith("WARNING")
 	assert "OPSI Configuration: 1 issue(s) found." in nagios
@@ -148,7 +148,7 @@ def test_check_opsi_config_nagios_and_zabbix(test_client: OpsiconfdTestClient) -
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
-	result = result = check_manager.get("opsi_config").run(clear_cache=True)
+	result = check_manager.get("opsi_config").run(clear_cache=True)
 	nagios = result.to_nagios()
 	assert nagios.startswith("CRITICAL")
 	assert "OPSI Configuration: 1 issue(s) found." in nagios
@@ -210,7 +210,7 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert sorted(hosts) == sorted(enabled_hosts)
 
 	# set downtime for client 1 for tomorrow and check if it is disabled
-	tomorrow = datetime.now(timezone.utc) + timedelta(days=1)
+	tomorrow = datetime.now(UTC) + timedelta(days=1)
 	downtime = ConfigState(configId="opsi.check.downtime.end", objectId=client.id, values=[tomorrow.isoformat()])
 	rpc = {
 		"id": 1,
@@ -223,7 +223,7 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert len(hosts) > len(enabled_hosts)
 
 	# set downtime for client 1 from yesterday to tomorrow and check if it is disabled
-	yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+	yesterday = datetime.now(UTC) - timedelta(days=1)
 	downtime = ConfigState(configId="opsi.check.downtime.end", objectId=client.id, values=[tomorrow.isoformat()])
 	rpc = {
 		"id": 1,
@@ -236,7 +236,7 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert len(hosts) > len(enabled_hosts)
 
 	# set downtime for client 1 from tomorrow to 2 days from now and check if it is enabled
-	two_days = datetime.now(timezone.utc) + timedelta(days=2)
+	two_days = datetime.now(UTC) + timedelta(days=2)
 	downtime = ConfigState(configId="opsi.check.downtime.end", objectId=client.id, values=[two_days.isoformat()])
 	rpc = {
 		"id": 1,

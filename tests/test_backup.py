@@ -12,7 +12,7 @@ import base64
 import json
 import pprint
 from copy import deepcopy
-from datetime import datetime
+from datetime import UTC, datetime
 from os.path import abspath
 from pathlib import Path
 from threading import Event, Thread
@@ -129,13 +129,12 @@ def test_backup_main(cmdline_config: dict[str, str | bool], expexted_kwargs: dic
 		nonlocal kwargs
 		kwargs = kws
 
-	with patch("opsiconfd.main.backup.create_backup", mock_create_backup):
-		with get_config(conf):
-			with pytest.raises(SystemExit, match="0"):
-				backup_main()
+	with patch("opsiconfd.main.backup.create_backup", mock_create_backup), get_config(conf):
+		with pytest.raises(SystemExit, match="0"):
+			backup_main()
 
-			for key, val in expexted_kwargs.items():
-				assert kwargs[key] == val
+		for key, val in expexted_kwargs.items():
+			assert kwargs[key] == val
 
 
 def test_create_backup(
@@ -178,7 +177,7 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # noqa
 	try:
 		print("initalized_event =", initalized_event.wait(10))
 
-		print("Drop database", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+		print("Drop database", datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M:%S"))
 		database = "opsitestbackup"
 		mysql = MySQLConnection()
 		mysql.connect()
@@ -188,7 +187,7 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # noqa
 		mysql.database = database
 		mysql.connect()
 
-		print("Restore backup", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+		print("Restore backup", datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M:%S"))
 		try:
 			restore_backup(Path("tests/data/backup/opsiconfd-backup.msgpack.lz4"), server_id="local", config_files=False, redis_data=False)
 		except Exception:
@@ -199,36 +198,36 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # noqa
 			databases = [row[0] for row in session.execute("SHOW DATABASES").fetchall()]
 			assert database in databases
 
-		print("Create backup", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+		print("Create backup", datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M:%S"))
 
 		with get_config({"add_config_files": []}):
 			backup = create_backup(config_files=False, redis_data=False)
 
-		print("Drop database", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+		print("Drop database", datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M:%S"))
 		with mysql.session() as session:
 			session.execute(f"DROP DATABASE {database}")
 
-		print("Restore backup", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+		print("Restore backup", datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M:%S"))
 		restore_backup(deepcopy(backup))
 		with get_config({"add_config_files": []}):
 			backup2 = create_backup(config_files=False, redis_data=False)
 
-		print("Compare backups", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-		assert sorted(list(backup["objects"])) == sorted(list(backup["objects"]))
+		print("Compare backups", datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M:%S"))
+		assert sorted(backup["objects"]) == sorted(backup["objects"])
 		for object_type in backup["objects"]:
 			assert backup["objects"][object_type] == backup2["objects"][object_type]
 
-		print("Test truncate", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+		print("Test truncate", datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M:%S"))
 		# Test truncate
 		for host in backup2["objects"]["Host"]:
 			# Max 256
 			host["description"] = "x" * 1000
 
-		print("Restore backup", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+		print("Restore backup", datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M:%S"))
 		restore_backup(backup2)
 
 	finally:
-		print("End maintenance", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+		print("End maintenance", datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M:%S"))
 		app.set_app_state(NormalState())
 		app.stop_app_state_manager_task()
 		thread.join(5)
@@ -246,29 +245,29 @@ def test_restore_main_passes_keep_users(tmp_path: Path) -> None:
 		nonlocal kwargs
 		kwargs = {"backup_file": args[0], **kws}
 
-	with get_config(
-		{
-			"backup_file": str(backup_file),
-			"quiet": True,
-			"password": False,
-			"delete_locks": False,
-			"server_id": "local",
-			"config_files": False,
-			"redis_data": False,
-			"no_hw_audit": False,
-			"no_sw_audit": False,
-			"keep_users": True,
-			"ignore_errors": False,
-		}
+	with (
+		get_config(
+			{
+				"backup_file": str(backup_file),
+				"quiet": True,
+				"password": False,
+				"delete_locks": False,
+				"server_id": "local",
+				"config_files": False,
+				"redis_data": False,
+				"no_hw_audit": False,
+				"no_sw_audit": False,
+				"keep_users": True,
+				"ignore_errors": False,
+			}
+		),
+		patch.object(app, "app_state_manager_task", app_state_manager_task),
+		patch.object(app, "stop_app_state_manager_task"),
+		patch("opsiconfd.main.backup.setup_mysql"),
+		patch("opsiconfd.main.backup.restore_backup", mock_restore_backup),
+		pytest.raises(SystemExit, match="0"),
 	):
-		with (
-			patch.object(app, "app_state_manager_task", app_state_manager_task),
-			patch.object(app, "stop_app_state_manager_task"),
-			patch("opsiconfd.main.backup.setup_mysql"),
-			patch("opsiconfd.main.backup.restore_backup", mock_restore_backup),
-			pytest.raises(SystemExit, match="0"),
-		):
-			restore_main()
+		restore_main()
 
 	assert kwargs["backup_file"] == backup_file
 	assert kwargs["keep_users"] is True
@@ -296,11 +295,13 @@ def test_backup_extract(
 
 		# Test extraction
 		extract_dir = tmp_path / "extracted"
-		with get_config(
-			{"backup_file": str(backup_file), "extract_dir": str(extract_dir), "overwrite": True, "quiet": True, "password": False}
+		with (
+			get_config(
+				{"backup_file": str(backup_file), "extract_dir": str(extract_dir), "overwrite": True, "quiet": True, "password": False}
+			),
+			pytest.raises(SystemExit, match="0"),
 		):
-			with pytest.raises(SystemExit, match="0"):
-				backup_extract_main()
+			backup_extract_main()
 
 		# Verify extracted files
 		assert (extract_dir / "meta.json").exists()

@@ -7,8 +7,6 @@
 opsiconfd.messagebus tests
 """
 
-from typing import Type
-
 import pytest
 
 from opsiconfd.messagebus import check_channel_name
@@ -44,7 +42,7 @@ from opsiconfd.messagebus import check_channel_name
 		("EVENT:channel", None, ValueError),
 	),
 )
-def test_check_channel_name(channel: str, expected: str, exc: Type[Exception] | None) -> None:
+def test_check_channel_name(channel: str, expected: str, exc: type[Exception] | None) -> None:
 	if exc:
 		with pytest.raises(exc):
 			print(channel)

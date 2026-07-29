@@ -10,6 +10,7 @@ opsiconfd.messagebus.terminal tests
 import uuid
 from asyncio import sleep
 from time import sleep as blocking_sleep
+from typing import cast
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -24,7 +25,7 @@ from opsi.opsi.messagebus import (
 	TerminalOpenRequestMessage,
 )
 from opsi.opsi.service.model.object import AuditLogEventType
-from starlette.websockets import WebSocketState
+from starlette.websockets import WebSocket, WebSocketState
 
 from opsiconfd.config import get_configserver_id
 from opsiconfd.messagebus import get_user_id_for_user
@@ -142,7 +143,7 @@ async def test_messagebus_terminal_client_audit_event_types() -> None:
 
 	with patch("opsiconfd.messagebus.websocket.audit_terminal_event", new_callable=AsyncMock) as audit_terminal_event:
 		await websocket._send_message_to_websocket(
-			test_websocket,
+			cast(WebSocket, test_websocket),
 			TerminalOpenEventMessage(
 				sender=f"host:{client_id}",
 				channel=CONNECTION_USER_CHANNEL,
@@ -153,7 +154,7 @@ async def test_messagebus_terminal_client_audit_event_types() -> None:
 		)
 		await sleep(0)
 		await websocket._send_message_to_websocket(
-			test_websocket,
+			cast(WebSocket, test_websocket),
 			TerminalCloseEventMessage(
 				sender=f"host:{client_id}",
 				channel=CONNECTION_USER_CHANNEL,

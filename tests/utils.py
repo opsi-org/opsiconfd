@@ -17,10 +17,11 @@ import socket
 import sys
 import time
 import types
+from collections.abc import Callable, Generator
 from contextlib import closing, contextmanager
 from queue import Empty, Queue
 from threading import Event, Thread
-from typing import Any, Callable, Generator, Type
+from typing import Any, Self
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -70,7 +71,7 @@ class OpsiconfdTestClient(TestClient):
 		self._username: str | None = None
 		self._password: str | None = None
 
-	def __enter__(self) -> OpsiconfdTestClient:
+	def __enter__(self) -> Self:
 		super().__enter__()
 		return self
 
@@ -83,7 +84,7 @@ class OpsiconfdTestClient(TestClient):
 	@auth.setter
 	def auth(self, auth: AuthTypes) -> None:
 		if not isinstance(auth, tuple):
-			raise ValueError("Auth type not supported")
+			raise TypeError("Auth type not supported")
 
 		self._username = str(auth[0]) if auth[0] else None
 		self._password = str(auth[1]) if auth[1] else None
@@ -110,7 +111,7 @@ class OpsiconfdTestClient(TestClient):
 
 
 @pytest.fixture()
-def test_client() -> Generator[OpsiconfdTestClient, None, None]:
+def test_client() -> Generator[OpsiconfdTestClient]:
 	client = OpsiconfdTestClient()
 
 	def before_send(self: BaseMiddleware, scope: Scope, receive: Receive, send: Send) -> None:
@@ -135,7 +136,7 @@ def config() -> Config:
 
 
 @contextmanager
-def get_config(values: dict[str, Any] | list[str], with_env: bool = False) -> Generator[Config, None, None]:
+def get_config(values: dict[str, Any] | list[str], with_env: bool = False) -> Generator[Config]:
 	environ = os.environ.copy()
 	conf = _config._config.__dict__.copy()
 	args = _config._args.copy()
@@ -175,7 +176,7 @@ def opsi_config() -> OpsiConfig:
 
 
 @contextmanager
-def get_opsi_config(values: list[dict[str, Any]]) -> Generator[OpsiConfig, None, None]:
+def get_opsi_config(values: list[dict[str, Any]]) -> Generator[OpsiConfig]:
 	try:
 		for value in values:
 			_opsi_config.set(value["category"], value["config"], value=value["value"])
@@ -204,7 +205,7 @@ def sync_clean_health_check_cache() -> None:
 
 
 @pytest.fixture(autouse=False)
-def clean_health_check_cache() -> Generator[None, None, None]:
+def clean_health_check_cache() -> Generator[None]:
 	sync_clean_health_check_cache()
 	yield
 	sync_clean_health_check_cache()
@@ -262,13 +263,12 @@ def delete_mysql_data() -> None:
 		tables.extend([f"HARDWARE_CONFIG_{hw_class.upper()}", f"HARDWARE_DEVICE_{hw_class.upper()}"])
 
 	mysql = MySQLConnection()
-	with mysql.connection():
-		with mysql.session() as session:
-			for table in tables:
-				if table == "HOST":
-					session.execute("DELETE FROM `HOST` WHERE hostId != :configserver_id", {"configserver_id": get_configserver_id()})
-				else:
-					session.execute(f"DELETE FROM `{table}`")
+	with mysql.connection(), mysql.session() as session:
+		for table in tables:
+			if table == "HOST":
+				session.execute("DELETE FROM `HOST` WHERE hostId != :configserver_id", {"configserver_id": get_configserver_id()})
+			else:
+				session.execute(f"DELETE FROM `{table}`")
 
 
 @pytest.fixture(autouse=True)
@@ -296,9 +296,7 @@ def create_depot_jsonrpc(client: OpsiconfdTestClient, base_url: str, host_id: st
 
 
 @contextmanager
-def depot_jsonrpc(
-	client: OpsiconfdTestClient, base_url: str, host_id: str, host_key: str | None = None
-) -> Generator[dict[str, Any], None, None]:
+def depot_jsonrpc(client: OpsiconfdTestClient, base_url: str, host_id: str, host_key: str | None = None) -> Generator[dict[str, Any]]:
 	depot = create_depot_jsonrpc(client, base_url, host_id, host_key)
 	try:
 		yield depot
@@ -315,7 +313,7 @@ def create_client_via_jsonrpc(
 	host_key: str | None = None,
 	hardware_address: str | None = None,
 	ip_address: str | None = None,
-) -> Generator[dict[str, Any], None, None]:
+) -> Generator[dict[str, Any]]:
 	rpc = {"id": 1, "method": "host_createOpsiClient", "params": [host_id, host_key, "", "", hardware_address, ip_address]}
 	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	res.raise_for_status()
@@ -343,7 +341,7 @@ def delete_products_jsonrpc(client: OpsiconfdTestClient, base_url: str, products
 @contextmanager
 def products_jsonrpc(
 	client: OpsiconfdTestClient, base_url: str, products: list[dict[str, Any]], depots: list[str] | None = None
-) -> Generator[None, None, None]:
+) -> Generator[None]:
 	create_products_jsonrpc(client, base_url, products)
 	if depots:
 		product_on_depots = []
@@ -400,7 +398,7 @@ def poc_jsonrpc(
 	install_state: str | None = None,
 	action_request: str | None = None,
 	action_result: str | None = None,
-) -> Generator[None, None, None]:
+) -> Generator[None]:
 	create_poc_jsonrpc(http_client, base_url, opsi_client, product_id, install_state, action_request, action_result)
 	try:
 		yield
@@ -437,7 +435,7 @@ def get_dummy_products(count: int) -> list[dict[str, Any]]:
 
 
 @pytest.fixture
-def database_connection() -> Generator[MySQLConnection, None, None]:
+def database_connection() -> Generator[MySQLConnection]:
 	mysql = MySQLConnection()
 	with mysql.connection():
 		yield mysql
@@ -449,7 +447,7 @@ def backend() -> UnprotectedBackend:
 
 
 @contextmanager
-def opsiconfd_server(server_config: dict[str, Any] | None = None) -> Generator[Config, None, None]:
+def opsiconfd_server(server_config: dict[str, Any] | None = None) -> Generator[Config]:
 	with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
 		sock.bind(("", 0))
 		sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -505,12 +503,12 @@ class WebSocketMessageReader(Thread):
 		self.should_stop = False
 		self.running = Event()
 
-	def __enter__(self) -> WebSocketMessageReader:
+	def __enter__(self) -> Self:
 		self.start()
 		return self
 
 	def __exit__(
-		self, exc_type: Type[BaseException] | None, exc_value: BaseException | None, traceback: types.TracebackType | None
+		self, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: types.TracebackType | None
 	) -> None:
 		self.stop()
 
@@ -601,7 +599,7 @@ class WebSocketMessageReader(Thread):
 				return
 			await asyncio.sleep(0.1)
 
-	def get_messagbus_messages(self) -> Generator[Message, None, None]:
+	def get_messagbus_messages(self) -> Generator[Message]:
 		try:
 			while True:
 				msg = self.messages.get_nowait()
@@ -610,7 +608,7 @@ class WebSocketMessageReader(Thread):
 		except Empty:
 			pass
 
-	def get_messages(self) -> Generator[dict[str, Any], None, None]:
+	def get_messages(self) -> Generator[dict[str, Any]]:
 		try:
 			while True:
 				msg = self.messages.get_nowait()
@@ -619,7 +617,7 @@ class WebSocketMessageReader(Thread):
 		except Empty:
 			pass
 
-	def get_raw_messages(self) -> Generator[bytes, None, None]:
+	def get_raw_messages(self) -> Generator[bytes]:
 		try:
 			while True:
 				msg = self.messages.get_nowait()
@@ -700,7 +698,7 @@ def cleanup_checks() -> None:
 
 
 @pytest.fixture()
-def default_acl() -> Generator[dict[str, list[RPCACE]], None, None]:
+def default_acl() -> Generator[dict[str, list[RPCACE]]]:
 	protected_backend = ProtectedBackend()
 	try:
 		with get_config({"acl_file": "opsiconfd_data/etc/backendManager/acl.conf"}):

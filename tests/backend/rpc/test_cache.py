@@ -97,7 +97,7 @@ def test_renew_cache_on_delete_products(test_client: OpsiconfdTestClient) -> Non
 		for idx, product in enumerate(products):
 			if idx in (3, 23, 45, 77, 89):
 				delete_products.append(product)
-				threads.append(Thread(target=delete_products_jsonrpc, args=(test_client, "", [products[idx]])))
+				threads.append(Thread(target=delete_products_jsonrpc, args=(test_client, "", [product])))
 			else:
 				new_products.append(product)
 		products = new_products

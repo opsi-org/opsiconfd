@@ -136,7 +136,7 @@ class RPCExtWIMMixin(Protocol):
 				logger.debug("Found image file %s", filename)
 				break
 		else:
-			raise IOError(f"Unable to find install.wim / install.esd in {wim_search_path!r}")
+			raise OSError(f"Unable to find install.wim / install.esd in {wim_search_path!r}")
 
 		self.updateWIMConfigFromPath(wim_path, product_id)
 

@@ -45,7 +45,9 @@ class Client:
 
 class RPCReportingMixin(Protocol):
 	@rpc_method()
-	def reporting_getClients(self: BackendProtocol, depots: list[str] = []) -> list[Client]:
+	def reporting_getClients(self: BackendProtocol, depots: list[str] | None = None) -> list[Client]:
+		if depots is None:
+			depots = []
 		clients: dict[str, Client] = {}
 		client: OpsiClient
 		depot_to_client = self.configState_getClientToDepotserver(depotIds=depots)

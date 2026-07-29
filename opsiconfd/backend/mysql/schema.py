@@ -10,9 +10,10 @@ opsiconfd.backend.mysql.schema
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Callable, Literal
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy.exc import OperationalError
 
@@ -492,10 +493,8 @@ def create_audit_hardware_tables(session: Session, tables: dict[str, dict[str, d
 		hardware_config_table = hardware_config_table.strip()
 
 		# Remove trailing comma
-		if hardware_device_table.endswith(","):
-			hardware_device_table = hardware_device_table[:-1]
-		if hardware_config_table.endswith(","):
-			hardware_config_table = hardware_config_table[:-1]
+		hardware_device_table = hardware_device_table.removesuffix(",")
+		hardware_config_table = hardware_config_table.removesuffix(",")
 
 		# Finish sql query
 		if hardware_device_table_exists:
@@ -776,7 +775,7 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 			logger.notice("Starting update to schema version %r", mysql.schema_version)
 			session.execute(
 				"INSERT INTO `OPSI_SCHEMA` (`version`, `updateStarted`) VALUES (:version, :update_started)",
-				params={"version": mysql.schema_version, "update_started": datetime.now(tz=timezone.utc)},
+				params={"version": mysql.schema_version, "update_started": datetime.now(tz=UTC)},
 			)
 
 		if schema_version and schema_version >= mysql.schema_version:
@@ -1461,7 +1460,7 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 			logger.notice("Finished update to schema version %r", mysql.schema_version)
 			session.execute(
 				"UPDATE `OPSI_SCHEMA` SET `updateEnded` = :update_ended WHERE version = :version",
-				params={"version": mysql.schema_version, "update_ended": datetime.now(tz=timezone.utc)},
+				params={"version": mysql.schema_version, "update_ended": datetime.now(tz=UTC)},
 			)
 
 		# schema_version 19

@@ -63,11 +63,10 @@ def test_set_grafana_root_url(tmp_path: Path, filename: str) -> None:
 
 def test_grafana_admin_session(tmp_path: Path) -> None:
 	log_file = tmp_path / "request.log"
-	with http_test_server(log_file=log_file) as server:
-		with get_config({"grafana_internal_url": f"http://apikey@localhost:{server.port}/"}):
-			with grafana_admin_session() as (base_url, session):
-				res = session.get(f"{base_url}/")
-				assert res.status_code == 200
+	with http_test_server(log_file=log_file) as server, get_config({"grafana_internal_url": f"http://apikey@localhost:{server.port}/"}):
+		with grafana_admin_session() as (base_url, session):
+			res = session.get(f"{base_url}/")
+			assert res.status_code == 200
 	log = log_file.read_text(encoding="utf-8")
 	request = json.loads(log)
 	# print(request)
@@ -76,11 +75,10 @@ def test_grafana_admin_session(tmp_path: Path) -> None:
 
 async def test_async_grafana_admin_session(tmp_path: Path) -> None:
 	log_file = tmp_path / "request.log"
-	with http_test_server(log_file=log_file) as server:
-		with get_config({"grafana_internal_url": f"http://apikey@localhost:{server.port}/"}):
-			async with async_grafana_admin_session() as (base_url, session):
-				res = await session.get(f"{base_url}/")
-				assert res.status == 200
+	with http_test_server(log_file=log_file) as server, get_config({"grafana_internal_url": f"http://apikey@localhost:{server.port}/"}):
+		async with async_grafana_admin_session() as (base_url, session):
+			res = await session.get(f"{base_url}/")
+			assert res.status == 200
 	log = log_file.read_text(encoding="utf-8")
 	request = json.loads(log)
 	# print(request)

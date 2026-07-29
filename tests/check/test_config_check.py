@@ -12,7 +12,7 @@ from unittest import mock
 
 import opsiconfd.check.config  # noqa: F401
 from opsiconfd.check.common import CheckStatus, check_manager
-from opsiconfd.check.config import opsi_config_check, opsiconfd_config_check, run_as_user_check  # noqa: F401
+from opsiconfd.check.config import opsi_config_check, opsiconfd_config_check, run_as_user_check
 from opsiconfd.config import OPSICONFD_HOME, opsi_config
 from tests.test_addon_manager import cleanup  # noqa: F401
 from tests.utils import (  # noqa: F401

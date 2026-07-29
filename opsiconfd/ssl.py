@@ -12,7 +12,6 @@ from __future__ import annotations
 import datetime
 import os
 import shutil
-import socket
 import threading
 import time
 from contextlib import nullcontext
@@ -103,7 +102,7 @@ def get_hostnames() -> set[str]:
 			names.add(hostname)
 			for alias in aliases:
 				names.add(alias)
-		except socket.error as err:
+		except OSError as err:
 			logger.info("No hostname for %s: %s", addr, err)
 	for san in config.ssl_server_cert_sans:
 		try:
@@ -146,9 +145,9 @@ def get_not_before_and_not_after(
 	"""
 	return (
 		cert.not_valid_before_utc,
-		(cert.not_valid_before_utc - datetime.datetime.now(tz=datetime.timezone.utc)).days,
+		(cert.not_valid_before_utc - datetime.datetime.now(tz=datetime.UTC)).days,
 		cert.not_valid_after_utc,
-		(cert.not_valid_after_utc - datetime.datetime.now(tz=datetime.timezone.utc)).days,
+		(cert.not_valid_after_utc - datetime.datetime.now(tz=datetime.UTC)).days,
 	)
 
 
@@ -786,7 +785,7 @@ def fetch_server_cert(backend: ServiceClient | Backend, server_id: str | None = 
 	srv_crt = x509.load_pem_x509_certificate(pem_bytes)
 	srv_key = serialization.load_pem_private_key(pem_bytes, password=None)
 	if not isinstance(srv_key, rsa.RSAPrivateKey):
-		raise ValueError(f"Not a RSA private key, but {srv_key.__class__.__name__}")
+		raise TypeError(f"Not a RSA private key, but {srv_key.__class__.__name__}")
 	return (srv_crt, srv_key)
 
 
@@ -804,11 +803,10 @@ def setup_server_cert(force_new: bool = False) -> bool:
 			raise RuntimeError(
 				"Let's Encrypt module not licensed. Please check your OPSI licenses or set config ssl-server-cert-type to 'opsi-ca'."
 			)
-	elif config.ssl_server_cert_type == "custom-ca":
-		if not module_available("custom_ca"):
-			raise RuntimeError(
-				"Custom CA module not licensed. Please check your OPSI licenses or set config ssl-server-cert-type to 'opsi-ca'."
-			)
+	elif config.ssl_server_cert_type == "custom-ca" and not module_available("custom_ca"):
+		raise RuntimeError(
+			"Custom CA module not licensed. Please check your OPSI licenses or set config ssl-server-cert-type to 'opsi-ca'."
+		)
 
 	if config.ssl_server_key == config.ssl_server_cert:
 		raise ValueError("SSL server key and cert cannot be stored in the same file")
@@ -864,13 +862,16 @@ def setup_server_cert(force_new: bool = False) -> bool:
 		)
 		return False
 
-	if not create and srv_key and srv_crt:
-		if srv_key.public_key().public_bytes(
-			encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1
-		) != srv_crt.public_key().public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1):
-			crt_err = "Server cert does not match server key"
-			logger.warning("%s, new server cert needed", crt_err)
-			create = True
+	if (
+		not create
+		and srv_key
+		and srv_crt
+		and srv_key.public_key().public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1)
+		!= srv_crt.public_key().public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1)
+	):
+		crt_err = "Server cert does not match server key"
+		logger.warning("%s, new server cert needed", crt_err)
+		create = True
 
 	if not create and srv_crt:
 		try:
@@ -891,14 +892,14 @@ def setup_server_cert(force_new: bool = False) -> bool:
 			common_name = srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 			logger.info("Server cert '%s' will expire in %d days", common_name, not_after_days)
 			if not_after_days <= ssl_server_cert_renew_days:
-				crt_err = f"Server cert '{str(common_name)}' will expire in {not_after_days} days"
+				crt_err = f"Server cert '{common_name!s}' will expire in {not_after_days} days"
 				logger.notice("%s, new server cert needed", crt_err)
 				create = True
 
 	if not create and srv_crt:
 		common_name = srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 		if server_cn != common_name:
-			crt_err = f"Server CN has changed from '{str(common_name)}' to '{server_cn}'"
+			crt_err = f"Server CN has changed from '{common_name!s}' to '{server_cn}'"
 			logger.notice("%s, new server cert needed", crt_err)
 			create = True
 

@@ -184,7 +184,7 @@ class AclSelfForAllCheck(Check):
 		result = CheckResult(check=self, check_status=CheckStatus.OK, message="No issues found with ACL.")
 		fallback_acl = re.compile(".*")
 		for acl in read_acl_file(config.acl_file):
-			if not acl.method_re == fallback_acl:
+			if acl.method_re != fallback_acl:
 				continue
 			if acl.type == "self":
 				result.check_status = CheckStatus.ERROR

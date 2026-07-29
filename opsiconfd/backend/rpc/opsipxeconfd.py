@@ -9,12 +9,13 @@ opsiconfd.backend.rpc.extender
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import closing, contextmanager
 from pathlib import Path
 from socket import AF_UNIX, SOCK_STREAM, socket
 from threading import Lock, Thread
 from time import sleep
-from typing import TYPE_CHECKING, Generator, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from opsi.opsi.service.model.object import ConfigState, ProductOnClient
 from opsi.opsi.service.model.type import (
@@ -43,7 +44,7 @@ class OpsiPXEConfdConnection:
 		self._timeout = int(timeout)
 
 	@contextmanager
-	def _opsipxeconfd_socket_path(self) -> Generator[socket, None, None]:
+	def _opsipxeconfd_socket_path(self) -> Generator[socket]:
 		logger.notice("Creating unix socket %r", self._socket_path)
 		sock = socket(AF_UNIX, SOCK_STREAM)
 		sock.settimeout(self._timeout)

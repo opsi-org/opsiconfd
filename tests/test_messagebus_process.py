@@ -40,36 +40,35 @@ from .utils import (  # noqa: F401
 def test_messagebus_process(test_client: OpsiconfdTestClient, channel: str) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	user_id = get_user_id_for_user(ADMIN_USER)
-	with test_client:
-		with test_client.websocket_connect("/messagebus/v1") as websocket:
-			with WebSocketMessageReader(websocket, messagebus_messages=True) as reader:
-				reader.wait_for_message(count=1)
-				message = next(reader.get_messagbus_messages())
-				assert isinstance(message, ChannelSubscriptionEventMessage)
+	with test_client, test_client.websocket_connect("/messagebus/v1") as websocket:
+		with WebSocketMessageReader(websocket, messagebus_messages=True) as reader:
+			reader.wait_for_message(count=1)
+			message = next(reader.get_messagbus_messages())
+			assert isinstance(message, ChannelSubscriptionEventMessage)
 
-				process_start_request = ProcessStartRequestMessage(sender=user_id, channel=channel, command=("cat",))
-				websocket.send_bytes(process_start_request.to_msgpack())
-				reader.wait_for_message(count=1)
-				process_start_event = next(reader.get_messagbus_messages())
-				assert isinstance(process_start_event, ProcessStartEventMessage)
+			process_start_request = ProcessStartRequestMessage(sender=user_id, channel=channel, command=("cat",))
+			websocket.send_bytes(process_start_request.to_msgpack())
+			reader.wait_for_message(count=1)
+			process_start_event = next(reader.get_messagbus_messages())
+			assert isinstance(process_start_event, ProcessStartEventMessage)
 
-				back_channel = process_start_event.back_channel
-				assert back_channel == "service_worker:pytest:1:process"
+			back_channel = process_start_event.back_channel
+			assert back_channel == "service_worker:pytest:1:process"
 
-				process_data_write = ProcessDataWriteMessage(
-					sender=user_id, channel=back_channel, process_id=process_start_event.process_id, stdin=b"Hello opsi\n"
-				)
-				websocket.send_bytes(process_data_write.to_msgpack())
+			process_data_write = ProcessDataWriteMessage(
+				sender=user_id, channel=back_channel, process_id=process_start_event.process_id, stdin=b"Hello opsi\n"
+			)
+			websocket.send_bytes(process_data_write.to_msgpack())
 
-				reader.wait_for_message(count=1)
-				process_data_read = next(reader.get_messagbus_messages())
-				assert isinstance(process_data_read, ProcessDataReadMessage)
+			reader.wait_for_message(count=1)
+			process_data_read = next(reader.get_messagbus_messages())
+			assert isinstance(process_data_read, ProcessDataReadMessage)
 
-				process_stop_request = ProcessStopRequestMessage(
-					sender=user_id, channel=back_channel, process_id=process_start_event.process_id
-				)
-				websocket.send_bytes(process_stop_request.to_msgpack())
+			process_stop_request = ProcessStopRequestMessage(
+				sender=user_id, channel=back_channel, process_id=process_start_event.process_id
+			)
+			websocket.send_bytes(process_stop_request.to_msgpack())
 
-				reader.wait_for_message(count=1)
-				process_stop_event = next(reader.get_messagbus_messages())
-				assert isinstance(process_stop_event, ProcessStopEventMessage)
+			reader.wait_for_message(count=1)
+			process_stop_event = next(reader.get_messagbus_messages())
+			assert isinstance(process_stop_event, ProcessStopEventMessage)

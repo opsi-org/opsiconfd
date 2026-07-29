@@ -8,7 +8,7 @@ webdav tests
 """
 
 import uuid
-from typing import Generator
+from collections.abc import Generator
 from unittest.mock import patch
 
 import pytest
@@ -39,7 +39,7 @@ TEST_SLOT_ID = "17676023-8426-4094-8ac7-ef4c22ac9803"
 
 
 @pytest.fixture(autouse=True)
-def clean_configs_and_objects(backend: UnprotectedBackend) -> Generator[None, None, None]:  # noqa: F811
+def clean_configs_and_objects(backend: UnprotectedBackend) -> Generator[None]:  # noqa: F811
 	sync_clean_redis()
 
 	backend.configState_delete(configId=TRANSFER_SLOT_CONFIGS[TransferSlotType.OPSICLIENTD_PRODUCT_SYNC], objectId="*")

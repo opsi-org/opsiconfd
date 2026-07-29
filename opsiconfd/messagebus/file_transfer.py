@@ -9,8 +9,8 @@ opsiconfd.messagebus.filetransfer
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from opsi.opsi.messagebus import (
 	CONNECTION_USER_CHANNEL,
@@ -105,7 +105,7 @@ async def messagebus_filetransfer_start_request_worker() -> None:
 					back_channel=f"{messagebus_worker_id}:filetransfer",
 				)
 			else:
-				raise ValueError(f"Received invalid message type {message.type}")
+				raise TypeError(f"Received invalid message type {message.type}")
 		except Exception as err:
 			logger.error(err, exc_info=True)
 		# ACK Message

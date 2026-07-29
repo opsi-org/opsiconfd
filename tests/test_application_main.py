@@ -8,7 +8,7 @@ test application.main
 """
 
 import warnings
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from time import sleep
 from unittest.mock import patch
 
@@ -41,8 +41,8 @@ def test_server_date_header(test_client: OpsiconfdTestClient) -> None:  # noqa: 
 	res = test_client.get("/")
 	server_date = res.headers["date"]
 	assert server_date.endswith(" UTC")
-	server_dt = datetime.strptime(server_date, "%a, %d %b %Y %H:%M:%S %Z").replace(tzinfo=timezone.utc)
-	now = datetime.now(tz=timezone.utc)
+	server_dt = datetime.strptime(server_date, "%a, %d %b %Y %H:%M:%S %Z").replace(tzinfo=UTC)
+	now = datetime.now(tz=UTC)
 	assert abs((now - server_dt).total_seconds()) < 2
 
 	server_timestamp = int(res.headers["x-date-unix-timestamp"])
@@ -52,7 +52,7 @@ def test_server_date_header(test_client: OpsiconfdTestClient) -> None:  # noqa: 
 
 	res = test_client.get("/")
 	server_date = res.headers["date"]
-	server_dt = datetime.strptime(server_date, "%a, %d %b %Y %H:%M:%S %Z").replace(tzinfo=timezone.utc)
+	server_dt = datetime.strptime(server_date, "%a, %d %b %Y %H:%M:%S %Z").replace(tzinfo=UTC)
 	assert now < server_dt
 
 

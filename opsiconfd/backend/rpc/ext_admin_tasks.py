@@ -155,12 +155,12 @@ class RPCExtAdminTasksMixin(Protocol):
 			return set()
 
 		logger.debug("Clients possible to 'setup': %s", clients_to_setup)
-		clients_with_product_installed = set(
+		clients_with_product_installed = {
 			poc.clientId
 			for poc in self.productOnClient_getObjects(
 				["clientId"], productId=product_id, clientId=clients_to_setup, installationStatus="installed"
 			)
-		)
+		}
 		clients_to_setup.difference_update(clients_with_product_installed)
 
 		logger.debug("Clients to 'setup': %s", clients_to_setup)
@@ -334,9 +334,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		if not products:
 			raise BackendMissingDataError(f"No product with id {product_id!r}")
 
-		clients_with_failed_product = set(
-			poc.clientId for poc in self.productOnClient_getObjects(productId=product_id, actionResult="failed")
-		)
+		clients_with_failed_product = {poc.clientId for poc in self.productOnClient_getObjects(productId=product_id, actionResult="failed")}
 		if not clients_with_failed_product:
 			logger.notice('No clients have %s with installation status "failed".', product_id)
 			return set()

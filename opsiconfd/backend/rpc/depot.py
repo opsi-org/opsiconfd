@@ -16,12 +16,13 @@ import random
 import re
 import shutil
 import uuid
+from collections.abc import Generator
 from contextlib import closing, contextmanager
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from socket import AF_INET, IPPROTO_UDP, SO_BROADCAST, SOCK_DGRAM, SOL_SOCKET, socket
-from typing import TYPE_CHECKING, Any, Generator, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from opsi.exception import (
 	BackendBadValueError,
@@ -45,7 +46,7 @@ from opsiconfd import __version__, contextvar_client_session
 
 # deprecated can be used in extension config files
 from opsiconfd.backend.rpc import rpc_method
-from opsiconfd.config import BOOT_DIR, DEPOT_DIR, PACKAGE_SCRIPT_TIMEOUT, WORKBENCH_DIR, config, opsi_config, TMP_DIR
+from opsiconfd.config import BOOT_DIR, DEPOT_DIR, PACKAGE_SCRIPT_TIMEOUT, TMP_DIR, WORKBENCH_DIR, config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.redis import decode_redis_result, redis_client, redis_lock
 from opsiconfd.utils import get_disk_usage, get_file_md5sum
@@ -194,7 +195,7 @@ class RPCDepotserverMixin(Protocol):
 					with open(hash_file, encoding="utf-8") as file:
 						md5_sum = file.read()
 					logger.info("Using pre-calculated MD5sum from '%s'.", hash_file)
-				except OSError, IOError:
+				except OSError:
 					pass
 
 			if not md5_sum:
@@ -523,7 +524,7 @@ class DepotserverPackageManager:
 		@contextmanager
 		def get_opsi_package(
 			filename: str, temp_dir: Path | None, new_product_id: str | None = None
-		) -> Generator[tuple[OpsiPackage, Path], None, None]:
+		) -> Generator[tuple[OpsiPackage, Path]]:
 			opsi_package = OpsiPackage(Path(filename), temp_dir=temp_dir)
 			with TempDir(base_dir=temp_dir) as temp_unpack_dir:
 				if new_product_id:
@@ -532,7 +533,7 @@ class DepotserverPackageManager:
 				yield opsi_package, temp_unpack_dir
 
 		@contextmanager
-		def lock_product(product: Product, depot_id: str, force_installation: bool) -> Generator[ProductOnDepot, None, None]:
+		def lock_product(product: Product, depot_id: str, force_installation: bool) -> Generator[ProductOnDepot]:
 			product_id = product.getId()
 			logger.debug("Checking for locked product '%s' on depot '%s'", product_id, depot_id)
 			product_on_depots = self.backend.productOnDepot_getObjects(depotId=depot_id, productId=product_id)
@@ -561,9 +562,9 @@ class DepotserverPackageManager:
 
 			try:
 				yield product_on_depot
-			except Exception as err:
+			except Exception:
 				logger.warning("Installation error. Not unlocking product '%s' on depot '%s'.", product_id, depot_id)
-				raise err
+				raise
 
 			logger.notice(
 				"Unlocking product '%s' %s-%s on depot '%s'",
@@ -578,7 +579,7 @@ class DepotserverPackageManager:
 		@contextmanager
 		def run_package_scripts(
 			opsi_package: OpsiPackage, unpack_dir: Path, client_data_dir: Path, env: dict[str, Any] | None = None
-		) -> Generator[None, None, None]:
+		) -> Generator[None]:
 			logger.info("Running preinst script")
 			for line in run_package_script(opsi_package, unpack_dir / "OPSI" / "preinst", client_data_dir, env=env or {}):
 				logger.info("[preinst] %s", line)
@@ -595,11 +596,11 @@ class DepotserverPackageManager:
 				product_ident = f"{product_on_depot.productId};{product_on_depot.productVersion};{product_on_depot.packageVersion}"
 				product_idents.add(product_ident)
 
-			delete_products = set(
+			delete_products = {
 				product
 				for product in self.backend.product_getObjects(id=product_id)
 				if product.getIdent(returnType="unicode") not in product_idents
-			)
+			}
 
 			if delete_products:
 				self.backend.product_deleteObjects(delete_products)
@@ -614,9 +615,9 @@ class DepotserverPackageManager:
 				product_properties_to_cleanup[product_property.propertyId] = product_property
 
 			if product_properties_to_cleanup:
-				client_ids = set(
+				client_ids = {
 					client_to_depot["clientId"] for client_to_depot in self.backend.configState_getClientToDepotserver(depotIds=depot_id)
-				)
+				}
 
 				if client_ids:
 					delete_product_property_states = []
@@ -773,8 +774,7 @@ class DepotserverPackageManager:
 									product_dependency.productId = product_id
 
 								ident = product_dependency.getIdent(returnType="unicode")
-								if ident in current_product_dependencies:
-									del current_product_dependencies[ident]
+								current_product_dependencies.pop(ident, None)
 								product_dependencies.append(product_dependency)
 
 							self.backend.productDependency_createObjects(product_dependencies)
@@ -795,8 +795,7 @@ class DepotserverPackageManager:
 									product_property.productId = product_id
 
 								ident = product_property.getIdent(returnType="unicode")
-								if ident in current_product_properties:
-									del current_product_properties[ident]
+								current_product_properties.pop(ident, None)
 								product_properties.append(product_property)
 							self.backend.productProperty_createObjects(product_properties)
 
@@ -882,7 +881,7 @@ class DepotserverPackageManager:
 			except Exception as err:
 				logger.debug("Failed to install the package %s", filename)
 				logger.debug(err, exc_info=True)
-				raise err
+				raise
 		except Exception as err:
 			logger.error(err, exc_info=True)
 			raise BackendError(f"Failed to install package '{filename}' on depot '{self._depot_id}': {err}") from err

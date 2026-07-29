@@ -188,7 +188,7 @@ class OpsiLicensesCheck(Check):
 		self.add_partial_checks(OpsiLicensesMissingSSO())
 		self.add_partial_checks(OpsiLicensesMissingScalability())
 		self.add_partial_checks(OpsiLicensesMissingDirectoryConnector())
-		for module_id in licensing_info.get("modules", {}).keys():
+		for module_id in licensing_info.get("modules", {}):
 			if module_id in OPSI_MODULE_BUNDLES or module_id in OPSI_STAGING_MODULE_IDS or module_id in OPSI_OBSOLETE_MODULE_IDS:
 				continue
 			self.add_partial_checks(OpsiLicensesLimitCheck(module_id=module_id))

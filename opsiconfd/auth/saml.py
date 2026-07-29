@@ -9,7 +9,7 @@ opsiconfd.auth.saml
 
 import re
 import xml.dom.minidom
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from textwrap import dedent
 from typing import Any
@@ -215,7 +215,7 @@ def update_config_from_idp_metadata_xml(metadata_xml: str) -> None:
 def get_sp_metadata_xml(
 	login_callback_path: str = "/auth/saml/callback/login", logout_callback_path: str = "/auth/saml/callback/logout"
 ) -> str:
-	now = datetime.now(tz=timezone.utc)
+	now = datetime.now(tz=UTC)
 	valid_until = now + timedelta(days=2)
 
 	saml_settings = get_saml_settings(login_callback_path=login_callback_path, logout_callback_path=logout_callback_path)
@@ -255,8 +255,8 @@ def generate_client_certificate() -> None:
 		subject_name=subject,
 		public_key=key.public_key(),
 		serial_number=x509.random_serial_number(),
-		not_valid_before=datetime.now(tz=timezone.utc),
-		not_valid_after=datetime.now(tz=timezone.utc) + timedelta(days=3000),
+		not_valid_before=datetime.now(tz=UTC),
+		not_valid_after=datetime.now(tz=UTC) + timedelta(days=3000),
 	)
 	cert = builder.sign(key, hashes.SHA256())
 	key_pem = "".join(line.strip() for line in as_pem(key).split("\n") if not line.startswith("-----"))

@@ -20,10 +20,11 @@ import sys
 import threading
 import time
 from asyncio import CancelledError, Event, Task, get_running_loop
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from logging import Formatter, LogRecord, PlaceHolder, StreamHandler
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any, Callable, TextIO
+from typing import TYPE_CHECKING, Any, TextIO
 
 import colorlog
 import msgspec
@@ -77,7 +78,7 @@ logger = get_logger("opsiconfd.general")
 async def event_wait(event: Event, timeout: float) -> bool:
 	try:
 		await asyncio.wait_for(event.wait(), timeout)
-	except asyncio.TimeoutError:
+	except TimeoutError:
 		pass
 	return event.is_set()
 
@@ -114,7 +115,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 			if self.stream:
 				await self.stream.flush()
 				await self.stream.close()
-		except Exception:
+		except Exception:  # noqa: S110
 			pass
 		self.stream = None
 
@@ -169,11 +170,11 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 						config.run_as_user,
 						opsi_config.get("groups", "admingroup"),
 					)
-				except Exception:
+				except Exception:  # noqa: S110
 					pass
 				try:
 					await loop.run_in_executor(None, os.chmod, dst_file_path, 0o644)
-				except Exception:
+				except Exception:  # noqa: S110
 					pass
 		for filename in await loop.run_in_executor(None, glob.glob, f"{self.absolute_file_path}.*"):
 			if isinstance(filename, str):
@@ -227,9 +228,8 @@ class AsyncRedisLogAdapter:
 		self._reader_stopped = asyncio.Event()
 		self._set_log_format_stderr()
 
-		if self._log_level_file != NONE:
-			if self._log_file_template:
-				self.get_file_handler()
+		if self._log_level_file != NONE and self._log_file_template:
+			self.get_file_handler()
 
 		asyncio_create_task(self._start(), self._loop)
 
@@ -535,7 +535,7 @@ def enable_slow_callback_logging(slow_callback_duration: float | None = None) ->
 def configure_loggers() -> None:
 	add_context_filter_to_loggers()
 	loggers = {
-		getattr(logger_, "name"): logger_ for logger_ in list(pylogging.Logger.manager.loggerDict.values()) if hasattr(logger_, "name")
+		logger_.name: logger_ for logger_ in list(pylogging.Logger.manager.loggerDict.values()) if isinstance(logger_, pylogging.Logger)
 	}
 	logger_level_configs: dict[str, int] = {}
 	for entry in [str(entry).strip() for entry in config.log_levels.split(",") if entry.strip()]:
@@ -614,7 +614,7 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False, console: Cons
 				stop_redis_log_adapter_thread()
 
 		if redis_error:
-			logger.critical("Failed to initalize redis logging: %s", redis_error, exc_info=True)
+			logger.critical("Failed to initalize redis logging: %s", redis_error)
 
 	except Exception as exc:
 		handle_log_exception(exc, stderr=True, temp_file=True)

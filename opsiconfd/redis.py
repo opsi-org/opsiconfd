@@ -14,10 +14,11 @@ import base64
 import functools
 import threading
 import time
+from collections.abc import AsyncGenerator, Callable, Generator, Iterable
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Callable, Generator, Iterable, Literal
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import uuid4
 
 from opsi.time import unix_timestamp
@@ -210,7 +211,7 @@ class DumpedKey:
 		return DumpedKey(**data)  # ty: ignore[invalid-argument-type]
 
 
-def dump(redis_key: str, *, excludes: Iterable[str] | None = None) -> Generator[DumpedKey, None, None]:
+def dump(redis_key: str, *, excludes: Iterable[str] | None = None) -> Generator[DumpedKey]:
 	excludes = excludes or []
 	client = redis_client()
 	for key in client.scan_iter(f"{redis_key}:*", count=1000):
@@ -227,7 +228,7 @@ def dump(redis_key: str, *, excludes: Iterable[str] | None = None) -> Generator[
 
 		value = client.dump(key)
 		if not isinstance(value, bytes):
-			raise ValueError(f"Invalid value type '{type(value)}' of key '{key}' (value={value!r})")
+			raise TypeError(f"Invalid value type '{type(value)}' of key '{key}' (value={value!r})")
 
 		pttl = client.pttl(key)
 		expires = None
@@ -300,7 +301,7 @@ async def async_delete_recursively(redis_key: str, piped: bool = True) -> None:
 
 
 @contextmanager
-def redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_timeout: float | None = None) -> Generator[str, None, None]:
+def redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_timeout: float | None = None) -> Generator[str]:
 	logger = get_logger()
 	conf = config
 	identifier = str(uuid4())
@@ -315,7 +316,7 @@ def redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_timeout: floa
 		if client.set(redis_key, identifier, nx=True, px=pxt):
 			break
 		if time.time() >= end:
-			logger.warning("Failed to acquire %r lock with identifier %r in %0.2f seconds", lock_name, acquire_timeout)
+			logger.warning("Failed to acquire %r lock with identifier %r in %0.2f seconds", lock_name, identifier, acquire_timeout)
 			raise TimeoutError(f"Failed to acquire {lock_name} lock in {acquire_timeout:0.2f} seconds")
 		time.sleep(0.5)
 	logger.debug("Acquired %r lock with identifier %r", lock_name, identifier)
@@ -343,7 +344,7 @@ def redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_timeout: floa
 
 
 @asynccontextmanager
-async def async_redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_timeout: float | None = None) -> AsyncGenerator[str, None]:
+async def async_redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_timeout: float | None = None) -> AsyncGenerator[str]:
 	conf = config
 	identifier = str(uuid4())
 	identifier_b = identifier.encode("utf-8")

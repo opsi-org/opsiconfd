@@ -34,7 +34,7 @@ async def test_hostControl_processActionRequests(
 	messagebus_rpcs = []
 
 	async def mock_messagebus_rpc(
-		self: UnprotectedBackend, client_ids: list[str], method: str, params: list[Any] | None = None, timeout: float | int | None = None
+		self: UnprotectedBackend, client_ids: list[str], method: str, params: list[Any] | None = None, timeout: float | None = None
 	) -> dict[str, dict[str, Any]]:
 		nonlocal messagebus_rpcs
 		messagebus_rpcs.append((client_ids, method, params))

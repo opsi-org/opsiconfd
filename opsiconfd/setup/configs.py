@@ -85,11 +85,11 @@ def _cleanup_product_on_clients(backend: UnprotectedBackend) -> None:
 	for entry in backend.configState_getClientToDepotserver(masterOnly=True):
 		clients_on_depot[entry["depotId"]].append(entry["clientId"])
 
-	all_product_ids = set(p["id"] for p in backend.product_getIdents(returnType="dict"))
+	all_product_ids = {p["id"] for p in backend.product_getIdents(returnType="dict")}
 	for depot_id, client_ids in clients_on_depot.items():
 		if not client_ids:
 			continue
-		installed_product_ids = set(p["productId"] for p in backend.productOnDepot_getIdents(returnType="dict", depotId=depot_id))
+		installed_product_ids = {p["productId"] for p in backend.productOnDepot_getIdents(returnType="dict", depotId=depot_id)}
 		unavailable_product_ids = all_product_ids - installed_product_ids
 		if not unavailable_product_ids:
 			continue
@@ -505,11 +505,13 @@ def setup_configs() -> None:
 	if "netboot.grub.menu" not in config_ids:
 		logger.info("Creating config 'netboot.grub.additional_menu_entries'")
 		grub_menu = [
-			'if [ "$grub_platform" = "efi" ]; then\n'
-			"	menuentry 'UEFI Firmware Settings' --class firmware {\n"
-			"		fwsetup\n"
-			"	}\n"
-			"fi\n"
+			(
+				'if [ "$grub_platform" = "efi" ]; then\n'
+				"	menuentry 'UEFI Firmware Settings' --class firmware {\n"
+				"		fwsetup\n"
+				"	}\n"
+				"fi\n"
+			)
 		]
 		grub_menu = [dedent(m) for m in grub_menu]
 		add_configs.append(

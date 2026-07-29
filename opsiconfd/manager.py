@@ -14,7 +14,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event, Lock, Thread
 from types import FrameType
-from typing import Any, cast
+from typing import Any, Self, cast
 
 import psutil
 from opsi.opsi.messagebus import (
@@ -165,14 +165,14 @@ class WorkerManager:
 							mem = psutil.Process(worker.pid).memory_info().rss
 							if mem >= self.worker_restart_mem:
 								if not hasattr(worker, "max_mem_exceeded_since"):
-									setattr(worker, "max_mem_exceeded_since", now)
-								if now - getattr(worker, "max_mem_exceeded_since") >= self.worker_restart_mem_interval:
+									worker.max_mem_exceeded_since = now  # ty: ignore[invalid-assignment]
+								if now - worker.max_mem_exceeded_since >= self.worker_restart_mem_interval:  # ty: ignore[unresolved-attribute]
 									logger.notice(
 										"%s is using more than %0.2f MB of memory (currently %0.2f MB) since %d seconds",
 										worker,
 										self.worker_restart_mem / 1000000,
 										mem / 1000000,
-										now - getattr(worker, "max_mem_exceeded_since"),
+										now - worker.max_mem_exceeded_since,  # ty: ignore[unresolved-attribute]
 									)
 									auto_restart.append(worker)
 							elif hasattr(worker, "max_mem_exceeded_since"):
@@ -310,10 +310,10 @@ class DepotserverManagerMessagebusListener(MessagebusListener):
 class Manager:
 	_instance: Manager | None = None
 
-	def __new__(cls, *args: Any, **kwargs: Any) -> Manager:
+	def __new__(cls, *args: Any, **kwargs: Any) -> Self:
 		if cls._instance is None:
 			cls._instance = super().__new__(cls)
-		return cls._instance
+		return cast(Self, cls._instance)
 
 	def __init__(self, install_signal_handlers: bool = True) -> None:
 		if getattr(self, "_initialized", False):
@@ -486,10 +486,9 @@ class Manager:
 				if now - self._health_check_time > config.health_check_interval:
 					await run_in_threadpool(self.run_health_check)
 					self._health_check_time = now
-				if self._is_config_server:
-					if now - self._messagebus_cleanup_time > self._messagebus_cleanup_interval:
-						await messagebus_cleanup(full=False)
-						self._messagebus_cleanup_time = now
+				if self._is_config_server and now - self._messagebus_cleanup_time > self._messagebus_cleanup_interval:
+					await messagebus_cleanup(full=False)
+					self._messagebus_cleanup_time = now
 
 			except Exception as err:
 				logger.error(err, exc_info=True)

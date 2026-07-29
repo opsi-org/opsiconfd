@@ -9,8 +9,8 @@ test opsiconfd.backend.mysql
 
 import asyncio
 import json
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -55,7 +55,7 @@ from tests.utils import (  # noqa: F401
 
 
 @pytest.fixture()
-def acl_file(tmp_path: Path) -> Generator[Path, None, None]:
+def acl_file(tmp_path: Path) -> Generator[Path]:
 	_acl_file = tmp_path / "acl.conf"
 	data = (
 		f"host_getObjects    : sys_user({ADMIN_USER}); opsi_depotserver; self; opsi_client(attributes(!opsiHostKey,!hardwareAddress,!inventoryNumber))\n"
@@ -760,7 +760,7 @@ def _test_host_getObjects(service_client: OpsiconfdTestClient) -> None:
 
 
 def test_host_getObjects_acl_file(
-	acl_file: Path,  # noqa: F811
+	acl_file: Path,
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	_test_host_getObjects(test_client)
@@ -866,7 +866,7 @@ def test_host_deleteObjects(
 		log_files = []
 		for log_type in ("bootimage", "clientconnect", "instlog", "opsiconfd", "userlogin"):
 			for client_id in (client1["id"], client2["id"]):
-				for num in range(0, 3):
+				for num in range(3):
 					log_file = tmp_path / log_type / f"{client_id}.log{'.' + str(num) if num else ''}"
 					log_file.parent.mkdir(parents=True, exist_ok=True)
 					log_file.write_text("...", encoding="utf-8")

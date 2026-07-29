@@ -15,12 +15,13 @@ import time
 import traceback
 import urllib.parse
 import warnings
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from inspect import iscoroutinefunction
 from os import makedirs
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException
@@ -61,7 +62,7 @@ jsonrpc_message_reader = None
 
 
 def utcnow() -> datetime:
-	return datetime.now(tz=timezone.utc)
+	return datetime.now(tz=UTC)
 
 
 @dataclass(kw_only=True)
@@ -239,7 +240,7 @@ async def store_deprecated_call(method_name: str, client: str) -> None:
 		pipe.expire(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", expire_time)
 		pipe.set(
 			f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:last_call",
-			datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+			datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
 			ex=expire_time,
 		)
 		await pipe.execute()
@@ -424,7 +425,7 @@ async def process_rpc(
 
 async def process_rpcs(
 	backend: ProtectedBackend | UnprotectedBackend, *requests: JSONRPC20Request | JSONRPCRequest
-) -> AsyncGenerator[JSONRPC20Response | JSONRPC20ErrorResponse | JSONRPCResponse | JSONRPCErrorResponse, None]:
+) -> AsyncGenerator[JSONRPC20Response | JSONRPC20ErrorResponse | JSONRPCResponse | JSONRPCErrorResponse]:
 	worker = Worker.get_instance()
 	metrics_collector = worker.metrics_collector
 	if metrics_collector:
@@ -500,7 +501,7 @@ async def process_request(request: Request, response: Response) -> Response:
 
 		request_data = await request.body()
 		if not isinstance(request_data, bytes):
-			raise ValueError("Request data must be bytes")
+			raise TypeError("Request data must be bytes")
 		if request_data:
 			if request_compression:
 				with server_timing("decompression"):

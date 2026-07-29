@@ -12,13 +12,15 @@ from opsi.opsi.service.model.object import AuditLog, AuditLogAuthentication, Aud
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.cleanup import convert_config_objects, remove_old_audit_logs, remove_orphans_clientconfig_depot_id
 from opsiconfd.backend.rpc.main import UnprotectedBackend
-from tests.utils import backend  # noqa: F401
-from tests.utils import get_config
+from tests.utils import (
+	backend,  # noqa: F401
+	get_config,
+)
 
 
 def test_convert_config_objects(backend: UnprotectedBackend) -> None:  # noqa: F811
 	configs: list[BoolConfig | UnicodeConfig] = []
-	for i in range(0, 50):
+	for i in range(50):
 		configs.append(BoolConfig(id=f"test-convert-boolconfig-{i}"))
 
 	configs.append(BoolConfig(id=f"test-convert-boolconfig-{111}"))
@@ -43,15 +45,14 @@ def test_convert_config_objects(backend: UnprotectedBackend) -> None:  # noqa: F
 
 	# Set invalid type "Config"
 	mysql = MySQLConnection()
-	with mysql.connection():
-		with mysql.session() as session:
-			session.execute(
-				"""
+	with mysql.connection(), mysql.session() as session:
+		session.execute(
+			"""
 					UPDATE CONFIG as c
 					SET c.`type` = "Config"
 					WHERE c.configId LIKE "test-convert-%";
 				"""
-			)
+		)
 
 	for obj in backend.config_getObjects(configId="test-convert-boolconfig*"):
 		assert obj.getType() == "Config"
@@ -59,9 +60,8 @@ def test_convert_config_objects(backend: UnprotectedBackend) -> None:  # noqa: F
 	for obj in backend.config_getObjects(configId="test-convert-unicodeconfig*"):
 		assert obj.getType() == "Config"
 
-	with mysql.connection():
-		with mysql.session() as session:
-			convert_config_objects(session)
+	with mysql.connection(), mysql.session() as session:
+		convert_config_objects(session)
 
 	for obj in backend.config_getObjects(configId="test-convert-*"):
 		assert obj.getType() in ("BoolConfig", "UnicodeConfig")
@@ -122,9 +122,8 @@ def test_cleanup_old_audit_logs_uses_configured_retention(backend: UnprotectedBa
 
 	mysql = MySQLConnection()
 	mysql.connect()
-	with get_config({"audit_log_retention_days": 1}):
-		with mysql.session() as session:
-			remove_old_audit_logs(session)
+	with get_config({"audit_log_retention_days": 1}), mysql.session() as session:
+		remove_old_audit_logs(session)
 
 	audit_logs = backend.auditLog_getObjects(filter={"username": "*-audit-log-user"})
 	assert len(audit_logs) == 1

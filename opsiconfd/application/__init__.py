@@ -10,13 +10,15 @@ The opsi configuration service.
 from __future__ import annotations
 
 import asyncio
+import builtins
 import threading
 import time
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager, nullcontext
 from dataclasses import asdict, dataclass, field
 from ipaddress import ip_network
 from threading import Event
-from typing import Any, AsyncGenerator, Callable, Type, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 from fastapi import FastAPI
 from msgspec import msgpack
@@ -59,7 +61,7 @@ class AppState:
 	__str__ = __repr__
 
 	@classmethod
-	def from_dict(cls: Type[AppStateT], data: dict[str, Any]) -> AppStateT:
+	def from_dict(cls: builtins.type[AppStateT], data: dict[str, Any]) -> AppStateT:
 		_cls = cls
 		_type = data.pop("type", None)
 		if _cls is AppState:
@@ -112,11 +114,11 @@ class MaintenanceState(AppState):
 		self.address_exceptions = self.address_exceptions or []
 		for idx, address_exception in enumerate(self.address_exceptions):
 			self.address_exceptions[idx] = ip_network(address_exception).compressed
-		self.address_exceptions = sorted(list(set(self.address_exceptions)))
+		self.address_exceptions = sorted(set(self.address_exceptions))
 
 
 @asynccontextmanager
-async def lifespan(opsiconfd_app: OpsiconfdApp) -> AsyncGenerator[None, None]:
+async def lifespan(opsiconfd_app: OpsiconfdApp) -> AsyncGenerator[None]:
 	from opsiconfd.application.main import (
 		application_shutdown,
 		application_startup,
@@ -132,7 +134,7 @@ async def lifespan(opsiconfd_app: OpsiconfdApp) -> AsyncGenerator[None, None]:
 		configure_loggers()
 	except Exception as error:
 		logger.critical("Error during application startup: %s", error, exc_info=True)
-		raise error
+		raise
 	yield
 	logger.info("Processing shutdown event")
 	try:

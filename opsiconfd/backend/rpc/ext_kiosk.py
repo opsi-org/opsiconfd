@@ -61,9 +61,7 @@ class RPCExtKioskMixin(Protocol):
 
 		try:
 			software_on_demand_groups = self._get_software_on_demand_groups(clientId)
-			product_ids = set(
-				o.objectId for o in self.objectToGroup_getObjects(groupId=software_on_demand_groups, groupType="ProductGroup")
-			)
+			product_ids = {o.objectId for o in self.objectToGroup_getObjects(groupId=software_on_demand_groups, groupType="ProductGroup")}
 			depot_id = self.getDepotId(clientId)
 			product_on_depots = {p.productId: p for p in self.productOnDepot_getObjects(depotId=depot_id, productId=product_ids)}
 			product_dependencies = self.productDependency_getObjects(productId=product_ids)

@@ -18,8 +18,8 @@ import sys
 import time
 import traceback
 from asyncio import get_event_loop
-from datetime import datetime, timezone
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 import httpx
@@ -120,15 +120,15 @@ class TestManager:
 			return int(avg_workers_memory_usage), int(max_workers_memory_usage)
 
 	async def main(self) -> None:
-		start = datetime.now(timezone.utc)
+		start = datetime.now(UTC)
 		# Wait until some memory metrics are generated
 		await asyncio.sleep(10)
-		now = datetime.now(timezone.utc)
+		now = datetime.now(UTC)
 
 		start_memory = (await self.get_worker_memory_usage(start_time=start, end_time=now))[0]
 		print(f"start_memory: {(start_memory / 1_000_000):0.3f} MB")
 
-		async def test_data() -> AsyncGenerator[bytes, None]:
+		async def test_data() -> AsyncGenerator[bytes]:
 			bytes_sent = 0
 			while bytes_sent < self.args.file_size:
 				chunk_size = min(self.args.file_size - bytes_sent, 1_000_000)
@@ -141,14 +141,14 @@ class TestManager:
 		async with httpx.AsyncClient(verify=False, auth=(self.args.username, self.args.password)) as client:
 			res = await client.put(self.args.file_url, content=test_data(), timeout=60)
 			res.raise_for_status()
-		print("")
+		print()
 
 		try:
 			test_clients = [FileDownloadClient(self, name=f"download client{c + 1}") for c in range(self.args.clients)]
-			start = datetime.now(timezone.utc)
+			start = datetime.now(UTC)
 			await asyncio.gather(*[client.run() for client in test_clients])
-			now = datetime.now(timezone.utc)
-			print("")
+			now = datetime.now(UTC)
+			print()
 			max_memory_usage = (await self.get_worker_memory_usage(start_time=start, end_time=now))[1] - start_memory
 			exceptions = [client.exception for client in test_clients if client.exception]
 			if exceptions:

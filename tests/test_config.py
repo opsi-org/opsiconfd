@@ -11,7 +11,7 @@ import os
 from argparse import ArgumentTypeError
 from pathlib import Path
 from threading import Thread
-from typing import Any, Type
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -37,7 +37,7 @@ from .utils import (  # noqa: F401
 		("2001:0db8:1234:0000:0000:0000:0000:0000/48", "2001:db8:1234::/48", None),
 	],
 )
-def test_network_address(value: Any, expected_value: Any, exception: Type[Exception] | None) -> None:
+def test_network_address(value: Any, expected_value: Any, exception: type[Exception] | None) -> None:
 	if exception:
 		with pytest.raises(exception):
 			network_address(value)
@@ -55,7 +55,7 @@ def test_network_address(value: Any, expected_value: Any, exception: Type[Except
 		("127.0.0.1", "127.0.0.1", None),
 	],
 )
-def test_ip_address(value: Any, expected_value: Any, exception: Type[Exception] | None) -> None:
+def test_ip_address(value: Any, expected_value: Any, exception: type[Exception] | None) -> None:
 	if exception:
 		with pytest.raises(exception):
 			ip_address(value)
@@ -215,9 +215,8 @@ def test_environment_vars(varname: str, value: str, config_name: str, expected_v
 	],
 )
 def test_internal_url_environment_vars(env_vars: dict[str, str], config_name: str, expected_value: str) -> None:
-	with patch.dict(os.environ, env_vars, clear=True):
-		with get_config([], with_env=True) as conf:
-			assert getattr(conf, config_name) == expected_value
+	with patch.dict(os.environ, env_vars, clear=True), get_config([], with_env=True) as conf:
+		assert getattr(conf, config_name) == expected_value
 
 
 @pytest.mark.parametrize(
@@ -250,9 +249,8 @@ def test_internal_url_environment_vars(env_vars: dict[str, str], config_name: st
 def test_internal_url_environment_vars_do_not_override_opsiconfd_env_vars(
 	env_vars: dict[str, str], config_name: str, expected_value: str
 ) -> None:
-	with patch.dict(os.environ, env_vars, clear=True):
-		with get_config([], with_env=True) as conf:
-			assert getattr(conf, config_name) == expected_value
+	with patch.dict(os.environ, env_vars, clear=True), get_config([], with_env=True) as conf:
+		assert getattr(conf, config_name) == expected_value
 
 
 @pytest.mark.parametrize(
@@ -294,9 +292,8 @@ def test_help() -> None:
 		text = message
 
 	with patch("argparse.ArgumentParser._print_message", print_message), patch("sys.stdout.isatty", lambda: True):
-		with pytest.raises(SystemExit):
-			with get_config(["--help"]):
-				pass
+		with pytest.raises(SystemExit), get_config(["--help"]):
+			pass
 
 		# Assert that extended help options does not appear in normal help
 		assert "Set maximum log message length" not in text
@@ -308,9 +305,8 @@ def test_help() -> None:
 		assert "(default: ['127.0.0.1/32', '::1/128'])" in text
 
 		text = ""
-		with pytest.raises(SystemExit):
-			with get_config(["--ex-help"]):
-				pass
+		with pytest.raises(SystemExit), get_config(["--ex-help"]):
+			pass
 		# Assert that extended help options appear in extended help
 		assert "Set maximum log message length" in text
 

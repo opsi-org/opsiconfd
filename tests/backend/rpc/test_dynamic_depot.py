@@ -108,7 +108,7 @@ async def test_algorithms(
 	for _backend in backend, test_client:
 		code = get_code(_backend)
 		current_locals = locals()
-		exec(code, None, current_locals)
+		exec(code, None, current_locals)  # noqa: S102
 		selectDepot = current_locals["selectDepot"]
 		with use_logging_config(stderr_level=LOG_DEBUG):
 			selectedDepot = selectDepot(clientConfig=clientConfig, masterDepot=depot1, alternativeDepots=[depot2, depot3, depot4, depot5])
@@ -119,7 +119,7 @@ async def test_algorithms(
 	for _backend in backend, test_client:
 		code = get_code(_backend)
 		current_locals = locals()
-		exec(code, None, current_locals)
+		exec(code, None, current_locals)  # noqa: S102
 		selectDepot = current_locals["selectDepot"]
 		with use_logging_config(stderr_level=LOG_DEBUG):
 			selectedDepot = selectDepot(clientConfig=clientConfig, masterDepot=depot1, alternativeDepots=[depot2, depot3, depot4, depot5])
@@ -130,7 +130,7 @@ async def test_algorithms(
 	for _backend in backend, test_client:
 		code = get_code(_backend)
 		current_locals = locals()
-		exec(code, None, current_locals)
+		exec(code, None, current_locals)  # noqa: S102
 		selectDepot = current_locals["selectDepot"]
 		with use_logging_config(stderr_level=LOG_DEBUG):
 			selectedDepot = selectDepot(clientConfig=clientConfig, masterDepot=depot1, alternativeDepots=[depot2, depot3, depot4, depot5])
@@ -142,7 +142,7 @@ async def test_algorithms(
 		for client_id in None, client.id:
 			code = get_code(_backend, client_id)
 			current_locals = locals()
-			exec(code, None, current_locals)
+			exec(code, None, current_locals)  # noqa: S102
 			selectDepot = current_locals["selectDepot"]
 			with use_logging_config(stderr_level=LOG_DEBUG):
 				selectedDepot = selectDepot(

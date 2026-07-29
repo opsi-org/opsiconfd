@@ -15,7 +15,7 @@ import asyncio
 import gzip
 import re
 from asyncio import create_task, get_event_loop, sleep
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from statistics import mean, median
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -73,7 +73,7 @@ class TerminalClient:
 				sender="*",
 				channel=self.back_channel,
 				terminal_id=self.terminal_id,
-				data=f"###{num + 1}###\r".encode("utf-8"),
+				data=f"###{num + 1}###\r".encode(),
 			)
 			await self.send_message(msg)
 
@@ -99,7 +99,7 @@ class TerminalClient:
 				):
 					self.received_nums.add(int(match))
 				if len(self.received_nums) == self.test_manager.args.commands:
-					self.time_ended = datetime.now(tz=timezone.utc)
+					self.time_ended = datetime.now(tz=UTC)
 					self.should_exit = True
 
 	async def send_message(self, message: Message) -> None:
@@ -111,7 +111,7 @@ class TerminalClient:
 		await self.websocket.send_bytes(data)
 
 	async def run(self) -> None:
-		self.time_started = datetime.now(tz=timezone.utc)
+		self.time_started = datetime.now(tz=UTC)
 		self.websocker_writer_task = create_task(self.websocker_writer())
 		while not self.should_exit:
 			await sleep(0.5)
@@ -165,9 +165,9 @@ class TestManager:
 		test_clients = [TerminalClient(self, name=f"terminal client{c + 1}") for c in range(self.args.clients)]
 		await asyncio.gather(*[client.setup() for client in test_clients])
 
-		start = datetime.now(tz=timezone.utc)
+		start = datetime.now(tz=UTC)
 		await asyncio.gather(*[client.run() for client in test_clients])
-		end = datetime.now(tz=timezone.utc)
+		end = datetime.now(tz=UTC)
 
 		await asyncio.gather(*[client.teardown() for client in test_clients])
 

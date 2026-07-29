@@ -15,7 +15,7 @@ from asyncio import Task, create_task, sleep
 from dataclasses import dataclass
 from functools import lru_cache
 from time import time
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Literal
 
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException, status
@@ -270,7 +270,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 		if self.scope["session"].is_admin:
 			return True
 
-		logger.warning("Access to channel %s denied for %s", channel, self.scope["session"].username, exc_info=True)
+		logger.warning("Access to channel %s denied for %s", channel, self.scope["session"].username)
 		return False
 
 	async def _get_subscribed_channels(self) -> dict[str, MessageReader]:
@@ -410,7 +410,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 					status_code=status.HTTP_400_BAD_REQUEST,
 					detail=msg,
 				)
-			self._compression = cast(Literal["lz4", "gzip"], compression)
+			self._compression = compression
 
 		await self.scope["session"].update_messagebus_last_used()
 		await websocket.accept()
@@ -429,9 +429,9 @@ class MessagebusWebsocket(WebSocketEndpoint):
 				elif message["type"] == "websocket.disconnect":
 					close_code = int(message.get("code", WS_1000_NORMAL_CLOSURE))
 					break
-		except Exception as exc:
+		except Exception:
 			close_code = WS_1011_INTERNAL_ERROR
-			raise exc
+			raise
 		finally:
 			await self.on_disconnect(websocket, close_code)
 
@@ -444,7 +444,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 				data = await run_in_threadpool(decompress, data, self._compression)
 			msg_dict = self._message_decoder.decode(data)
 			if not isinstance(msg_dict, dict):
-				raise ValueError("Invalid message received")
+				raise TypeError("Invalid message received")
 
 			message_id = msg_dict["id"]
 			msg_dict["sender"] = self._messagebus_user_id
@@ -522,7 +522,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 
 		if session.host_id:
 			self._messagebus_user_id = get_user_id_for_host(session.host_id)
-			if not session.host_id == configserver_id:
+			if session.host_id != configserver_id:
 				user_type: Literal["client", "depot"] = "client" if session.host_type == "OpsiClient" else "depot"
 				connected = bool(await get_websocket_connected_users(user_ids=[session.host_id], user_type=user_type))
 				if not connected:

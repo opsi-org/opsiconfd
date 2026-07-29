@@ -74,8 +74,8 @@ class RPCExtOpsiMixin(Protocol):
 	@rpc_method(deprecated=True, check_acl=False)
 	def getServiceTime(self: BackendProtocol, utctime: bool = False) -> str:
 		if utctime:
-			return str(datetime.datetime.now(tz=datetime.timezone.utc))
-		return str(datetime.datetime.now())
+			return str(datetime.datetime.now(tz=datetime.UTC))
+		return str(datetime.datetime.now())  # noqa: DTZ005
 
 	@rpc_method(deprecated=True, alternative_method="auditSoftwareOnClient_getObjects", check_acl=False)
 	def getSoftwareAuditDataCount(self: BackendProtocol) -> int:
@@ -105,7 +105,7 @@ class RPCExtOpsiMixin(Protocol):
 			raise ValueError(f"Path {path!r} is not in a valid directory")
 
 		if not os.path.exists(path):
-			raise IOError(f"The path {path!r} does not exist")
+			raise OSError(f"The path {path!r} does not exist")
 
 		logger.debug("Going to set rights for path %r", path)
 		try:

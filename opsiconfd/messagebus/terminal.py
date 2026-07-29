@@ -71,15 +71,14 @@ async def messagebus_terminal_instance_worker_configserver() -> None:
 			):
 				await process_terminal_message(message, redis_send_message, sender=messagebus_worker_id)
 			elif isinstance(message, (FileChunkMessage, FileUploadRequestMessage)):
-				if isinstance(message, FileUploadRequestMessage):
-					if message.terminal_id and not message.destination_dir:
-						terminal = get_terminal(message.terminal_id)
-						if terminal:
-							destination_dir = terminal.get_cwd()
-							message.destination_dir = str(destination_dir)
+				if isinstance(message, FileUploadRequestMessage) and message.terminal_id and not message.destination_dir:
+					terminal = get_terminal(message.terminal_id)
+					if terminal:
+						destination_dir = terminal.get_cwd()
+						message.destination_dir = str(destination_dir)
 				await process_file_transfer_message(message, redis_send_message, sender=messagebus_worker_id)
 			else:
-				raise ValueError(f"Received invalid message type {message.type}")
+				raise TypeError(f"Received invalid message type {message.type}")
 		except Exception as err:
 			logger.error(err, exc_info=True)
 
@@ -134,12 +133,11 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 			except Empty:
 				continue
 			if isinstance(message, (FileChunkMessage, FileUploadRequestMessage)):
-				if isinstance(message, FileUploadRequestMessage):
-					if message.terminal_id and not message.destination_dir:
-						terminal = get_terminal(message.terminal_id)
-						if terminal:
-							destination_dir = terminal.get_cwd()
-							message.destination_dir = str(destination_dir)
+				if isinstance(message, FileUploadRequestMessage) and message.terminal_id and not message.destination_dir:
+					terminal = get_terminal(message.terminal_id)
+					if terminal:
+						destination_dir = terminal.get_cwd()
+						message.destination_dir = str(destination_dir)
 				await process_file_transfer_message(message, service_client.messagebus.async_send_message, sender=messagebus_worker_id)
 			else:
 				await process_terminal_message(message, service_client.messagebus.async_send_message, sender=messagebus_worker_id)
@@ -175,7 +173,7 @@ async def messagebus_terminal_open_request_worker_configserver() -> None:
 					back_channel=f"{messagebus_worker_id}:terminal",
 				)
 			else:
-				raise ValueError(f"Received invalid message type {message.type}")
+				raise TypeError(f"Received invalid message type {message.type}")
 		except Exception as err:
 			logger.error(err, exc_info=True)
 		# ACK Message

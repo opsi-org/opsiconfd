@@ -51,7 +51,7 @@ def check_product_status(
 		server_type = "OpsiConfigserver"
 
 	depots_objects = backend.host_getObjects(attributes=["id"], type=server_type)
-	depots = list(set(depot.id for depot in depots_objects))
+	depots = list({depot.id for depot in depots_objects})
 	del depots_objects
 	if not depot_ids or depot_ids[0] == "all":
 		depot_ids = depots
@@ -88,10 +88,10 @@ def check_product_status(
 	product_problems_on_client: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
 	action_request_on_client: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
 	missing_products = {}
-	action_requests_to_ignore = set([None, "none", "always"])
+	action_requests_to_ignore = {None, "none", "always"}
 
 	for depot_id in depot_ids:
-		if depot_id not in clients_on_depot.keys():
+		if depot_id not in clients_on_depot:
 			continue
 
 		poducts_on_client = backend.productOnClient_getObjects(productId=list(product_ids), clientId=clients_on_depot.get(depot_id, None))

@@ -23,7 +23,6 @@ from ipaddress import (
 )
 from pathlib import Path
 from socket import AF_INET, SHUT_RDWR, SOCK_STREAM, gethostbyname, socket
-from socket import error as socket_error
 from threading import Thread
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -138,7 +137,7 @@ class RPCHostControlMixin(Protocol):
 	_host_control_host_reachable_timeout: int = 3
 	_host_control_resolve_host_address: bool = False
 	_host_control_max_connections: int = 500
-	_host_control_broadcast_addresses: dict[IPv4Network | IPv6Network, dict[IPv4Address | IPv6Address, tuple[int, ...]]] = {}
+	_host_control_broadcast_addresses: dict[IPv4Network | IPv6Network, dict[IPv4Address | IPv6Address, tuple[int, ...]]] = {}  # noqa: RUF012
 	_host_control_use_messagebus: str | bool = "hybrid"
 
 	def __init__(self) -> None:
@@ -154,11 +153,8 @@ class RPCHostControlMixin(Protocol):
 				self._set_broadcast_addresses(val)
 				continue
 
-			if attr == "_host_control_resolve_host_address":
+			if attr == "_host_control_resolve_host_address" or attr == "_host_control_use_messagebus" and val != "hybrid":
 				val = to_bool(val)
-			elif attr == "_host_control_use_messagebus":
-				if val != "hybrid":
-					val = to_bool(val)
 
 			if hasattr(self, attr):
 				setattr(self, attr, val)
@@ -171,7 +167,7 @@ class RPCHostControlMixin(Protocol):
 			# Old format <list-broadcast-addresses>
 			value = {"0.0.0.0/0": {addr: [7, 9, 12287] for addr in value}}
 
-		elif not isinstance(list(value.values())[0], dict):
+		elif not isinstance(next(iter(value.values())), dict):
 			old_format = True
 			# Old format <broadcast-address>: <port-list>
 			value = {"0.0.0.0/0": value}
@@ -197,7 +193,7 @@ class RPCHostControlMixin(Protocol):
 		if self._host_control_resolve_host_address:
 			try:
 				address = gethostbyname(host.id)
-			except socket_error as err:
+			except OSError as err:
 				logger.trace("Failed to lookup ip address for %s: %s", host.id, err)
 		else:
 			address = host.ipAddress
@@ -210,7 +206,7 @@ class RPCHostControlMixin(Protocol):
 		client_ids: list[str],
 		method: str,
 		params: list[Any] | None = None,
-		timeout: float | int | None = None,
+		timeout: float | None = None,
 		messagebus_only: bool = False,
 	) -> dict[str, dict[str, Any]]:
 		if not timeout:
@@ -388,7 +384,7 @@ class RPCHostControlMixin(Protocol):
 			networks = [ipn for ipn in self._host_control_broadcast_addresses if ipa and ipa in ipn]
 			if len(networks) > 1:
 				# Take best matching network by prefix length
-				networks = [sorted(networks, key=lambda x: x.prefixlen, reverse=True)[0]]
+				networks = [max(networks, key=lambda x: x.prefixlen)]
 			elif not networks:
 				logger.debug("No matching ip network found for host address '%s', using all broadcasts", ipa.compressed)
 				networks = list(self._host_control_broadcast_addresses)

@@ -11,10 +11,10 @@ opsiconfd.letsencrypt
 from __future__ import annotations
 
 import re
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Generator
 from urllib.parse import urlparse
 
 import josepy as jose
@@ -133,7 +133,7 @@ def _select_http01_challenge_body(order_resource: messages.OrderResource) -> mes
 @contextmanager
 def _http_01_challenge_server(
 	http_01_resources: set[standalone.HTTP01RequestHandler.HTTP01Resource],
-) -> Generator[standalone.HTTP01DualNetworkedServers, None, None]:
+) -> Generator[standalone.HTTP01DualNetworkedServers]:
 	"""Manage webserver start and shutdown."""
 	logger.info("Starting HTTP-01 challenge server on port 80")
 	servers = standalone.HTTP01DualNetworkedServers(server_address=("", 80), resources=http_01_resources)
@@ -153,7 +153,7 @@ def _perform_http01(acme_client: client.ClientV2, challenge_body: messages.Chall
 		# Let the CA server know that we are ready for the challenge.
 		acme_client.answer_challenge(challenge_body, response)
 		# Wait for challenge status and then issue a certificate.
-		deadline = datetime.now() + timedelta(seconds=CHALLENGE_TIMEOUT_SECONDS)
+		deadline = datetime.now() + timedelta(seconds=CHALLENGE_TIMEOUT_SECONDS)  # noqa: DTZ005
 		finalized_orderr = acme_client.poll_and_finalize(order_resource, deadline=deadline)
 
 	return finalized_orderr.fullchain_pem

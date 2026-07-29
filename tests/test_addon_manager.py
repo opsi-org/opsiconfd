@@ -10,7 +10,7 @@ test addon.manager
 import os
 import pathlib
 import shutil
-from typing import Generator
+from collections.abc import Generator
 
 import pytest
 from _pytest.fixtures import FixtureFunction
@@ -27,7 +27,7 @@ from .utils import (  # noqa: F401
 
 
 @pytest.fixture()
-def cleanup() -> Generator[None, None, None]:
+def cleanup() -> Generator[None]:
 	def _cleanup() -> None:
 		AddonManager().unload_addons()
 		opsiconfd_test_addon = pathlib.Path("/var/lib/opsi/opsiconfd_test_addon")
@@ -66,7 +66,7 @@ def test_load_addon(config: Config, cleanup: FixtureFunction) -> None:  # noqa: 
 
 def test_unload_addon(config: Config, cleanup: FixtureFunction) -> None:  # noqa: F811
 	config.addon_dirs = [os.path.abspath("tests/data/addons")]
-	marker_file = marker_file = "/var/lib/opsi/opsiconfd_test_addon/test1_on_unload"
+	marker_file = "/var/lib/opsi/opsiconfd_test_addon/test1_on_unload"
 
 	addon_manager = AddonManager()
 	addon_manager.load_addons()
@@ -85,7 +85,7 @@ def test_unload_addon(config: Config, cleanup: FixtureFunction) -> None:  # noqa
 
 def test_reload_addon(
 	config: Config,  # noqa: F811
-	cleanup: FixtureFunction,  # noqa: F811
+	cleanup: FixtureFunction,
 	tmpdir: str,
 ) -> None:
 	addon_dir = os.path.join(tmpdir, "test1")
@@ -113,7 +113,7 @@ def test_reload_addon(
 	addon_manager.reload_addon("test1")
 	assert len(addon_manager.addons) == 1
 	assert addon_manager.addons[0].name == "NEW NAME"
-	response = addon_manager.addons[0].api_router.routes[0].endpoint()  # ty: ignore[unresolved-attribute]
+	response = addon_manager.addons[0].api_router.routes[0].endpoint()
 	assert response.body.decode() == '"TEST1 NEW"'
 
 	with pytest.raises(ValueError):
@@ -125,7 +125,7 @@ def test_reload_addon(
 
 def test_addon_static_dir(
 	test_client: OpsiconfdTestClient,  # noqa: F811
-	cleanup: FixtureFunction,  # noqa: F811
+	cleanup: FixtureFunction,
 ) -> None:
 	AddonManager().load_addons()
 	res = test_client.get("/addons/test1/static/index.html")
@@ -134,7 +134,7 @@ def test_addon_static_dir(
 
 def test_addon_public_path(
 	test_client: OpsiconfdTestClient,  # noqa: F811
-	cleanup: FixtureFunction,  # noqa: F811
+	cleanup: FixtureFunction,
 ) -> None:
 	AddonManager().load_addons()
 	res = test_client.get("/addons/test1")
@@ -146,7 +146,7 @@ def test_addon_public_path(
 
 def test_addon_auth(
 	test_client: OpsiconfdTestClient,  # noqa: F811
-	cleanup: FixtureFunction,  # noqa: F811
+	cleanup: FixtureFunction,
 ) -> None:
 	AddonManager().load_addons()
 	res = test_client.get("/addons/test1")
@@ -167,7 +167,7 @@ def test_addon_auth(
 
 def test_addon_exception_handling(
 	test_client: OpsiconfdTestClient,  # noqa: F811
-	cleanup: FixtureFunction,  # noqa: F811
+	cleanup: FixtureFunction,
 ) -> None:
 	AddonManager().load_addons()
 	res = test_client.get("/addons/test1")

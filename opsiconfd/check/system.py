@@ -213,13 +213,12 @@ def get_matching_version_info(version_info: dict[str, Any] | None, version: str 
 		return None
 
 	version_parts = version.split(".")
-	for version in version_info:
-		parts = version.split(".")
+	for vi in version_info:
+		parts = vi.split(".")
 		if parts[0] == version_parts[0]:
-			if len(version_parts) > 1 and len(parts) > 1:
-				if parts[1] != version_parts[1]:
-					continue
-			return version_info[version]
+			if len(version_parts) > 1 and len(parts) > 1 and parts[1] != version_parts[1]:
+				continue
+			return version_info[vi]
 	return None
 
 
@@ -264,7 +263,7 @@ class SystemEOLCheck(Check):
 			version = version.split(".")[0]
 		if version_info := LINUX_DISTRO_EOL.get(distro):
 			if eol := get_matching_version_info(version_info, version):
-				today = date.today()
+				today = date.today()  # noqa: DTZ011
 				diff = (today - eol).days
 				if diff < -90:
 					result.check_status = CheckStatus.OK

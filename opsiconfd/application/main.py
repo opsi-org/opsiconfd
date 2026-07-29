@@ -9,7 +9,8 @@ application main
 
 import asyncio
 import os
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import msgspec
 from fastapi import status
@@ -130,7 +131,7 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 		self._client: str | None = None
 		self._max_message_size = 1_000_000
 
-	async def read_data(self, data: list[list[Any]]) -> AsyncGenerator[bytes, None]:
+	async def read_data(self, data: list[list[Any]]) -> AsyncGenerator[bytes]:
 		for stream in data:
 			for dat in stream[1]:
 				self._last_id = dat[0]

@@ -11,10 +11,11 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterator
 from dataclasses import asdict, dataclass, field, fields
 from enum import StrEnum
 from textwrap import dedent
-from typing import Any, Iterator
+from typing import Any, Self, cast
 
 from msgspec.msgpack import decode, encode
 from MySQLdb import OperationalError as MySQLdbOperationalError
@@ -69,7 +70,7 @@ class Check:
 	partial_checks: list[Check] = field(default_factory=list)
 
 	def __init__(self, **kwargs: Any) -> None:
-		names = set([f.name for f in fields(self)])
+		names = {f.name for f in fields(self)}
 		for k, v in kwargs.items():
 			if k in names:
 				setattr(self, k, v)
@@ -176,13 +177,13 @@ class Check:
 
 class CheckManager:
 	_instance: CheckManager | None = None
-	_checks: dict[str, Check] = {}
-	_possible_checks: dict[str, Check] = {}
+	_checks: dict[str, Check] = {}  # noqa: RUF012
+	_possible_checks: dict[str, Check] = {}  # noqa: RUF012
 
-	def __new__(cls, *args: Any, **kwargs: Any) -> CheckManager:
+	def __new__(cls, *args: Any, **kwargs: Any) -> Self:
 		if not cls._instance:
 			cls._instance = super().__new__(cls, *args, **kwargs)
-		return cls._instance
+		return cast(Self, cls._instance)
 
 	def __init__(self) -> None:
 		if getattr(self, "_initialized", False):
@@ -258,9 +259,10 @@ class CheckResult:
 			self.check_status = CheckStatus.ERROR
 		if partial_result.check_status == CheckStatus.WARNING and self.check_status != CheckStatus.ERROR:
 			self.check_status = CheckStatus.WARNING
-		if partial_result.upgrade_issue:
-			if not self.upgrade_issue or compare_versions(partial_result.upgrade_issue, "<", self.upgrade_issue):
-				self.upgrade_issue = partial_result.upgrade_issue
+		if partial_result.upgrade_issue and (
+			not self.upgrade_issue or compare_versions(partial_result.upgrade_issue, "<", self.upgrade_issue)
+		):
+			self.upgrade_issue = partial_result.upgrade_issue
 
 	def monitoring_details(self, prefix: str, newline: str = "\\n", level: int = 0) -> str:
 		message = self.message.replace("\n", " ") if self.message else self.check_status.value.upper()
@@ -271,7 +273,7 @@ class CheckResult:
 
 		if self.details:
 			indent = "   " if level > 0 else ""
-			out += newline.join(f"{indent}{key}: {str(value)}" for key, value in self.details.items()) + newline
+			out += newline.join(f"{indent}{key}: {value!s}" for key, value in self.details.items()) + newline
 
 		if self.partial_results:
 			out += (
@@ -306,7 +308,7 @@ class CheckResult:
 
 def get_json_result(results: Iterator[CheckResult]) -> dict[str, CheckResult]:
 	summary = {CheckStatus.OK: 0, CheckStatus.WARNING: 0, CheckStatus.ERROR: 0}
-	json_result: dict["str" | CheckStatus, Any] = {}
+	json_result: dict[str | CheckStatus, Any] = {}
 	json_result["check_status"] = CheckStatus.OK
 	for result in results:
 		json_result[result.check.id] = result

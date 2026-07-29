@@ -7,9 +7,9 @@
 test application.filetransfer
 """
 
+from collections.abc import Generator
 from pathlib import Path
 from time import sleep, time
-from typing import Generator
 from unittest.mock import patch
 
 from msgspec import json
@@ -161,7 +161,7 @@ def test_raw_file_stream_upload(tmp_path: Path, test_client: OpsiconfdTestClient
 		blocksize = 1024
 		chunks = 10
 
-		def read_chunks() -> Generator[bytes, None, None]:
+		def read_chunks() -> Generator[bytes]:
 			for chunk in range(chunks):
 				yield chunk.to_bytes() * blocksize
 

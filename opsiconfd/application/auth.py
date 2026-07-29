@@ -11,7 +11,7 @@ import asyncio
 import json
 import time
 from base64 import b64decode
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, FastAPI, Request, Response, status
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
@@ -96,9 +96,8 @@ async def session_id(request: Request) -> RESTResponse:
 @rest_api(default_error_status_code=status.HTTP_401_UNAUTHORIZED)
 async def authenticated(request: Request) -> RESTResponse:
 	session: OPSISession | None = request.scope.get("session")
-	if session:
-		if session.authenticated:
-			return RESTResponse(True)
+	if session and session.authenticated:
+		return RESTResponse(True)
 	return RESTResponse(False, http_status=status.HTTP_401_UNAUTHORIZED)
 
 
@@ -226,7 +225,7 @@ async def saml_callback_login(request: Request) -> Response:
 		expiration_seconds = 3600
 		expiration_ts = auth.get_session_expiration()
 		if expiration_ts is not None:
-			expiration_time = datetime.fromtimestamp(expiration_ts, tz=timezone.utc)
+			expiration_time = datetime.fromtimestamp(expiration_ts, tz=UTC)
 			expiration_seconds = expiration_ts - unix_timestamp()
 			if expiration_seconds <= 0:
 				raise RuntimeError(f"SAML SSO response session expired at {expiration_time}")
@@ -264,7 +263,7 @@ async def saml_callback_login(request: Request) -> Response:
 				continue
 			mappings[tmp[0].strip().lower()] = tmp[1].strip().lower()
 		saml_logger.debug("SAML role group mappings %s", mappings)
-		groups = set(mappings.get(role, role) for role in roles)
+		groups = {mappings.get(role, role) for role in roles}
 		saml_logger.info("SAML roles mapped to groups %s", groups)
 
 		is_admin = (opsi_config.get("groups", "admingroup") or "").lower() in groups

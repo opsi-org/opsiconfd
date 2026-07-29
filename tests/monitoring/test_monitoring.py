@@ -9,8 +9,9 @@ Tests for the opsiconfd monitoring module
 
 import json
 import time
-from datetime import datetime, timedelta, timezone
-from typing import Any, Generator
+from collections.abc import Generator
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -128,12 +129,12 @@ test_data: tuple[tuple[Any, Any, Any, Any], ...] = (
 
 
 @pytest.fixture(autouse=True)
-def create_check_data(test_client: OpsiconfdTestClient, config: Config) -> Generator[None, None, None]:  # noqa: F811  # noqa: F811
+def create_check_data(test_client: OpsiconfdTestClient, config: Config) -> Generator[None]:  # noqa: F811  # noqa: F811
 	delete_mysql_data()
 
 	mysql = MySQLConnection()
 
-	now = datetime.now(tz=timezone.utc)
+	now = datetime.now(tz=UTC)
 	with mysql.connection():
 		with mysql.session() as session:
 			res = session.execute("SELECT * FROM HOST WHERE type != 'OpsiClient'").fetchall()
@@ -289,15 +290,12 @@ def test_check_locked_products(backend: UnprotectedBackend) -> None:  # noqa: F8
 		"state": 0,
 	}
 	mysql = MySQLConnection()
-	with mysql.connection():
-		with mysql.session() as session:
-			session.execute(
-				(
-					"REPLACE INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType, locked) VALUES "
-					'("pytest-prod-3", "1.0", "1", "pytest-test-depot.opsi.test", "LocalbootProduct", true),'
-					'("pytest-prod-2", "1.0", "1", "pytest-test-depot.opsi.test", "LocalbootProduct", true);'
-				)
-			)
+	with mysql.connection(), mysql.session() as session:
+		session.execute(
+			"REPLACE INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType, locked) VALUES "
+			'("pytest-prod-3", "1.0", "1", "pytest-test-depot.opsi.test", "LocalbootProduct", true),'
+			'("pytest-prod-2", "1.0", "1", "pytest-test-depot.opsi.test", "LocalbootProduct", true);'
+		)
 
 	time.sleep(2)
 

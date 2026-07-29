@@ -16,7 +16,7 @@ import time
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 from uuid import UUID
 
 from opsi.exception import (
@@ -36,7 +36,6 @@ from opsi.opsi.licensing import (
 	get_default_opsi_license_pool,
 )
 from opsi.opsi.service.model.type import to_bool, to_object_id
-from typing_extensions import Literal
 
 from opsiconfd import __version__, contextvar_client_address, contextvar_client_session
 from opsiconfd.application import AppState
@@ -204,7 +203,7 @@ class RPCGeneralMixin(Protocol):
 		file_compression = "lz4"
 		backup_file = None
 		if return_type in ("file_id", "backup_dir"):
-			now = datetime.now().strftime("%Y%m%d-%H%M%S")
+			now = datetime.now().strftime("%Y%m%d-%H%M%S")  # noqa: DTZ005
 			filename = f"opsiconfd-backup-{now}.{file_encoding}.{file_compression}{'.aes' if password else ''}"
 			if return_type == "file_id":
 				file_meta = prepare_file(filename=filename, content_type="binary/octet-stream")
@@ -358,7 +357,7 @@ class RPCGeneralMixin(Protocol):
 				result.update({k: int(v or 0) for k, v in dict(res).items()})
 		return result
 
-	@lru_cache(maxsize=10)
+	@lru_cache(maxsize=10)  # noqa: B019 - Backend is a long-lived singleton, no memory leak.
 	def _get_licensing_info(
 		self: BackendProtocol,
 		pool: OpsiLicensePool,

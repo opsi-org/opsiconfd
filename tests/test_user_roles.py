@@ -7,8 +7,8 @@
 test user roles
 """
 
-from datetime import datetime, timezone
-from typing import Generator
+from collections.abc import Generator
+from datetime import UTC, datetime
 
 import pytest
 from opsi.opsi.service.model.object import BoolConfig, HostGroup, OpsiDepotserver, ProductGroup, UnicodeConfig
@@ -23,13 +23,12 @@ from .utils import backend  # noqa: F401
 
 
 @pytest.fixture(autouse=True)
-def clean_configs_and_objects(backend: UnprotectedBackend) -> Generator[None, None, None]:  # noqa: F811
+def clean_configs_and_objects(backend: UnprotectedBackend) -> Generator[None]:  # noqa: F811
 	mysql = MySQLConnection()
-	with mysql.connection():
-		with mysql.session() as session:
-			delete_config_values(session)
-			delete_hosts(session)
-			delete_groups(session)
+	with mysql.connection(), mysql.session() as session:
+		delete_config_values(session)
+		delete_hosts(session)
+		delete_groups(session)
 
 	backend.config_delete(id="user.*")
 	backend.config_createBool(id="user.{}.register", defaultValues=True)
@@ -56,11 +55,10 @@ def clean_configs_and_objects(backend: UnprotectedBackend) -> Generator[None, No
 	)
 	yield
 	backend.config_delete(id="user.*")
-	with mysql.connection():
-		with mysql.session() as session:
-			delete_config_values(session)
-			delete_hosts(session)
-			delete_groups(session)
+	with mysql.connection(), mysql.session() as session:
+		delete_config_values(session)
+		delete_hosts(session)
+		delete_groups(session)
 
 
 def delete_config_values(session: Session) -> None:
@@ -257,7 +255,7 @@ def test_read_configs_for_user(backend: UnprotectedBackend) -> None:  # noqa: F8
 
 	result = backend.config_createObjects(test_configs)
 	print(result)
-	now = datetime.now(tz=timezone.utc)
+	now = datetime.now(tz=UTC)
 	time = now.strftime("%Y-%m-%d %H:%M:%S")
 	user = User(name="admin")
 	user.read_configs()
@@ -360,7 +358,7 @@ def test_read_configs_for_role(backend: UnprotectedBackend) -> None:  # noqa: F8
 
 	result = backend.config_updateObjects(test_configs)
 	print(result)
-	now = datetime.now(tz=timezone.utc)
+	now = datetime.now(tz=UTC)
 	time = now.strftime("%Y-%m-%d %H:%M:%S")
 	role = Role(name="admin")
 	role.read_configs()

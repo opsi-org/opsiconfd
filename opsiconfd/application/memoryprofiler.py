@@ -151,11 +151,10 @@ def memory_objgraph_show_backrefs(obj_id: int, output_format: str = "png") -> Re
 		msg = f"Object at address {obj_id} not found"
 		return Response(status_code=404, media_type="text/plain", headers={"Content-Length": str(len(msg))}, content=msg)
 
-	file = tempfile.NamedTemporaryFile(delete=False, suffix=f".{output_format}")
-	objgraph.show_backrefs([obj], filename=file.name, shortnames=False)
-	data = file.read()
-	file.close()
-	os.remove(file.name)
+	with tempfile.NamedTemporaryFile(delete=False, suffix=f".{output_format}") as file:
+		objgraph.show_backrefs([obj], filename=file.name, shortnames=False)
+		data = file.read()
+		os.remove(file.name)
 	return Response(status_code=200, media_type=f"image/{output_format}", headers={"Content-Length": str(len(data))}, content=data)
 
 
@@ -182,7 +181,7 @@ async def memory_info() -> JSONResponse:
 
 	total_size = 0
 	count = 0
-	for idx in range(0, len(memory_summary) - 1):
+	for idx in range(len(memory_summary) - 1):
 		count += memory_summary[idx][1]
 		total_size += memory_summary[idx][2]
 		memory_summary[idx][2] = convert_bytes(memory_summary[idx][2])
@@ -243,7 +242,7 @@ async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONRespon
 
 	count = 0
 	total_size = 0
-	for idx in range(0, len(memory_summary) - 1):
+	for idx in range(len(memory_summary) - 1):
 		count += memory_summary[idx][1]
 		total_size += memory_summary[idx][2]
 		memory_summary[idx][2] = convert_bytes(memory_summary[idx][2])

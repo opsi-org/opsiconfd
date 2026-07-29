@@ -9,7 +9,8 @@ metrics
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generator, Type
+from collections.abc import Generator
+from typing import TYPE_CHECKING, Any, Self, cast
 
 from opsiconfd.config import config
 from opsiconfd.metrics.metric import ALL_METRICS
@@ -21,10 +22,10 @@ if TYPE_CHECKING:
 class MetricsRegistry:
 	_instance: MetricsRegistry | None = None
 
-	def __new__(cls, *args: Any, **kwargs: Any) -> MetricsRegistry:
+	def __new__(cls, *args: Any, **kwargs: Any) -> Self:
 		if not cls._instance:
 			cls._instance = super().__new__(cls, *args, **kwargs)
-		return cls._instance
+		return cast(Self, cls._instance)
 
 	def __init__(self) -> None:
 		if getattr(self, "_initialized", False):
@@ -47,7 +48,7 @@ class MetricsRegistry:
 	def get_metric_ids(self) -> list[str]:
 		return list(self._metrics_by_id)
 
-	def get_metrics(self, *types: Type[Metric]) -> Generator[Metric, None, None]:
+	def get_metrics(self, *types: type[Metric]) -> Generator[Metric]:
 		types = tuple(types)
 		for metric in self._metrics_by_id.values():
 			if not types or isinstance(metric, types):

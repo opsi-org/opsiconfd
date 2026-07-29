@@ -7,19 +7,19 @@ __all__ = ["register_checks"]
 
 
 def register_checks() -> None:
-	import opsiconfd.check.addon  # noqa: F401
-	import opsiconfd.check.backend  # noqa: F401
-	import opsiconfd.check.backup  # noqa: F401
-	import opsiconfd.check.clients  # noqa: F401
-	import opsiconfd.check.config  # noqa: F401
-	import opsiconfd.check.grafana  # noqa: F401
-	import opsiconfd.check.jsonrpc  # noqa: F401
-	import opsiconfd.check.ldap  # noqa: F401
-	import opsiconfd.check.mysql  # noqa: F401
-	import opsiconfd.check.opsilicense  # noqa: F401
-	import opsiconfd.check.opsipackages  # noqa: F401
-	import opsiconfd.check.redis  # noqa: F401
-	import opsiconfd.check.ssl  # noqa: F401
-	import opsiconfd.check.system  # noqa: F401
-	import opsiconfd.check.users  # noqa: F401
+	import opsiconfd.check.addon
+	import opsiconfd.check.backend
+	import opsiconfd.check.backup
+	import opsiconfd.check.clients
+	import opsiconfd.check.config
+	import opsiconfd.check.grafana
+	import opsiconfd.check.jsonrpc
+	import opsiconfd.check.ldap
+	import opsiconfd.check.mysql
+	import opsiconfd.check.opsilicense
+	import opsiconfd.check.opsipackages
+	import opsiconfd.check.redis
+	import opsiconfd.check.ssl
+	import opsiconfd.check.system
+	import opsiconfd.check.users
 	import opsiconfd.check.worker  # noqa: F401

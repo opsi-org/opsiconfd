@@ -7,8 +7,9 @@
 test opsiconfd.backend.rpc.obj_config_state
 """
 
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
 import pytest
 from opsi.opsi.service.model.object import ConfigState, OpsiClient, OpsiDepotserver, UnicodeConfig
@@ -28,7 +29,7 @@ from tests.utils import (  # noqa: F401
 
 
 @pytest.fixture()
-def acl_file(tmp_path: Path) -> Generator[Path, None, None]:
+def acl_file(tmp_path: Path) -> Generator[Path]:
 	_acl_file = tmp_path / "acl.conf"
 	data = (
 		f"config_getObjects       : sys_user({ADMIN_USER}); opsi_depotserver; opsi_client\n"

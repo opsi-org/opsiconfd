@@ -9,10 +9,11 @@ test opsiconfd.backend.mysql
 
 import re
 import textwrap
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from threading import Thread
-from typing import Any, Generator
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -244,8 +245,10 @@ def test_update_config_file(tmp_path: Path) -> None:
 			},
 		),
 		(
-			"mysql://u:p@localhost:3306/db?databaseCharset=charset"
-			"&connection_pool_max_overflow=11&connectionPoolTimeout=12&connection_pool_size=13&unique_hardware_addresses=0",
+			(
+				"mysql://u:p@localhost:3306/db?databaseCharset=charset"
+				"&connection_pool_max_overflow=11&connectionPoolTimeout=12&connection_pool_size=13&unique_hardware_addresses=0"
+			),
 			"mysql+mysqldb://u:p@localhost:3306/db?charset=charset&ssl=false",
 			{
 				"username": "u",
@@ -298,7 +301,6 @@ def test_config_mysql_internal_url(tmp_path: Path, mysql_internal_url: str, expe
 		def _create_engine(self: MySQLConnection, uri: str) -> None:
 			nonlocal uri_used
 			uri_used = uri
-			return None
 
 		class MockResult:
 			def __init__(self, result: list[str]) -> None:
@@ -317,7 +319,7 @@ def test_config_mysql_internal_url(tmp_path: Path, mysql_internal_url: str, expe
 				return MockResult(["2024-01-01 00:00:00"])
 
 		@contextmanager
-		def session(self: MySQLConnection) -> Generator[MockSession, None, None]:
+		def session(self: MySQLConnection) -> Generator[MockSession]:
 			yield MockSession()
 
 		with (
@@ -335,9 +337,8 @@ def test_config_mysql_internal_url(tmp_path: Path, mysql_internal_url: str, expe
 
 def test_connect() -> None:
 	con = MySQLConnection()
-	with con.connection():
-		with con.session() as session:
-			assert session.execute("SELECT 999").fetchone()[0] == 999
+	with con.connection(), con.session() as session:
+		assert session.execute("SELECT 999").fetchone()[0] == 999
 
 
 def test_big_query() -> None:
@@ -439,7 +440,7 @@ def test_get_objects_orders_by_multiple_attributes_and_limits() -> None:
 
 	class MockSession:
 		query = ""
-		params: dict[str, Any] = {}
+		params: dict[str, Any] = {}  # noqa: RUF012
 
 		def execute(self, query: str, params: dict[str, Any] | None = None) -> MockResult:
 			self.query = query
@@ -459,7 +460,7 @@ def test_get_objects_orders_by_multiple_attributes_and_limits() -> None:
 	mock_session = MockSession()
 
 	@contextmanager
-	def session() -> Generator[MockSession, None, None]:
+	def session() -> Generator[MockSession]:
 		yield mock_session
 
 	with patch.object(mysql, "session", session):

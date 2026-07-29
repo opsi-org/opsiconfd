@@ -35,7 +35,7 @@ class RPCProductPropertyMixin(Protocol):
 		lock: bool = True,
 	) -> None:
 		query, data = self._mysql.insert_query(table="PRODUCT_PROPERTY", obj=product_property, ace=ace, create=create, set_null=set_null)
-		with self._mysql.session(session) as session:
+		with self._mysql.session(session) as session:  # noqa
 			with (
 				self._mysql.table_lock(session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}) if lock else nullcontext()
 			):
@@ -84,7 +84,7 @@ class RPCProductPropertyMixin(Protocol):
 		self: BackendProtocol, productProperties: list[dict] | list[ProductProperty] | dict | ProductProperty
 	) -> None:
 		ace = self._get_ace("productProperty_createObjects")
-		with self._mysql.session() as session:
+		with self._mysql.session() as session:  # noqa: SIM117
 			with self._mysql.table_lock(session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}):
 				for product_property in to_list(productProperties):
 					product_property = to_object_class(product_property, ProductProperty)
@@ -146,7 +146,7 @@ class RPCProductPropertyMixin(Protocol):
 		self: BackendProtocol, productProperties: list[dict] | list[ProductProperty] | dict | ProductProperty
 	) -> None:
 		ace = self._get_ace("productProperty_updateObjects")
-		with self._mysql.session() as session:
+		with self._mysql.session() as session:  # noqa: SIM117
 			with self._mysql.table_lock(session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}):
 				for product_property in to_list(productProperties):
 					product_property = to_object_class(product_property, ProductProperty)

@@ -17,7 +17,7 @@ from opsiconfd.check.opsilicense import opsi_licenses_check
 from tests.utils import cleanup_checks, get_config, get_opsi_config  # noqa: F401
 
 
-def test_check_licenses() -> None:  # noqa: F811
+def test_check_licenses() -> None:
 	check_manager.register(opsi_licenses_check)
 	result = check_manager.get("opsi_licenses").run(clear_cache=True)
 	assert result.check_status == "ok"
@@ -109,7 +109,7 @@ def test_check_licenses() -> None:  # noqa: F811
 )
 def test_check_licenses_missing(
 	missing_module_ids: list[str], opsi_config: list[dict[str, str]], opsiconfd_config: dict[str, str], expected_status: str
-) -> None:  # noqa: F811
+) -> None:
 	check_manager.register(opsi_licenses_check)
 
 	def mock_module_available(self: Backend, module: str) -> bool:
@@ -120,10 +120,10 @@ def test_check_licenses_missing(
 			result = check_manager.get("opsi_licenses").run(clear_cache=True)
 			for missing_module_id in missing_module_ids:
 				cid = "scalability" if missing_module_id in ("scalability1", "scalability_light") else missing_module_id
-				partial_result = [r for r in result.partial_results if r.check.id == f"opsi_licenses:missing:{cid}"][0]
+				partial_result = next(r for r in result.partial_results if r.check.id == f"opsi_licenses:missing:{cid}")
 				assert result.check_status == expected_status
 				assert partial_result.check_status == expected_status
 				if expected_status == "error":
 					assert "licensed" in partial_result.message
 				else:
-					partial_result.message == f"Module '{missing_module_id}' is not needed."
+					assert partial_result.message == f"Module '{missing_module_id}' is not needed."

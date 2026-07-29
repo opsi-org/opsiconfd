@@ -104,7 +104,7 @@ def get_audit_hardware_config(
 	classes: list[dict[str, Any]] = []
 	try:
 		with open(AUDIT_HARDWARE_CONFIG_FILE, encoding="utf-8") as hwc_file:
-			exec(hwc_file.read())
+			exec(hwc_file.read())  # noqa: S102
 
 		for cls_idx, current_class_config in enumerate(OPSI_HARDWARE_CLASSES):
 			opsi_class = current_class_config["Class"]["Opsi"]
@@ -166,7 +166,7 @@ def get_audit_hardware_database_config() -> dict[str, dict[str, dict[str, str]]]
 
 
 class RPCAuditHardwareMixin(Protocol):
-	_audit_hardware_database_config: dict[str, dict[str, dict[str, str]]] = {}
+	_audit_hardware_database_config: dict[str, dict[str, dict[str, str]]] = {}  # noqa: RUF012
 
 	def __init__(self) -> None:
 		self._audit_hardware_database_config = get_audit_hardware_database_config()

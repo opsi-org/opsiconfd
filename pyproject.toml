@@ -121,6 +121,24 @@ target-version = "py314"
 [tool.ruff.format]
 indent-style = "tab"
 
+[tool.ruff.lint]
+ignore = [
+	"BLE001",  # Public boundaries intentionally catch third-party and platform exceptions.
+	"G201",    # Logging `.exception(...)` must not be used instead of `.error(..., exc_info=True)`
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI parameter defaults like Body(...) and Query(...) are the intended pattern (B008).
+extend-immutable-calls = ["fastapi.Body", "fastapi.Query"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+	"ASYNC230", # Test fixture I/O is intentionally synchronous.
+	"TRY002",   # Tests intentionally exercise base exception handling.
+	"S110",     # Best-effort cleanup and fallback paths intentionally suppress exceptions.
+	"SIM117",   # Nested context managers keep setup and assertion scopes distinct.
+]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

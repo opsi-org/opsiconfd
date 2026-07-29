@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from ipaddress import ip_network
 from socket import getaddrinfo
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
 import msgspec
 import pyotp
@@ -62,9 +62,6 @@ from opsiconfd.redis import async_redis_client, ip_address_to_redis_key
 from opsiconfd.utils import asyncio_create_task, timed_lru_cache
 from opsiconfd.utils.cryptography import create_token_hash
 from opsiconfd.utils.modules import module_available
-
-if TYPE_CHECKING:
-	pass
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
 #
@@ -210,9 +207,8 @@ class SessionMiddleware:
 		if cookies:
 			for cookie in cookies.split(";"):
 				cookie_l = cookie.strip().split("=", 1)
-				if len(cookie_l) == 2:
-					if cookie_l[0].strip().lower() == session_cookie_name:
-						return cookie_l[1].strip().lower()
+				if len(cookie_l) == 2 and cookie_l[0].strip().lower() == session_cookie_name:
+					return cookie_l[1].strip().lower()
 		return None
 
 	async def handle_request(self, connection: HTTPConnection, receive: Receive, send: Send) -> None:
@@ -313,9 +309,9 @@ class SessionMiddleware:
 						password=auth.token if isinstance(auth, BearerAuth) else auth.password,
 						password_is_token=isinstance(auth, BearerAuth),
 					)
-				except Exception as err:
+				except Exception:
 					if required_access_role != ACCESS_ROLE_PUBLIC:
-						raise err
+						raise
 
 			if required_access_role == ACCESS_ROLE_ADMIN:
 				if not session:
@@ -350,7 +346,7 @@ class SessionMiddleware:
 		await self.app(scope, receive, send_wrapper)
 
 	async def handle_request_exception(self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send) -> None:
-		logger.debug("Handle request exception %s: %s", err.__class__.__name__, err, exc_info=True)
+		logger.debug("Handle request exception %s: %s", err.__class__.__name__, err)
 		scope = connection.scope
 		path = scope["path"]
 		if path.startswith("/addons"):
@@ -401,7 +397,7 @@ class SessionMiddleware:
 			error = err.detail
 
 		else:
-			logger.error(err, exc_info=True)
+			logger.error(err)
 			error = str(err)
 
 		headers = headers or {}
@@ -449,10 +445,9 @@ class SessionMiddleware:
 				content["jsonrpc"] = "2.0"
 				del content["result"]
 			response = JSONResponse(status_code=status_code, content=content, headers=headers)
-		if not response:
-			if connection.headers.get("accept") and "application/json" in connection.headers.get("accept", ""):
-				logger.debug("Returning json response because of accept header")
-				response = JSONResponse(status_code=status_code, content={"error": error}, headers=headers)
+		if not response and connection.headers.get("accept") and "application/json" in connection.headers.get("accept", ""):
+			logger.debug("Returning json response because of accept header")
+			response = JSONResponse(status_code=status_code, content={"error": error}, headers=headers)
 		if (
 			not response
 			and status_code == status.HTTP_401_UNAUTHORIZED
@@ -1047,7 +1042,7 @@ class OPSISession:
 			elif attr == "user_groups":
 				val = set(msgspec.msgpack.decode(val))  # ty: ignore
 			elif attr == "auth_methods":
-				val = set(AuthenticationMethod(v) for v in msgspec.msgpack.decode(val))  # ty: ignore
+				val = {AuthenticationMethod(v) for v in msgspec.msgpack.decode(val)}  # ty: ignore
 			elif attr in ("authenticated", "is_admin", "is_read_only"):
 				val = bool(int(val))
 			elif isinstance(val, bytes):
@@ -1430,7 +1425,7 @@ async def pre_authenticate(scope: Scope, session_id: str | None = None) -> None:
 		await check_blocked(scope["session"].client_addr)
 	except ConnectionRefusedError as err:
 		logger.warning(str(err))
-		raise err
+		raise
 
 
 async def post_user_authenticate(scope: Scope) -> None:
@@ -1697,7 +1692,7 @@ def _ip_address_in_networks_or_domains(address: str, networks_or_domains: tuple[
 			networks = {ip_network(network_or_domain)}
 		except ValueError:
 			try:
-				networks = set(ip_network(x[4][0]) for x in getaddrinfo(network_or_domain, None))
+				networks = {ip_network(x[4][0]) for x in getaddrinfo(network_or_domain, None)}
 			except Exception as err:
 				logger.warning("Failed to resolve domain name '%s': %s", network_or_domain, err)
 				continue
@@ -1794,7 +1789,7 @@ async def check_user_agent(user_agent: str) -> None:
 	if not configed_version or configed_version < Version(config.min_configed_version):
 		raise ConnectionRefusedError(
 			f"Configed {(str(configed_version) if configed_version else user_agent)} "
-			f"is not allowed to connect (min-configed-version: {str(config.min_configed_version)})"
+			f"is not allowed to connect (min-configed-version: {config.min_configed_version!s})"
 		)
 
 

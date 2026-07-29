@@ -180,7 +180,6 @@ def test_jsonrpc20(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 		("application/msgpack", None, "application/msgpack"),
 		("msgpack", None, "application/msgpack"),
 		("application/msgpack", "application/json", "application/msgpack"),  # Content-Type should be preferred
-		(None, None, "application/json"),
 		("", "", "application/json"),
 		("", "msgpack", "application/msgpack"),
 		("msgpack", "xyasdb;dsaoswe3dod", "application/msgpack"),

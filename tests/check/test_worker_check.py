@@ -7,7 +7,7 @@
 worker check tests
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from opsi.opsi.service.model.object import OpsiClient
 
@@ -22,11 +22,11 @@ from tests.utils import (  # noqa: F401
 )
 
 
-def _prepare_client(number: int = 100) -> OpsiClient:  # noqa: F811
+def _prepare_client(number: int = 100) -> OpsiClient:
 	clients = []
-	now: datetime = datetime.now(timezone.utc)
+	now: datetime = datetime.now(UTC)
 
-	for i in range(0, number):
+	for i in range(number):
 		client = OpsiClient(id=f"test-check-client-{i}.opsi.test")
 		client.lastSeen = now.strftime("%Y-%m-%d %H:%M:%S")
 		client.setDefaults()
@@ -37,13 +37,13 @@ def _prepare_client(number: int = 100) -> OpsiClient:  # noqa: F811
 	return client
 
 
-def _delete_clients() -> None:  # noqa: F811
+def _delete_clients() -> None:
 	backend = get_unprotected_backend()
 	clients = backend.host_getObjects(type="OpsiClient")
 	backend.host_deleteObjects(clients)
 
 
-def test_worker_capacity_check() -> None:  # noqa: F811
+def test_worker_capacity_check() -> None:
 	_prepare_client(number=CLIENT_NUMBER_ERROR + 1)
 	check_manager.register(opsi_worker_capacity)
 	result = check_manager.get("opsi_worker_capacity").run(clear_cache=True)

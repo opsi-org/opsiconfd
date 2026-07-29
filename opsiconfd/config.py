@@ -20,7 +20,7 @@ from _colorize import ANSIColors, Theme, can_colorize  # ty: ignore[unresolved-i
 from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, Action, ArgumentTypeError, HelpFormatter
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, TextIO
+from typing import TYPE_CHECKING, Any, Literal, Self, TextIO, cast
 from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 
 import certifi
@@ -185,9 +185,8 @@ def configure_warnings() -> None:
 if running_in_docker():
 	try:
 		ip = socket.gethostbyname(FQDN)
-		if ip not in ("127.0.0.1", "::1"):
-			if name := DNS.revlookup(ip).split(".", 1)[0].replace("docker_", ""):
-				DEFAULT_NODE_NAME = name
+		if ip not in ("127.0.0.1", "::1") and (name := DNS.revlookup(ip).split(".", 1)[0].replace("docker_", "")):
+			DEFAULT_NODE_NAME = name
 	except DNS.DNSError:
 		pass
 
@@ -279,7 +278,7 @@ def format_help_without_msg(parser: configargparse.ArgumentParser) -> str:
 	return parser.orig_format_help().rsplit("\n\n", 1)[0]  # ty: ignore[unresolved-attribute]
 
 
-setattr(configargparse.ArgumentParser, "orig_format_help", configargparse.ArgumentParser.format_help)
+configargparse.ArgumentParser.orig_format_help = configargparse.ArgumentParser.format_help  # ty: ignore[unresolved-attribute]
 configargparse.ArgumentParser.format_help = format_help_without_msg  # ty: ignore[invalid-assignment]
 
 
@@ -329,23 +328,22 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 
 	def _get_help_string(self, action: Action) -> str:
 		text = action.help or ""
-		if "%(default)" not in (action.help or ""):
-			if action.default is not SUPPRESS:
-				defaulting_nargs = (OPTIONAL, ZERO_OR_MORE)
-				if action.dest == "config_file":
-					text += f" (default: {DEFAULT_CONFIG_FILE})"
-				elif action.option_strings or action.nargs in defaulting_nargs:
-					text += " (default: %(default)s)"
+		if "%(default)" not in (action.help or "") and action.default is not SUPPRESS:
+			defaulting_nargs = (OPTIONAL, ZERO_OR_MORE)
+			if action.dest == "config_file":
+				text += f" (default: {DEFAULT_CONFIG_FILE})"
+			elif action.option_strings or action.nargs in defaulting_nargs:
+				text += " (default: %(default)s)"
 		return text
 
 
 class Config:
 	_instance: Config | None = None
 
-	def __new__(cls, *args: Any, **kwargs: Any) -> Config:
+	def __new__(cls, *args: Any, **kwargs: Any) -> Self:
 		if cls._instance is None:
 			cls._instance = super().__new__(cls)
-		return cls._instance
+		return cast(Self, cls._instance)
 
 	def __init__(self) -> None:
 		if getattr(self, "_initialized", False):
@@ -396,11 +394,11 @@ class Config:
 			action = conf.action
 			if self._sub_command:
 				self._args.remove(self._sub_command)
-		except BaseException:
+		except BaseException:  # noqa: S110
 			pass
 
 		# Prefer flock if supported by filesystem and fallback to lockf
-		with self._config_file_lock:
+		with self._config_file_lock:  # noqa: SIM117
 			with open(self._config.config_file, "r" if os.path.exists(self._config.config_file) else "a+", encoding="utf-8") as file:
 				self._file_lock_method = LockMethod.FLOCK
 				try:
@@ -528,7 +526,7 @@ class Config:
 		if self._config.ssl_ca_permitted_domains:
 			ssl_ca_permitted_domains = {f".{d.lstrip('.')}" for d in self._config.ssl_ca_permitted_domains}
 			ssl_ca_permitted_domains.add("localhost")
-			self._config.ssl_ca_permitted_domains = sorted(list(ssl_ca_permitted_domains))
+			self._config.ssl_ca_permitted_domains = sorted(ssl_ca_permitted_domains)
 		else:
 			self._config.ssl_ca_permitted_domains = []
 
@@ -793,19 +791,19 @@ class Config:
 			)
 
 	def _config_file_contents(self) -> str:
-		with self._config_file_lock:
+		with self._config_file_lock:  # noqa: SIM117
 			with open(self._config.config_file, "r" if os.path.exists(self._config.config_file) else "a+", encoding="utf-8") as file:
 				with lock_file(file, lock_method=self._file_lock_method):
 					conf = self._parse_config_file(file)
 					self._remove_default_run_as_user_config_file_entry(conf)
-					masked_config_file_arguments: tuple[str, ...] = tuple()
+					masked_config_file_arguments: tuple[str, ...] = ()
 					if self._sub_command:
 						masked_config_file_arguments = ("log-level-stderr", "log-level-file", "log-level")
 					return "\n".join([f"{arg} = {val}" for arg, val in conf.items() if arg not in masked_config_file_arguments])
 
 	def set_config_in_config_file(self, arg: str, value: Any) -> str:
 		with self._config_file_lock:
-			with open(self._config.config_file, "a+", encoding="utf-8") as file:
+			with open(self._config.config_file, "a+", encoding="utf-8") as file:  # noqa: SIM117
 				with lock_file(file, lock_method=self._file_lock_method, exclusive=True):
 					conf = self._parse_config_file(file)
 					conf[arg] = value
@@ -816,7 +814,7 @@ class Config:
 
 	def _update_config_file(self) -> str:
 		with self._config_file_lock:
-			with open(self._config.config_file, "a+", encoding="utf-8") as file:
+			with open(self._config.config_file, "a+", encoding="utf-8") as file:  # noqa: SIM117
 				with lock_file(file, lock_method=self._file_lock_method, exclusive=True):
 					conf = self._parse_config_file(file)
 					self._remove_default_run_as_user_config_file_entry(conf)
@@ -939,7 +937,7 @@ class Config:
 			env_var="OPSICONFD_LOG_LEVEL",
 			type=int,
 			default=0 if self._sub_command in ("health-check", "test") else 4,
-			choices=range(0, 10),
+			choices=range(10),
 			help=self._help(
 				"opsiconfd",
 				"Set the general log level. "
@@ -1011,7 +1009,7 @@ class Config:
 			env_var="OPSICONFD_LOG_LEVEL_FILE",
 			type=int,
 			default=0 if self._sub_command else 4,
-			choices=range(0, 10),
+			choices=range(10),
 			help=self._help(
 				"opsiconfd",
 				"Set the log level for logfiles. "
@@ -1031,7 +1029,7 @@ class Config:
 			env_var="OPSICONFD_LOG_LEVEL_STDERR",
 			type=int,
 			default=0 if self._sub_command in ("health-check", "test") else 4,
-			choices=range(0, 10),
+			choices=range(10),
 			help=self._help(
 				"all",
 				"Set the log level for stderr. "

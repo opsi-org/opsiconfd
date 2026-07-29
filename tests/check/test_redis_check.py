@@ -17,7 +17,7 @@ from opsiconfd.check.common import CheckResult, check_manager
 from opsiconfd.check.redis import RedisCheck, RedisConnectionSettingsCheck
 from tests.utils import (  # noqa: F401
 	captured_function_output,
-	cleanup_checks,  # noqa: F401
+	cleanup_checks,
 	get_config,
 )
 from tests.utils import (

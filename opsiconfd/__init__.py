@@ -12,10 +12,11 @@ from __future__ import annotations
 __version__ = "4.3.56.10"
 
 
+from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import Context, ContextVar
 from time import perf_counter
-from typing import TYPE_CHECKING, Any, Generator
+from typing import TYPE_CHECKING, Any
 
 from opsi import __version__ as python_opsi_version
 
@@ -60,7 +61,7 @@ def set_contextvars_from_contex(context: Context) -> None:
 
 
 @contextmanager
-def server_timing(timing_name: str) -> Generator[dict[str, float], None, None]:
+def server_timing(timing_name: str) -> Generator[dict[str, float]]:
 	val = contextvar_server_timing.get() or {}
 	val[timing_name] = 0.0
 	start = perf_counter()

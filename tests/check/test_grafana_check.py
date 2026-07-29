@@ -7,10 +7,12 @@
 check tests
 """
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 import pytest
-from opsiconfd.check.grafana import GrafanaHealth
+
 from opsiconfd.check.common import CheckStatus
+from opsiconfd.check.grafana import GrafanaHealth
 
 
 @pytest.mark.parametrize(

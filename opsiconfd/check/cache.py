@@ -7,8 +7,9 @@
 opsiconfd.check.cache
 """
 
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable
+from typing import Any
 
 from redis.exceptions import ConnectionError
 

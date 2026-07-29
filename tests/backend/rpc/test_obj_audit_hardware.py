@@ -109,7 +109,7 @@ def test_auditHardware_create_get_delete(
 	assert "error" not in res
 
 	ahs = deserialize(res["result"])
-	assert sorted(ahs, key=lambda a: a.getIdent()) == sorted(audit_hardwares, key=lambda a: a.getIdent())
+	assert sorted(ahs, key=lambda a: str(a.getIdent())) == sorted(audit_hardwares, key=lambda a: str(a.getIdent()))
 
 	# Test getObjects with filter
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditHardware_getObjects", "params": [[], {"hardwareClass": "NETWORK_CONTROLLER"}]}

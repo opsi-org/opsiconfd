@@ -89,10 +89,11 @@ from __future__ import annotations
 
 import re
 import shutil
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from opsi.archive.wim import wim_info
 from opsi.exception import BackendError, BackendMissingDataError

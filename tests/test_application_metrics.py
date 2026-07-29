@@ -9,6 +9,7 @@ test application.metrics
 
 import asyncio
 import datetime
+from datetime import UTC
 
 from opsiconfd.application.metrics import (
 	get_nodes,
@@ -119,7 +120,7 @@ async def test_grafana_query_start_end(
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
-	utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
+	utc_now = datetime.datetime.now(tz=datetime.UTC)
 
 	# Create some data
 	start = int(utc_now.timestamp()) - 3600
@@ -217,7 +218,7 @@ async def test_grafana_query_interval_in_past(
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
-	utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
+	utc_now = datetime.datetime.now(tz=datetime.UTC)
 
 	end = int(utc_now.timestamp())
 	await create_ts_data(config, "minute", end - 23 * 3600, end, 60, 20)
@@ -230,7 +231,7 @@ async def test_grafana_query_interval_in_past(
 	end = int(utc_now.timestamp()) - grafana_seconds
 	seconds = 3600
 
-	_to = datetime.datetime.fromtimestamp(end)
+	_to = datetime.datetime.fromtimestamp(end, tz=UTC)
 	_from = _to - datetime.timedelta(seconds=seconds)
 
 	query = {

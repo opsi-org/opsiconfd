@@ -233,7 +233,7 @@ class GrafanaQuery(BaseModel):
 	targets: list[GrafanaQueryTarget]
 
 
-def align_timestamp(timestamp: int | float) -> int:
+def align_timestamp(timestamp: float) -> int:
 	"""Align timestamp to 5 second intervals, needed for stacking in grafana"""
 	return 5000 * round(int(timestamp) / 5000)
 
@@ -248,8 +248,8 @@ async def grafana_query(
 	redis = await async_redis_client()
 
 	# Unix timestamp (UTC) in milliseconds
-	from_ms = int(datetime.fromisoformat(query.range.from_.replace("Z", "+00:00")).timestamp()) * 1000
-	to_ms = int(datetime.fromisoformat(query.range.to.replace("Z", "+00:00")).timestamp()) * 1000
+	from_ms = int(datetime.fromisoformat(query.range.from_).timestamp()) * 1000
+	to_ms = int(datetime.fromisoformat(query.range.to).timestamp()) * 1000
 	time_range_ms = to_ms - from_ms
 	query_bucket_duration_ms = round(query.intervalMs)
 	sorted_downsampling = {}

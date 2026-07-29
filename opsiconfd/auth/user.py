@@ -100,9 +100,11 @@ class User(Rights):
 		self.create_configs()
 
 
-def create_user_roles(name: str, groups: set = set()) -> None:
+def create_user_roles(name: str, groups: set | None = None) -> None:
 	from opsiconfd.backend import get_unprotected_backend
 
+	if groups is None:
+		groups = set()
 	logger.debug("Creating user %s with groups %s", name, groups)
 	backend = get_unprotected_backend()
 

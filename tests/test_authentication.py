@@ -6,7 +6,7 @@
 import base64
 import threading
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal, cast
 from unittest.mock import patch
@@ -301,9 +301,9 @@ def test_login_endpoint(config: Config, test_client: OpsiconfdTestClient, base_p
 	resp = res.json()
 	assert "error" not in resp
 	assert resp["result"][0]["id"] == ADMIN_USER
-	diff = datetime.now(timezone.utc) - datetime.strptime(resp["result"][0]["created"] + " +00:00", "%Y-%m-%d %H:%M:%S %z")
+	diff = datetime.now(UTC) - datetime.strptime(resp["result"][0]["created"] + " +00:00", "%Y-%m-%d %H:%M:%S %z")
 	assert abs(diff.total_seconds()) < 5
-	diff = datetime.now(timezone.utc) - datetime.strptime(resp["result"][0]["lastLogin"] + " +00:00", "%Y-%m-%d %H:%M:%S %z")
+	diff = datetime.now(UTC) - datetime.strptime(resp["result"][0]["lastLogin"] + " +00:00", "%Y-%m-%d %H:%M:%S %z")
 	assert abs(diff.total_seconds()) < 5
 
 	session_data = _get_session_data_from_redis(config, delete_sessions=False)
@@ -396,7 +396,7 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 			assert res.status_code == 401
 			assert "Incorrect one-time password" in res.json()["message"]
 
-			now = datetime.now()
+			now = datetime.now(tz=UTC)
 			time_in_tolerance = now - timedelta(seconds=time_window_offset * 30)
 			time_out_of_tolerance = now - timedelta(seconds=(time_window_offset + (1 if time_window_offset >= 0 else -1)) * 30)
 			otp_in_tolerance = totp.generate_otp(totp.timecode(time_in_tolerance))
@@ -533,7 +533,7 @@ def test_update_client_object(
 
 		with database_connection.session() as session:
 			last_seen, ip_address = session.execute(f"SELECT lastSeen, ipAddress FROM HOST WHERE hostId = '{host_id}'").fetchone()
-		delta = last_seen.replace(tzinfo=timezone.utc) - datetime.now(timezone.utc)
+		delta = last_seen.replace(tzinfo=UTC) - datetime.now(UTC)
 		assert abs(delta.total_seconds()) < 3
 		assert ip_address == client_addr
 
@@ -655,23 +655,27 @@ def test_auth_allowed_groups(test_client: OpsiconfdTestClient) -> None:  # noqa:
 		assert res.json()["is_admin"] is True
 		test_client.reset_cookies()
 
-	with get_opsi_config(
-		[
-			{"category": "groups", "config": "admingroup", "value": "opsi-admin-group"},
-			{"category": "groups", "config": "readonly", "value": ""},
-		]
+	with (
+		get_opsi_config(
+			[
+				{"category": "groups", "config": "admingroup", "value": "opsi-admin-group"},
+				{"category": "groups", "config": "readonly", "value": ""},
+			]
+		),
+		get_config({"auth_allowed_groups": ["{admingroup}", "{readonly}"]}) as opsiconfd_config,
 	):
-		with get_config({"auth_allowed_groups": ["{admingroup}", "{readonly}"]}) as opsiconfd_config:
-			assert opsiconfd_config.auth_allowed_groups == ["opsi-admin-group"]
+		assert opsiconfd_config.auth_allowed_groups == ["opsi-admin-group"]
 
-	with get_opsi_config(
-		[
-			{"category": "groups", "config": "admingroup", "value": "opsi-admin-group"},
-			{"category": "groups", "config": "readonly", "value": "opsi-readonly-group"},
-		]
+	with (
+		get_opsi_config(
+			[
+				{"category": "groups", "config": "admingroup", "value": "opsi-admin-group"},
+				{"category": "groups", "config": "readonly", "value": "opsi-readonly-group"},
+			]
+		),
+		get_config({"auth_allowed_groups": ["{admingroup}", "{readonly}"]}) as opsiconfd_config,
 	):
-		with get_config({"auth_allowed_groups": ["{admingroup}", "{readonly}"]}) as opsiconfd_config:
-			assert opsiconfd_config.auth_allowed_groups == ["opsi-admin-group", "opsi-readonly-group"]
+		assert opsiconfd_config.auth_allowed_groups == ["opsi-admin-group", "opsi-readonly-group"]
 
 
 def test_public_access_get(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
@@ -704,9 +708,7 @@ def test_max_sessions_limit(
 
 		# Delete some sessions
 		redis = redis_client()
-		num = 0
-		for key in redis.scan_iter(redis_key, count=1000):
-			num += 1
+		for num, key in enumerate(redis.scan_iter(redis_key, count=1000), start=1):
 			redis.delete(key)
 			if num > over_limit:
 				break
@@ -790,7 +792,7 @@ def test_max_auth_failures(
 	max_auth_failures = 5
 	with get_config({"max_auth_failures": max_auth_failures}) as conf:
 		for num in range(max_auth_failures + over_limit):
-			now = int(datetime.now(tz=timezone.utc).timestamp() * 1000)
+			now = int(datetime.now(tz=UTC).timestamp() * 1000)
 			print("now:", now, ", num:", num, ", max_auth_failures:", max_auth_failures)
 			redis = redis_client()
 			for key in redis.scan_iter(f"{config.redis_key('stats')}:client:failed_auth:*", count=1000):
@@ -838,7 +840,7 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	res = test_client.get("/admin/", headers=lt_headers)
-	cookie = list(test_client.cookies.jar)[0]
+	cookie = next(iter(test_client.cookies.jar))
 	session_id = cookie.value
 	assert res.status_code == 200
 	remain = cookie.expires - time.time()
@@ -849,7 +851,7 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	time.sleep(lifetime + 1)
 
 	res = test_client.get("/admin/", headers=lt_headers)
-	cookie = list(test_client.cookies.jar)[0]
+	cookie = next(iter(test_client.cookies.jar))
 	# Assert new session
 	assert res.status_code == 200
 	assert session_id != cookie.value
@@ -865,7 +867,7 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 		time.sleep(1)
 		res = test_client.get("/auth/authenticated")
 		assert res.status_code == 200
-		cookie = list(test_client.cookies.jar)[0]
+		cookie = next(iter(test_client.cookies.jar))
 		assert session_id == cookie.value
 
 	# Let session expire
@@ -881,7 +883,7 @@ def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> No
 
 		res = test_client.get("/admin/")
 		assert res.status_code == 200
-		cookie = list(test_client.cookies.jar)[0]
+		cookie = next(iter(test_client.cookies.jar))
 		session_id = cookie.value
 		remain = cookie.expires - time.time()
 		print(remain)
@@ -891,7 +893,7 @@ def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> No
 		lt_headers = {"x-opsi-session-lifetime": str(lifetime)}
 		res = test_client.get("/admin/", headers=lt_headers)
 		assert res.status_code == 200
-		cookie = list(test_client.cookies.jar)[0]
+		cookie = next(iter(test_client.cookies.jar))
 		remain = cookie.expires - time.time()
 		print(remain)
 		assert remain <= lifetime
@@ -902,7 +904,7 @@ def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> No
 		with test_client.websocket_connect("/messagebus/v1", headers={"Cookie": f"{cookie.name}={cookie.value}"}):
 			res = test_client.get("/admin/", headers=lt_headers)
 			assert res.status_code == 200
-			cookie = list(test_client.cookies.jar)[0]
+			cookie = next(iter(test_client.cookies.jar))
 			# If session is used my messagebus, session expires never
 			assert cookie.expires is None
 
@@ -910,7 +912,7 @@ def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> No
 		time.sleep(16)
 		res = test_client.get("/admin/")
 		assert res.status_code == 200
-		cookie = list(test_client.cookies.jar)[0]
+		cookie = next(iter(test_client.cookies.jar))
 		remain = cookie.expires - time.time()
 		print(remain)
 		assert remain <= lifetime
@@ -1201,7 +1203,7 @@ def test_recover_clients(test_client: OpsiconfdTestClient, backend: UnprotectedB
 			json={"id": 1, "method": "host_getIdents", "params": []},
 		)
 		print(res.text)
-		res.status_code == 200
+		assert res.status_code == 200
 		clients = backend.host_getObjects(id="testclient.uib.gmbh")
 		assert len(clients) == 1
 		client = clients[0]
@@ -1218,7 +1220,7 @@ def test_authenticated_wait_time(config: Config, test_client: OpsiconfdTestClien
 	session_id = res.json()
 	assert session_id
 	assert session_id in res.headers.get("set-cookie", "")
-	cookie = list(test_client.cookies.jar)[0]
+	cookie = next(iter(test_client.cookies.jar))
 	assert cookie.value == session_id
 
 	session_data = _get_session_data_from_redis(config, delete_sessions=False)
@@ -1230,7 +1232,7 @@ def test_authenticated_wait_time(config: Config, test_client: OpsiconfdTestClien
 	assert res.status_code == 401
 	assert res.json() is False
 	assert session_id in res.headers.get("set-cookie", "")
-	cookie = list(test_client.cookies.jar)[0]
+	cookie = next(iter(test_client.cookies.jar))
 	assert cookie.value == session_id
 
 	authenticated_result: bool | None = None

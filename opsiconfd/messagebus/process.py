@@ -63,7 +63,7 @@ async def messagebus_process_instance_worker_configserver() -> None:
 			if isinstance(message, (ProcessDataWriteMessage, ProcessStartRequestMessage, ProcessStopRequestMessage)):
 				await process_process_message(message, redis_send_message, sender=messagebus_worker_id)
 			else:
-				raise ValueError(f"Received invalid message type {message.type}")
+				raise TypeError(f"Received invalid message type {message.type}")
 		except Exception as err:
 			logger.error(err, exc_info=True)
 
@@ -137,7 +137,7 @@ async def messagebus_process_start_request_worker_configserver() -> None:
 					back_channel=f"{messagebus_worker_id}:process",
 				)
 			else:
-				raise ValueError(f"Received invalid message type {message.type}")
+				raise TypeError(f"Received invalid message type {message.type}")
 		except Exception as err:
 			logger.error(err, exc_info=True)
 		# ACK Message

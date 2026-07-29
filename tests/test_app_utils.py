@@ -102,7 +102,7 @@ def test_merge_dicts_value_error(dict_a: dict, dict_b: dict, path: list[str] | N
 	],
 )
 def test_merge_dicts_conflict(dict_a: dict, dict_b: dict, path: list[str] | None, output: dict) -> None:
-	with pytest.raises(Exception):
+	with pytest.raises(ValueError):
 		assert merge_dicts(dict_a, dict_b, path) == output
 
 

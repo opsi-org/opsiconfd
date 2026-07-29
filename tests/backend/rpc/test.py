@@ -69,13 +69,13 @@ def test_rpc_method_decorator() -> None:
 			return bool(param1) and bool(param2) and bool(param3)
 
 	test = Test()
-	assert getattr(test.func1, "rpc_interface")
-	assert getattr(test.func2, "rpc_interface")
-	assert getattr(test.func3, "rpc_interface")
-	assert getattr(test.test_insertObject, "rpc_interface")
-	assert getattr(test.test2_insertObject, "rpc_interface")
+	assert test.func1.rpc_interface  # ty: ignore[unresolved-attribute]
+	assert test.func2.rpc_interface
+	assert test.func3.rpc_interface
+	assert test.test_insertObject.rpc_interface  # ty: ignore[unresolved-attribute]
+	assert test.test2_insertObject.rpc_interface
 
-	interface = getattr(test.test_annotation, "rpc_interface")
+	interface = test.test_annotation.rpc_interface  # ty: ignore[unresolved-attribute]
 	assert interface.name == "test_annotation"
 	assert interface.params == ["*param1", "*param2", "*param3"]
 	assert interface.args == ["self", "param1", "param2", "param3"]

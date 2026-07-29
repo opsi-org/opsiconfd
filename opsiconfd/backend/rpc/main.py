@@ -9,11 +9,12 @@ opsiconfd backend interface
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
 from functools import lru_cache
 from inspect import getmembers, ismethod
 from types import MethodType
-from typing import Any, Generator, Self
+from typing import Any, Self
 
 from opsi.exception import BackendModuleDisabledError, BackendPermissionDeniedError
 from opsi.opsi.messagebus import EventMessage, JSONRPCRequestMessage, messagebus_timestamp
@@ -193,7 +194,7 @@ class Backend(
 
 		if self.server_role == "configserver":
 			self._interface = describe_interface(self)
-			self._interface_list = [self._interface[name].as_dict() for name in sorted(list(self._interface.keys()))]
+			self._interface_list = [self._interface[name].as_dict() for name in sorted(self._interface.keys())]
 
 	def __str__(self) -> str:
 		return f"{self.__class__.__name__}({id(self)})"
@@ -254,7 +255,7 @@ class Backend(
 					if isinstance(defaults, (tuple, list)) and len(defaults) + i >= len(args):
 						default = defaults[len(defaults) - len(args) + i]
 						if isinstance(default, str):
-							default = "{0!r}".format(default).replace('"', "'")
+							default = f"{default!r}".replace('"', "'")
 						arg_list.append(f"{argument}={default}")
 					else:
 						arg_list.append(argument)
@@ -275,7 +276,7 @@ class Backend(
 				logger.trace("%s: arg string is: %s", method_name, arg_string)
 				logger.trace("%s: call string is: %s", method_name, call_string)
 				loc: dict[str, Any] = {}
-				exec(
+				exec(  # noqa: S102
 					f"def {method_name}(self, {arg_string}):\n"
 					'	with server_timing("jsonrpc_forward"):\n'
 					f'		return self._service_client.jsonrpc(method="{method_name}", params=[{call_string}])\n',
@@ -283,7 +284,7 @@ class Backend(
 					loc,
 				)
 				func = loc[method_name]
-				setattr(func, "rpc_interface", self._interface[method_name])
+				func.rpc_interface = self._interface[method_name]
 				setattr(self, method_name, MethodType(func, self))
 
 			except Exception as err:
@@ -295,7 +296,7 @@ class Backend(
 		self._create_jsonrpc_instance_methods()
 
 	@contextmanager
-	def events_disabled(self) -> Generator[None, None, None]:
+	def events_disabled(self) -> Generator[None]:
 		events_enabled = self.events_enabled
 		self.events_enabled = False
 		try:
@@ -334,7 +335,7 @@ class Backend(
 	def _get_client_id(self) -> str | None:
 		return None
 
-	@lru_cache
+	@lru_cache  # noqa: B019 - Backend is a long-lived singleton, no memory leak.
 	def _module_available(self, module: str) -> bool:
 		return module in self._available_modules
 
@@ -453,17 +454,13 @@ class ProtectedBackend(Backend):
 				if ace.type == "sys_user":
 					if not ace.id or ace.id == session.username:
 						ace_list.append(ace)
-				elif ace.type == "sys_group":
-					if not ace.id or ace.id in session.user_groups:
-						ace_list.append(ace)
+				elif ace.type == "sys_group" and (not ace.id or ace.id in session.user_groups):
+					ace_list.append(ace)
 			elif ace.type == "self" and user_type in ("client", "depot"):
 				kwargs = ace.__dict__
 				kwargs["id"] = session.username
 				ace_list.append(RPCACE(**kwargs))
-			elif user_type == "client" and ace.type == "opsi_client":
-				if not ace.id or ace.id == session.username:
-					ace_list.append(ace)
-			elif user_type == "depot" and ace.type == "opsi_depotserver":
+			elif user_type == "client" and ace.type == "opsi_client" or user_type == "depot" and ace.type == "opsi_depotserver":  # noqa: SIM102
 				if not ace.id or ace.id == session.username:
 					ace_list.append(ace)
 
@@ -491,7 +488,7 @@ class ProtectedBackend(Backend):
 		if not session:
 			raise BackendPermissionDeniedError("Invalid session")
 
-		if not session.host_type == "OpsiClient":
+		if session.host_type != "OpsiClient":
 			return None
 
 		if not session.host_id:

@@ -11,8 +11,9 @@ import json
 import os
 import sys
 import tempfile
+from collections.abc import Callable
 from types import ModuleType
-from typing import Any, Callable
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -403,7 +404,7 @@ def test_get_audit_log_list_filtering(test_client: OpsiconfdTestClient, backend:
 async def test_get_audit_log_list_uses_database_sorting_and_limit(admininterface: ModuleType) -> None:
 	class Backend:
 		method = ""
-		kwargs: dict[str, Any] = {}
+		kwargs: dict[str, Any] = {}  # noqa: RUF012
 
 		async def async_call(self, method: str, **kwargs: Any) -> list:
 			self.method = method
@@ -440,7 +441,7 @@ def test_get_audit_log_list_post_uses_body_sorting_and_limit(admininterface: Mod
 
 	class Backend:
 		method = ""
-		kwargs: dict[str, Any] = {}
+		kwargs: dict[str, Any] = {}  # noqa: RUF012
 
 		async def async_call(self, method: str, **kwargs: Any) -> list:
 			self.method = method
@@ -785,7 +786,7 @@ def test_get_routes(
 	response_body = json.loads(response.content)
 	print(response_body)
 	for key in routes_to_test:
-		assert key in response_body.keys()
+		assert key in response_body
 		assert routes_to_test.get(key) == response_body.get(key)
 
 	# load addon
@@ -809,7 +810,7 @@ def test_get_routes(
 	# test if appon routes are in the list
 	response_body = json.loads(response.content)
 	for key in addon_routes:
-		assert key in response_body.keys()
+		assert key in response_body
 		assert addon_routes.get(key) == response_body.get(key)
 
 	addon_manager.unload_addon("test1")

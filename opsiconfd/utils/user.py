@@ -64,7 +64,7 @@ def migrate_opsi_passwd_file() -> None:
 	depot_user = get_opsi_config().get("depot_user", "username")
 
 	with open(passwd_file, "r", encoding="utf-8") as file:
-		for line in file.readlines():
+		for line in file:
 			match = PASSWD_LINE_REGEX.search(line)
 			if not match:
 				continue

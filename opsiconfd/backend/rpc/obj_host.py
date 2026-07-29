@@ -425,7 +425,7 @@ class RPCHostMixin(Protocol):
 							hostnames.add(address)
 			try:
 				ip_addresses.add(socket.gethostbyname(host.id))
-			except socket.error as err:
+			except OSError as err:
 				logger.warning("Failed to get ip address of host '%s': %s", host.id, err)
 
 		for san in sans or []:

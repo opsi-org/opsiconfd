@@ -16,9 +16,10 @@ import re
 import sqlite3
 import string
 import time
+from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
 from ssl import create_default_context
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Generator
+from typing import Any
 from urllib.parse import quote, unquote, urlparse
 
 import aiohttp
@@ -31,9 +32,6 @@ from requests.auth import AuthBase, HTTPBasicAuth
 from opsiconfd.config import config
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.utils import get_random_string, get_requests_session
-
-if TYPE_CHECKING:
-	pass
 
 API_KEY_NAME = "opsiconfd"
 GRAFANA_DB = "/var/lib/grafana/grafana.db"
@@ -204,7 +202,7 @@ class HTTPBearerAuth(AuthBase):
 
 
 @contextmanager
-def grafana_admin_session() -> Generator[tuple[str, requests.Session], None, None]:
+def grafana_admin_session() -> Generator[tuple[str, requests.Session]]:
 	auth: HTTPBearerAuth | HTTPBasicAuth | None = None
 	url = urlparse(config.grafana_internal_url)
 	if url.username is not None:
@@ -230,7 +228,7 @@ def grafana_admin_session() -> Generator[tuple[str, requests.Session], None, Non
 @asynccontextmanager
 async def async_grafana_session(
 	username: str | None = None, password: str | None = None
-) -> AsyncGenerator[tuple[str, aiohttp.ClientSession], None]:
+) -> AsyncGenerator[tuple[str, aiohttp.ClientSession]]:
 	headers = None
 	if username is not None:
 		if password is None:
@@ -251,7 +249,7 @@ async def async_grafana_session(
 
 
 @asynccontextmanager
-async def async_grafana_admin_session() -> AsyncGenerator[tuple[str, aiohttp.ClientSession], None]:
+async def async_grafana_admin_session() -> AsyncGenerator[tuple[str, aiohttp.ClientSession]]:
 	url = urlparse(config.grafana_internal_url)
 	password = None
 	if url.password:
@@ -349,7 +347,7 @@ def create_opsiconfd_user(recreate: bool = False) -> None:
 		secret_filter.add_secrets(password)
 		pw_hash = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), API_KEY_NAME.encode("utf-8"), 10000, 50).hex()
 
-		now = datetime.datetime.now(tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+		now = datetime.datetime.now(tz=datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
 
 		logger.debug("Creating grafana user 'opsiconfd'")
 		cur.execute(

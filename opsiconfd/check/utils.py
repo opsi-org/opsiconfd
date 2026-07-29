@@ -3,8 +3,8 @@
 # All rights reserved.
 # License: AGPL-3.0-only
 
-from datetime import datetime, timezone
-from typing import Iterable
+from collections.abc import Iterable
+from datetime import UTC, datetime
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.logging import logger
@@ -44,7 +44,7 @@ def get_enabled_hosts(host_ids: Iterable[str] | None = None) -> set[str]:
 			logger.warning("Invalid downtime end time for host %s: %s", host, downtime_end_str)
 			continue
 
-		downtime_start = datetime(year=2024, month=1, day=1, tzinfo=timezone.utc)
+		downtime_start = datetime(year=2024, month=1, day=1, tzinfo=UTC)
 		downtime_start_str = (config_states[host].get("opsi.check.downtime.start") or [""])[0]
 		if downtime_start_str not in (None, "", "None"):
 			try:

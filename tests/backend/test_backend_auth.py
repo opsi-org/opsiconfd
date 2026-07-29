@@ -15,8 +15,6 @@ from opsiconfd.backend.auth import read_acl_file
 from opsiconfd.backend.rpc.main import ProtectedBackend
 from tests.utils import get_config
 
-get_config
-
 
 def test_read_acl_file(tmp_path: Path) -> None:
 	acl_file = tmp_path / "acl.conf"

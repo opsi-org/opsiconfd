@@ -28,15 +28,14 @@ class MysqlConfigurationCheck(Check):
 		)
 
 		mysql = MySQLConnection()
-		with mysql.connection():
-			with mysql.session() as session:
-				res = session.execute("SHOW VARIABLES LIKE 'max_allowed_packet'").fetchone()
-				max_allowed_packet = int(res[1]) if res else 0
-				if max_allowed_packet < MAX_ALLOWED_PACKET:
-					result.check_status = CheckStatus.ERROR
-					result.message = (
-						f"Configured max_allowed_packet={max_allowed_packet} is too small (should be at least {MAX_ALLOWED_PACKET})."
-					)
+		with mysql.connection(), mysql.session() as session:
+			res = session.execute("SHOW VARIABLES LIKE 'max_allowed_packet'").fetchone()
+			max_allowed_packet = int(res[1]) if res else 0
+			if max_allowed_packet < MAX_ALLOWED_PACKET:
+				result.check_status = CheckStatus.ERROR
+				result.message = (
+					f"Configured max_allowed_packet={max_allowed_packet} is too small (should be at least {MAX_ALLOWED_PACKET})."
+				)
 		return result
 
 
@@ -62,11 +61,10 @@ class MysqlCheck(Check):
 
 		try:
 			mysql = MySQLConnection()
-			with mysql.connection():
-				with mysql.session() as session:
-					session.execute("SELECT 1").fetchone()
-					result.message = "No MySQL issues found."
-					result.check_status = CheckStatus.OK
+			with mysql.connection(), mysql.session() as session:
+				session.execute("SELECT 1").fetchone()
+				result.message = "No MySQL issues found."
+				result.check_status = CheckStatus.OK
 			self.add_partial_checks(MysqlConfigurationCheck())
 		except (OperationalError, MySQLdbOperationalError) as err:
 			# result.message = f"Could not connect to MySQL Server: {str(err)}"
@@ -100,10 +98,9 @@ class UniqueHardwareAddressesCheck(Check):
 		if not mysql.unique_hardware_addresses:
 			result.message = "Unique hardware addresses check is disabled."
 			return result
-		with mysql.connection():
-			with mysql.session() as session:
-				res = session.execute(
-					"""
+		with mysql.connection(), mysql.session() as session:
+			res = session.execute(
+				"""
 					SELECT
 						COUNT(DISTINCT IF(h.hardwareAddress = "", NULL, h.hardwareAddress)),
 						SUM(IF(IFNULL(h.hardwareAddress, "") = "", 1, 0)),
@@ -112,29 +109,29 @@ class UniqueHardwareAddressesCheck(Check):
 					FROM
 						HOST AS h
 					"""
-				).fetchone()
-				distinct_values = int(res[0])
-				empty_values = int(res[1])
-				non_empty_values = int(res[2])
-				total_values = int(res[3])
+			).fetchone()
+			distinct_values = int(res[0])
+			empty_values = int(res[1])
+			non_empty_values = int(res[2])
+			total_values = int(res[3])
 
-				logger.debug(
-					"Unique hardware addresses: distinct_values=%d empty_values=%d non_empty_values=%d total_values=%d",
-					distinct_values,
-					empty_values,
-					non_empty_values,
-					total_values,
-				)
-				if non_empty_values != distinct_values:
-					result.message = "Some hardware addresses are not unique."
-					result.check_status = CheckStatus.ERROR
+			logger.debug(
+				"Unique hardware addresses: distinct_values=%d empty_values=%d non_empty_values=%d total_values=%d",
+				distinct_values,
+				empty_values,
+				non_empty_values,
+				total_values,
+			)
+			if non_empty_values != distinct_values:
+				result.message = "Some hardware addresses are not unique."
+				result.check_status = CheckStatus.ERROR
 
-				result.details = {
-					"distinct_values": distinct_values,
-					"empty_values": empty_values,
-					"non_empty_values": non_empty_values,
-					"total_values": total_values,
-				}
+			result.details = {
+				"distinct_values": distinct_values,
+				"empty_values": empty_values,
+				"non_empty_values": non_empty_values,
+				"total_values": total_values,
+			}
 
 		return result
 

@@ -28,6 +28,7 @@ import sys
 import sysconfig
 import threading
 import time
+from collections.abc import Callable, Coroutine, Generator, Iterable
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from functools import lru_cache
@@ -37,7 +38,7 @@ from json import JSONEncoder
 from logging import DEBUG, INFO
 from pathlib import Path
 from socket import AF_INET, AF_INET6
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Generator, Iterable
+from typing import TYPE_CHECKING, Any
 
 import psutil
 import requests
@@ -155,7 +156,7 @@ def running_in_docker() -> bool:
 			return "kthreadd" not in file.read()
 	except FileNotFoundError:
 		return True
-	except Exception:
+	except Exception:  # noqa: S110
 		pass
 	return False
 
@@ -259,7 +260,7 @@ def running_under_systemd():
 		with open("/proc/self/cgroup") as f:
 			if "systemd" in f.read():
 				return True
-	except Exception:
+	except Exception:  # noqa: S110
 		pass
 
 	return False
@@ -398,7 +399,7 @@ class NamedIPv6Interface(IPv6Interface):
 		return f"{super().__str__()} ({self.name})"
 
 
-def get_ip_interfaces(family: int | Iterable[int] | None = None) -> Generator[NamedIPv4Interface | NamedIPv6Interface, None, None]:
+def get_ip_interfaces(family: int | Iterable[int] | None = None) -> Generator[NamedIPv4Interface | NamedIPv6Interface]:
 	"""
 	Get all IP interfaces for the specified address family.
 
@@ -938,8 +939,8 @@ def timed_lru_cache(timeout: float, maxsize: int = 128) -> Callable:
 			return cached_func(*args, **kwargs)
 
 		# Expose cache control methods
-		setattr(wrapped, "cache_clear", cached_func.cache_clear)
-		setattr(wrapped, "cache_info", cached_func.cache_info)
+		wrapped.cache_clear = cached_func.cache_clear  # ty: ignore[unresolved-attribute]
+		wrapped.cache_info = cached_func.cache_info  # ty: ignore[unresolved-attribute]
 		return wrapped
 
 	return wrapper
@@ -990,9 +991,9 @@ class Singleton(type):
 	Metaclass for implementing the Singleton design pattern.
 	"""
 
-	_instances: dict[type, type] = {}
+	_instances: dict[type, type] = {}  # noqa: RUF012
 
-	def __call__(cls: "Singleton", *args: Any, **kwargs: Any) -> type:
+	def __call__(cls: Singleton, *args: Any, **kwargs: Any) -> type:
 		if cls not in cls._instances:
-			cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+			cls._instances[cls] = super().__call__(*args, **kwargs)
 		return cls._instances[cls]

@@ -8,10 +8,11 @@ backup
 """
 
 import time
+from collections.abc import Generator
 from contextlib import contextmanager, nullcontext
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Generator, Literal
+from typing import Any, Literal
 
 from msgspec import json, msgpack
 from opsi.compression import compress, decompress
@@ -73,7 +74,7 @@ BACKUP_TIME_TOLERANCE = round((config.max_backup_age * 0.10 + 1) * 60 * 60)  # 1
 @contextmanager
 def maintenance_mode(
 	message: str, wait_accomplished: float, address_exceptions: list[str] | None = None, progress: Progress | None = None
-) -> Generator[None, None, None]:
+) -> Generator[None]:
 	logger.notice("Entering maintenance mode")
 	if progress:
 		maint_task = progress.add_task("Entering maintenance mode", total=None)
@@ -160,7 +161,7 @@ def create_backup(
 
 	with redis_lock("backup-restore", acquire_timeout=10.0, lock_timeout=12 * 3600):
 		backend = get_unprotected_backend()
-		now = datetime.now(tz=timezone.utc)
+		now = datetime.now(tz=UTC)
 		server_ids = backend.host_getIdents(returnType="str", type="OpsiConfigserver")
 		if not server_ids:
 			raise ValueError("No configserver in database")

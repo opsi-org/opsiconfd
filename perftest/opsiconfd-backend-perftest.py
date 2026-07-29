@@ -15,7 +15,7 @@ import os
 import sys
 import time
 from asyncio import sleep
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from itertools import product
 from statistics import mean, median
 from typing import Any
@@ -46,7 +46,7 @@ class TestManager:
 		self.request_stats: list[float] = []
 
 	async def jsonrpc_request(self, client: httpx.AsyncClient, url: str, method: str, *params: Any) -> Any:
-		params = params or tuple()
+		params = params or ()
 		start = time.time()
 		response = await client.post(url, json={"id": 0, "method": method, "params": params})
 		self.request_stats.append(time.time() - start)
@@ -97,7 +97,7 @@ class TestManager:
 			follow_redirects=True,
 			timeout=httpx.Timeout(connect=5, read=120, write=120, pool=5),
 		) as client:
-			start = datetime.now(tz=timezone.utc)
+			start = datetime.now(tz=UTC)
 			hosts = [
 				{"type": "OpsiClient", "id": f"client{h}.opsi.test", "opsiHostKey": "ffffffffffffffffffffffffffffffff"}
 				for h in range(self.args.clients)
@@ -123,7 +123,7 @@ class TestManager:
 			await self.jsonrpc_request(client, self.args.jsonrpc_url, "product_deleteObjects", products)
 			await self.jsonrpc_request(client, self.args.jsonrpc_url, "host_deleteObjects", hosts)
 
-			end = datetime.now(tz=timezone.utc)
+			end = datetime.now(tz=UTC)
 			worker_cpu_usage = await self.get_cpu_usage(client, start, end)
 
 		return {

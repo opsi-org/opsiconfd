@@ -4,7 +4,7 @@
 # License: AGPL-3.0-only
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
@@ -29,7 +29,7 @@ class WorkerCapacityCheck(Check):
 	"""
 
 	def _check(self) -> CheckResult:
-		now = datetime.now()
+		now = datetime.now(tz=UTC)
 		worker_count = config.workers
 		backend = get_unprotected_backend()
 		client_ids = backend.host_getIdents(returnType="str", type="OpsiClient", lastSeen=f">{now - timedelta(days=MAX_DAYS_INACTIVE)}")

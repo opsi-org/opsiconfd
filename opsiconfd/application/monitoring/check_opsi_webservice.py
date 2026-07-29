@@ -7,7 +7,7 @@
 monitoring
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import msgspec
 from fastapi.responses import JSONResponse
@@ -54,7 +54,7 @@ async def check_opsi_webservice(
 					method="accessControl_authenticated",
 					info=RequestInfo(
 						duration=0.00235,
-						date=datetime.now(tz=timezone.utc),
+						date=datetime.now(tz=UTC),
 						client="127.0.0.1/test-client",
 					),
 				),
@@ -118,4 +118,4 @@ async def check_opsi_webservice(
 	except Exception as err:
 		logger.error(err, exc_info=True)
 		state = State.UNKNOWN
-		return generate_response(state, f"cannot check webservice state: '{str(err)}'.")
+		return generate_response(state, f"cannot check webservice state: '{err!s}'.")

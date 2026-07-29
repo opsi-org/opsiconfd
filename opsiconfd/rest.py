@@ -11,10 +11,11 @@ import math
 import traceback
 import warnings
 from builtins import type as Type
+from collections.abc import Callable
 from functools import wraps
 from inspect import iscoroutinefunction
 from types import NoneType
-from typing import Any, Callable
+from typing import Any
 
 import msgspec
 from fastapi import Body, Query, status

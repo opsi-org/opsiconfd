@@ -36,8 +36,7 @@ async def on_service_state_change_process(zeroconf: Zeroconf, service_type: str,
 	if state_change is ServiceStateChange.Added:
 		services[key] = info
 	elif state_change is ServiceStateChange.Removed:
-		if key in services:
-			del services[key]
+		services.pop(key, None)
 
 
 async def test_register_opsi_services() -> None:
@@ -52,7 +51,7 @@ async def test_register_opsi_services() -> None:
 			await asyncio.sleep(1)
 
 			assert len(services) == 1
-			info = list(services.values())[0]
+			info = next(iter(services.values()))
 			assert info.port == config.port
 			assert info.properties.get(b"version").decode("ascii") == __version__
 

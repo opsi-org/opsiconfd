@@ -11,12 +11,13 @@ from __future__ import annotations
 
 import re
 import socket  # Needed for backends/dhcpd.conf  # noqa: F401
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from functools import wraps
 from inspect import getfullargspec, iscoroutinefunction, signature
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Callable
+from typing import Any
 
 from starlette.concurrency import run_in_threadpool
 
@@ -203,10 +204,8 @@ def rpc_method(
 		if iscoroutinefunction(func):
 			wrapper = async_wrapper
 
-		setattr(
-			wrapper,
-			"rpc_interface",
-			get_method_interface(func, deprecated=deprecated, drop_version=drop_version, alternative_method=alternative_method),
+		wrapper.rpc_interface = get_method_interface(  # ty: ignore[invalid-assignment]
+			func, deprecated=deprecated, drop_version=drop_version, alternative_method=alternative_method
 		)
 		return wrapper
 
@@ -251,5 +250,5 @@ def read_backend_config_file(config_file: Path, add_enabled_option: bool = True)
 			config_file.write_text("\n".join(lines), encoding="utf-8")
 
 	loc: dict[str, Any] = {}
-	exec(compile(config_file.read_bytes(), "<string>", "exec"), None, loc)
+	exec(compile(config_file.read_bytes(), "<string>", "exec"), None, loc)  # noqa: S102
 	return loc.get("config", {})

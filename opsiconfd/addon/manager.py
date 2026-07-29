@@ -15,12 +15,13 @@ from __future__ import annotations
 import importlib
 import os
 import sys
+from collections.abc import Sequence
 from functools import lru_cache
 from importlib._bootstrap import BuiltinImporter
 from os import listdir
 from os.path import abspath, exists, isdir, join
 from pathlib import Path
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Self, cast
 from urllib.parse import quote, unquote
 
 from opsiconfd.addon.addon import Addon
@@ -63,7 +64,7 @@ class AddonImporter(BuiltinImporter):
 		return importlib.util.spec_from_file_location(fullname, init_path)  # ty: ignore[possibly-missing-submodule]
 
 
-sys.meta_path.append(AddonImporter)  # ty: ignore[invalid-argument-type]
+sys.meta_path.append(AddonImporter)
 
 
 class AddonManager:
@@ -80,10 +81,10 @@ class AddonManager:
 
 	_instance: AddonManager | None = None
 
-	def __new__(cls) -> AddonManager:
+	def __new__(cls) -> Self:
 		if cls._instance is None:
-			cls._instance = super(AddonManager, cls).__new__(cls)
-		return cls._instance
+			cls._instance = super().__new__(cls)
+		return cast(Self, cls._instance)
 
 	def __init__(self) -> None:
 		"""
@@ -239,7 +240,7 @@ class AddonManager:
 		self.unload_addons()
 		self.load_addons()
 
-	@lru_cache(maxsize=50)
+	@lru_cache(maxsize=50)  # noqa: B019 - AddonManager is a singleton, no memory leak.
 	def get_addon_by_path(self, path: str) -> Addon | None:
 		"""
 		Retrieves an addon based on a request path.

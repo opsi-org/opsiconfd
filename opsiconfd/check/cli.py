@@ -147,7 +147,7 @@ def console_health_check() -> int:
 			console.print(f"[{style}]Error[/{style}]: No valid checks selected. Please check your configuration.")
 			console.print(f"[bold]Configured checks[/bold]: {', '.join(config.checks)}")
 			console.print("[bold]Available checks[/bold]:")
-			for check_id in CheckManager().possible_checks.keys():
+			for check_id in CheckManager().possible_checks:
 				console.print(check_id)
 			return 1
 

@@ -22,11 +22,12 @@ import sys
 import threading
 import time
 from asyncio import sleep as asyncio_sleep
+from collections.abc import Callable
 from enum import StrEnum
 from logging import DEBUG
 from multiprocessing.context import SpawnProcess
 from types import FrameType
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import uvloop
 from anyio import to_thread
@@ -351,7 +352,7 @@ class Worker(WorkerInfo, UvicornServer):
 		loop = asyncio.get_running_loop()
 		loop.set_debug("asyncio" in config.debug_options)
 		if not isinstance(loop, uvloop.Loop):
-			raise RuntimeError("uvloop is not used")
+			raise RuntimeError("uvloop is not used")  # noqa: TRY004
 
 		# Default for CapacityLimiter is 40
 		to_thread.current_default_thread_limiter().total_tokens = config.executor_workers

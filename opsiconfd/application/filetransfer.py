@@ -186,7 +186,7 @@ def cleanup_file_storage() -> None:
 			if file_meta.expires <= now:
 				# Expired
 				continue
-		except Exception:
+		except Exception:  # noqa: S112
 			# Invalid meta data
 			continue
 

@@ -3,9 +3,9 @@
 # All rights reserved.
 # License: AGPL-3.0-only
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Iterable
+from datetime import UTC, datetime, timedelta
 
 from opsi.opsi.package import RepoMetaPackageCollection
 from opsi.util.version import compare_versions
@@ -37,7 +37,7 @@ def _fetch_repo_file() -> bytes:
 def get_available_product_versions(product_ids: Iterable[str], min_age_seconds: int = 0) -> dict[str, str]:
 	available_packages: dict[str, str] = {}
 
-	now = datetime.now(tz=timezone.utc)
+	now = datetime.now(tz=UTC)
 	col = RepoMetaPackageCollection()
 	col.read_metafile_data(_fetch_repo_file())
 	for package in col.get_packages():
@@ -200,7 +200,7 @@ class OpsiProductsOnClientsCheck(Check):
 		)
 
 		backend = get_unprotected_backend()
-		now = datetime.now()
+		now = datetime.now(tz=UTC)
 		enabled_hosts = get_enabled_hosts()
 		client_ids = {
 			host.id
@@ -237,7 +237,7 @@ class OpsiProductsOnClientsCheck(Check):
 			""",
 				{
 					"ignore_product_ids": ignore_product_ids,
-					"installation_time": datetime.now(tz=timezone.utc) - timedelta(days=OUTDATED_AFTER_DAYS),
+					"installation_time": datetime.now(tz=UTC) - timedelta(days=OUTDATED_AFTER_DAYS),
 				},
 			).fetchall():
 				depot_id = row[0]

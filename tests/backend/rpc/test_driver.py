@@ -5,9 +5,9 @@
 
 import re
 import shutil
+from collections.abc import Iterator
 from pathlib import Path
 from random import shuffle
-from typing import Iterator
 from unittest.mock import patch
 
 import pytest

@@ -45,7 +45,7 @@ def check_client_status(backend: Backend, client_id: str, exclude_product_list: 
 		month = int(last_seen[1])
 		day = int(last_seen[2].split()[0])
 
-		today = datetime.date.today()
+		today = datetime.date.today()  # noqa: DTZ011
 
 		if year and month and day:
 			last_seen_date = datetime.date(year, month, day)

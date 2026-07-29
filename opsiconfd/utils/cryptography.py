@@ -15,7 +15,7 @@ import secrets
 from enum import StrEnum
 from functools import lru_cache
 from random import randbytes
-from typing import Type, overload
+from typing import overload
 
 from Crypto.Cipher import AES
 from Crypto.Cipher._mode_gcm import GcmMode
@@ -116,14 +116,14 @@ def encrypt(value: str | bytes, *, key_id: str | None = None, algorithm: Encrypt
 
 
 @overload
-def decrypt(value: str, *, return_type: Type[str] = ..., ignore_unencrypted: bool = False) -> str: ...
+def decrypt(value: str, *, return_type: type[str] = ..., ignore_unencrypted: bool = False) -> str: ...
 
 
 @overload
-def decrypt(value: str, *, return_type: Type[bytes], ignore_unencrypted: bool = False) -> bytes: ...
+def decrypt(value: str, *, return_type: type[bytes], ignore_unencrypted: bool = False) -> bytes: ...
 
 
-def decrypt(value: str, *, return_type: Type[str] | Type[bytes] = str, ignore_unencrypted: bool = False) -> str | bytes:
+def decrypt(value: str, *, return_type: type[str | bytes] = str, ignore_unencrypted: bool = False) -> str | bytes:
 	"""
 	Decrypts a string formatted as ENCv1[ALG|KID=key_id]base64(nonce+ciphertext)
 	Returns the decrypted value as bytes or str depending on return_type.

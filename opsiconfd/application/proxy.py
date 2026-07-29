@@ -113,8 +113,7 @@ class ReverseProxy:
 		else:
 			remove_headers.append("cookie")
 		for header in remove_headers:
-			if header in _request_headers:
-				del _request_headers[header]
+			_request_headers.pop(header, None)
 
 		return _request_headers
 
@@ -165,7 +164,7 @@ class ReverseProxy:
 		)
 
 		if self.forward_cookies:
-			for cookie in resp.cookies.keys():
+			for cookie in resp.cookies:
 				if cookie in self.forward_cookies:
 					proxy_logger.debug("Forwarding cookie: %s", cookie)
 					streaming_response.set_cookie(

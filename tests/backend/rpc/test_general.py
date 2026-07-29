@@ -10,7 +10,7 @@ test opsiconfd.backend.rpc.general
 import os
 import pwd
 import shutil
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -46,7 +46,7 @@ from tests.utils import (  # noqa: F401
 		(OPSI_CLIENT_INACTIVE_AFTER + 1000, 1, 1, 4),
 	],
 )
-def test_get_client_info(  # noqa: F811
+def test_get_client_info(
 	backend: UnprotectedBackend,  # noqa: F811
 	last_seen_days: int,
 	macos: int,
@@ -56,7 +56,7 @@ def test_get_client_info(  # noqa: F811
 	hosts = backend.host_getIdents(type="OpsiClient")
 	assert len(hosts) == 0
 
-	now = datetime.now(tz=timezone.utc)
+	now = datetime.now(tz=UTC)
 	now_str = now.strftime("%Y-%m-%d %H:%M:%S")
 	last_seen = now - timedelta(days=last_seen_days)
 	last_seen_str = last_seen.strftime("%Y-%m-%d %H:%M:%S")
@@ -147,8 +147,8 @@ def test_get_client_info(  # noqa: F811
 
 def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> None:  # noqa: F811
 	class Process:
-		test_input: dict[str, dict[str, Any]] = {}
-		test_output: dict[str, str | Exception] = {}
+		test_input: dict[str, dict[str, Any]] = {}  # noqa: RUF012
+		test_output: dict[str, str | Exception] = {}  # noqa: RUF012
 		stdout: str = ""
 
 		def get_stdout_text(self) -> str:
@@ -199,8 +199,10 @@ def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> Non
 				cmds = list(proc.test_input)
 				assert cmds == [
 					"univention-admin users/user list --filter (uid=pcpatch)",
-					"univention-admin users/user modify --dn cn=pcpatch,dc=x,dc=y"
-					" --set password=password --set overridePWLength=1 --set overridePWHistory=1",
+					(
+						"univention-admin users/user modify --dn cn=pcpatch,dc=x,dc=y"
+						" --set password=password --set overridePWLength=1 --set overridePWHistory=1"
+					),
 				]
 
 		proc.test_input = {}
@@ -311,7 +313,7 @@ def test_license_bundle(backend: UnprotectedBackend) -> None:  # noqa: F811
 		patch("opsiconfd.backend.rpc.general.get_default_opsi_license_pool", mock_get_default_opsi_license_pool),
 		patch("opsi.opsi.licensing._licensing.get_signature_public_key_schema_version_2", lambda: public_key),
 	):
-		today = date.today()
+		today = date.today()  # noqa: DTZ011
 		lic1 = OpsiLicense(
 			id="0ca84826-8f54-4bda-a476-0ee66a6f6dec",
 			type="standard",

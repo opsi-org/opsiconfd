@@ -8,7 +8,6 @@ ucs utils
 """
 
 from functools import lru_cache
-from typing import Tuple
 
 from opsi.process import ProcessError, run_command
 from rich import print as rich_print
@@ -29,7 +28,7 @@ def get_root_dn() -> str:
 		return run_command(["ucr", "get", "ldap/base"], timeout=10).get_stdout_text().strip()
 	except ProcessError as err:
 		logger.error("Failed to get root dn: %s", err)
-		raise err
+		raise
 
 
 @lru_cache(maxsize=1)
@@ -46,10 +45,10 @@ def get_server_role() -> str:
 		return run_command(["ucr", "get", "server/role"], timeout=10).get_stdout_text().strip()
 	except ProcessError as err:
 		logger.error("Failed to get server role: %s", err)
-		raise err
+		raise
 
 
-def get_ucs_admin_user(interactive: bool = False) -> Tuple[str | None, str | None]:
+def get_ucs_admin_user(interactive: bool = False) -> tuple[str | None, str | None]:
 	"""
 	Get the UCS Administrator user and password.
 	"""

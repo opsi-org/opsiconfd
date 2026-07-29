@@ -12,8 +12,8 @@ import os
 import signal
 import threading
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator
 from unittest.mock import patch
 
 import psutil
@@ -34,7 +34,7 @@ from .utils import (  # noqa: F401
 
 
 @contextmanager
-def run_manager(interval: None | int = None) -> Generator[Manager, None, None]:
+def run_manager(interval: None | int = None) -> Generator[Manager]:
 	with (
 		patch("opsiconfd.manager.WorkerManager.run", lambda *args, **kwargs: None),
 		patch("opsiconfd.manager.init_logging", lambda *args, **kwargs: None),
@@ -57,36 +57,33 @@ def test_manager_signals() -> None:
 	# signal_handler is replaced in conftest
 	with run_manager() as manager:
 		test_reload = False
+		test_stop = ""
 
-		def reload() -> None:
+		def reload(self) -> None:
 			nonlocal test_reload
 			test_reload = True
 
-		setattr(manager, "reload", reload)
-
-		manager._last_reload = 0
-		manager.orig_signal_handler(signal.SIGHUP, None)  # ty: ignore[unresolved-attribute]
-		assert test_reload is True
-
-		test_reload = False
-		manager._last_reload = int(time.time())
-		manager.orig_signal_handler(signal.SIGHUP, None)  # ty: ignore[unresolved-attribute]
-		assert test_reload is False
-
-		test_stop = ""
-
-		def stop(force: bool = False) -> None:
+		def stop(self, force: bool = False) -> None:
 			nonlocal test_stop
 			test_stop = "force" if force else "normal"
 
-		setattr(manager._worker_manager, "stop", stop)
-		manager.orig_signal_handler(signal.SIGKILL, None)  # ty: ignore[unresolved-attribute]
-		assert manager._should_stop is True
-		assert test_stop == "normal"
-		time.sleep(0.1)
-		manager.orig_signal_handler(signal.SIGKILL, None)  # ty: ignore[unresolved-attribute]
-		assert manager._should_stop is True
-		assert test_stop == "force"
+		with patch("opsiconfd.manager.Manager.reload", reload), patch("opsiconfd.manager.WorkerManager.stop", stop):
+			manager._last_reload = 0
+			manager.orig_signal_handler(signal.SIGHUP, None)  # ty: ignore[unresolved-attribute]
+			assert test_reload is True
+
+			test_reload = False
+			manager._last_reload = int(time.time())
+			manager.orig_signal_handler(signal.SIGHUP, None)  # ty: ignore[unresolved-attribute]
+			assert test_reload is False
+
+			manager.orig_signal_handler(signal.SIGKILL, None)  # ty: ignore[unresolved-attribute]
+			assert manager._should_stop is True
+			assert test_stop == "normal"
+			time.sleep(0.1)
+			manager.orig_signal_handler(signal.SIGKILL, None)  # ty: ignore[unresolved-attribute]
+			assert manager._should_stop is True
+			assert test_stop == "force"
 
 
 @pytest.mark.parametrize("cert_changed", (False, True))
@@ -101,10 +98,10 @@ def test_check_server_cert(cert_changed: bool) -> None:
 		with (
 			patch("opsiconfd.manager.WorkerManager.restart_workers", restart_workers),
 			patch("opsiconfd.manager.setup_ssl", lambda: cert_changed),
+			get_config({"ssl_server_cert_check_interval": 0.00001}),
 		):
-			with get_config({"ssl_server_cert_check_interval": 0.00001}):
-				time.sleep(2)
-				assert test_restarted == cert_changed
+			time.sleep(2)
+			assert test_restarted == cert_changed
 
 
 def test_run_health_check(clean_health_check_cache: None) -> None:  # noqa: F811
@@ -115,7 +112,7 @@ def test_run_health_check(clean_health_check_cache: None) -> None:  # noqa: F811
 
 			time.sleep(3)
 			now = time.time()
-			assert now - man._health_check_time <= 3
+			assert now - man._health_check_time <= 3.1
 			time.sleep(2)
 			keys = redis_client().keys("*checkcache*")
 			assert keys

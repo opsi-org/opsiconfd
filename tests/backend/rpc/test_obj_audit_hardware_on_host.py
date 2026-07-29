@@ -8,7 +8,7 @@ test opsiconfd.backend.rpc.test_obj_audit_hardware_on_host
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -36,7 +36,7 @@ def test_hwaudit(
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [clients]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
-	now = datetime.now(tz=timezone.utc)
+	now = datetime.now(tz=UTC)
 	audit_hardware_on_hosts_by_ident = {}
 	for host_id, host_key in ((host_id1, host_key1), (host_id2, host_key2)):
 		test_client.reset_cookies()

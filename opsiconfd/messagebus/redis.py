@@ -11,9 +11,10 @@ from __future__ import annotations
 
 from asyncio import Event, Lock, Task, create_task, sleep
 from asyncio.exceptions import CancelledError
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from logging import DEBUG
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Literal
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID, uuid4
 
 import msgspec
@@ -213,7 +214,7 @@ async def create_session_channel(*, owner_id: str, purpose: str, session_id: str
 
 async def create_channel(channel: str, *, info: dict[str, str | int] | None = None, exists_ok: bool = True) -> str:
 	redis = await async_redis_client()
-	stream_key = f"{config.redis_key('messagebus')}:channels:{channel}".encode("utf-8")
+	stream_key = f"{config.redis_key('messagebus')}:channels:{channel}".encode()
 	exists = await redis.exists(stream_key)
 	if exists:
 		if not exists_ok:
@@ -230,15 +231,13 @@ async def create_channel(channel: str, *, info: dict[str, str | int] | None = No
 
 async def delete_channel(channel: str) -> None:
 	redis = await async_redis_client()
-	stream_key = f"{config.redis_key('messagebus')}:channels:{channel}".encode("utf-8")
+	stream_key = f"{config.redis_key('messagebus')}:channels:{channel}".encode()
 	stream_key_info = stream_key + CHANNEL_INFO_SUFFIX
 	await redis.unlink(stream_key_info, stream_key)
 
 
 @asynccontextmanager
-async def session_channel(
-	*, owner_id: str, purpose: str, session_id: str | None = None, exists_ok: bool = True
-) -> AsyncGenerator[str, None]:
+async def session_channel(*, owner_id: str, purpose: str, session_id: str | None = None, exists_ok: bool = True) -> AsyncGenerator[str]:
 	channel = await create_session_channel(owner_id=owner_id, purpose=purpose, session_id=session_id, exists_ok=exists_ok)
 	try:
 		yield channel
@@ -350,7 +349,7 @@ class MessageReader:
 		redis_time_id = str(int(redis_time[0] * 1000 + redis_time[1] / 1000))
 		streams_changed = False
 		for channel, redis_msg_id in self._channels.items():
-			stream_key = f"{self._key_prefix}:{channel}".encode("utf-8")
+			stream_key = f"{self._key_prefix}:{channel}".encode()
 			stream_keys.append(stream_key)
 			if stream_key in self._streams:
 				# Already in streams
@@ -446,7 +445,7 @@ class MessageReader:
 			logger.debug("MessageReader was cancelled")
 		return {}
 
-	async def get_messages(self, timeout: float = 0.0) -> AsyncGenerator[tuple[str, Message, Any], None]:
+	async def get_messages(self, timeout: float = 0.0) -> AsyncGenerator[tuple[str, Message, Any]]:
 		if not self._channels:
 			raise ValueError("No channels to read from")
 
@@ -531,7 +530,7 @@ class MessageReader:
 	async def ack_message(self, channel: str, redis_msg_id: str) -> None:
 		logger.trace("ACK channel %r, message %r", channel, redis_msg_id)
 		redis = await async_redis_client()
-		stream_key = f"{self._key_prefix}:{channel}".encode("utf-8")
+		stream_key = f"{self._key_prefix}:{channel}".encode()
 		if stream_key not in self._streams:
 			raise ValueError(f"Invalid channel: {channel!r}")
 		await redis.hset(stream_key + self._info_suffix, "last-delivered-id", redis_msg_id)
@@ -594,7 +593,7 @@ class ConsumerGroupMessageReader(MessageReader):
 		redis = await async_redis_client()
 		stream_keys: list[bytes] = []
 		for channel, redis_msg_id in self._channels.items():
-			stream_key = f"{self._key_prefix}:{channel}".encode("utf-8")
+			stream_key = f"{self._key_prefix}:{channel}".encode()
 			try:
 				await redis.xgroup_create(stream_key, self._consumer_group, id="0", mkstream=True)
 			except ResponseError as err:
@@ -647,7 +646,7 @@ class ConsumerGroupMessageReader(MessageReader):
 
 	async def ack_message(self, channel: str, redis_msg_id: str) -> None:
 		redis = await async_redis_client()
-		stream_key = f"{self._key_prefix}:{channel}".encode("utf-8")
+		stream_key = f"{self._key_prefix}:{channel}".encode()
 		if stream_key not in self._streams:
 			raise ValueError(f"Invalid channel: {channel!r}")
 		await redis.xack(stream_key, self._consumer_group, redis_msg_id)

@@ -62,8 +62,7 @@ def parse_list(query_list: list[str] | None) -> list[str] | None:
 
 	def remove_postfix(value: str, postfix: str) -> str:
 		"""Removes a postfix from a string if it exists."""
-		if value.endswith(postfix):
-			value = value[: -len(postfix)]
+		value = value.removesuffix(postfix)
 		return value
 
 	if query_list is None:
@@ -94,10 +93,7 @@ def parse_list(query_list: list[str] | None) -> list[str] | None:
 
 # used in webgui backend
 def bool_product_property(value: str | None) -> bool:
-	if value:
-		if value.lower() == "[true]" or str(value) == "1" or value.lower() == "true":
-			return True
-	return False
+	return bool(value and (value.lower() == "[true]" or str(value) == "1" or value.lower() == "true"))
 
 
 # used in webgui backend
@@ -117,7 +113,7 @@ def merge_dicts(dict_a: dict, dict_b: dict, path: list[str] | None = None) -> di
 		raise ValueError("Merge_dicts: At least one of the dicts (a and b) is not set.")
 	if path is None:
 		path = []
-	for key in dict_b:
+	for key in dict_b:  # noqa: PLC0206
 		if key in dict_a:
 			if isinstance(dict_a[key], dict) and isinstance(dict_b[key], dict):
 				merge_dicts(dict_a[key], dict_b[key], path + [str(key)])
@@ -197,9 +193,9 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 				elif message["type"] == "websocket.disconnect":
 					close_code = int(message.get("code", WS_1000_NORMAL_CLOSURE))
 					break
-		except Exception as exc:
+		except Exception:
 			close_code = WS_1011_INTERNAL_ERROR
-			raise exc
+			raise
 		finally:
 			await self.on_disconnect(websocket, close_code)
 

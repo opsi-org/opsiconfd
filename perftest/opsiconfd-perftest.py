@@ -25,9 +25,10 @@ import time
 import uuid
 import zlib
 from asyncio import sleep
+from collections.abc import AsyncGenerator, Callable
 from concurrent.futures import ProcessPoolExecutor
 from types import FrameType
-from typing import Any, AsyncGenerator, Callable, Type
+from typing import Any
 from urllib.parse import urlparse
 
 import aiohttp
@@ -93,7 +94,7 @@ class Perftest:
 		await self.stop()
 
 	@classmethod
-	def from_file(cls: Type, filename: str, **kwargs: Any) -> Perftest:
+	def from_file(cls: type, filename: str, **kwargs: Any) -> Perftest:
 		with open(filename, "rb") as file:
 			perftest = json.decode(file.read())
 			for key, var in kwargs.items():
@@ -182,7 +183,7 @@ class TestCase:
 
 		width = shutil.get_terminal_size((80, 20))[0]  # fallback: 100, 40
 		width = min(width, 100)
-		print("")
+		print()
 		print(f"===[ Running test '{self.name}' on '{self.perftest.base_url}' ]".ljust(width, "="))
 		print(f" * {self.num_clients} concurrent clients")
 		print(f" * {self.iterations} iterations")
@@ -211,13 +212,13 @@ class TestCase:
 			tasks = [client.cleanup() for client in self.clients]
 			await asyncio.gather(*tasks)
 
-		print("")
+		print()
 		self.display_results()
 		if self.perftest.write_results:
 			self.write_results()
 		if self.perftest.bencher_results and self.perftest.bencher_measure:
 			self.write_bencher_results()
-		print("")
+		print()
 
 	def add_result(self, error: None, seconds: float, bytes_sent: int, bytes_received: int, round_trip_time: float) -> None:
 		res = {
@@ -282,8 +283,7 @@ class TestCase:
 			return
 		with open(self.perftest.write_results, "a", encoding="utf-8") as file:
 			file.write(f"[{self.name}]\n")
-			for key, val in self.calc_results().items():
-				file.write(f"{key}={val}\n")
+			file.writelines(f"{key}={val}\n" for key, val in self.calc_results().items())
 			file.write("\n")
 
 	def write_bencher_results(self) -> None:
@@ -332,7 +332,7 @@ class TestCase:
 		print(
 			f" * Bytes received: {res['bytes_received'] / 1000 / 1000:0.2f}MB ({res['avg_bytes_received_per_second'] / 1000 / 1000:0.2f}MB/s)"
 		)
-		print("")
+		print()
 
 
 class Client:
@@ -385,7 +385,7 @@ class Client:
 			await self._messagebus_ws.close()
 
 	@staticmethod
-	async def random_data_generator(size: int = 0, chunk_size: int = 1000 * 1000) -> AsyncGenerator[bytes, None]:
+	async def random_data_generator(size: int = 0, chunk_size: int = 1000 * 1000) -> AsyncGenerator[bytes]:
 		with tempfile.TemporaryFile(mode="wb+") as tempf:
 			# TODO: more randomized data
 			tempf.write(b"o" * size)

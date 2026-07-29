@@ -9,10 +9,10 @@ setup tests
 
 import os
 import resource
+from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Generator
 from unittest.mock import patch
 
 import pytest
@@ -79,7 +79,7 @@ def test_cleanup_log_files(tmp_path: Path) -> None:
 
 
 @contextmanager
-def mock_all() -> Generator[dict, None, None]:
+def mock_all() -> Generator[dict]:
 	with (
 		patch("opsiconfd.setup.setup_limits") as mock_setup_limits,
 		patch("opsiconfd.setup.setup_backend") as mock_setup_backend,
@@ -115,12 +115,11 @@ def mock_all() -> Generator[dict, None, None]:
 
 
 def test_setup_skip_all() -> None:
-	with mock_all() as funcs:
-		with get_config({"skip_setup": ["all"]}) as config:
-			opsiconfd_setup()
-			assert config.skip_setup == SKIP_SETUP_ACTIONS
-			for mock in funcs.values():
-				mock.assert_not_called()
+	with mock_all() as funcs, get_config({"skip_setup": ["all"]}) as config:
+		opsiconfd_setup()
+		assert config.skip_setup == SKIP_SETUP_ACTIONS
+		for mock in funcs.values():
+			mock.assert_not_called()
 
 
 def test_setup_skip_ssl() -> None:
@@ -129,12 +128,11 @@ def test_setup_skip_ssl() -> None:
 
 
 def test_setup_skip_users_and_files() -> None:
-	with mock_all() as funcs:
-		with get_config({"skip_setup": ["users", "files"]}):
-			opsiconfd_setup(explicit=True)
-			funcs["setup_users_and_groups"].assert_not_called()
-			funcs["setup_files"].assert_not_called()
-			funcs["setup_ssl"].assert_called()
+	with mock_all() as funcs, get_config({"skip_setup": ["users", "files"]}):
+		opsiconfd_setup(explicit=True)
+		funcs["setup_users_and_groups"].assert_not_called()
+		funcs["setup_files"].assert_not_called()
+		funcs["setup_ssl"].assert_called()
 
 
 def test_setup_explicit() -> None:
@@ -158,9 +156,8 @@ def test_migrate_acl_conf_if_default(tmp_path: Path) -> None:
 def test_rename_server() -> None:
 	backend = get_unprotected_backend()
 
-	with get_config({"rename_server": "new-server-id"}):
-		with pytest.raises(ValueError):
-			opsiconfd_setup(explicit=True)
+	with get_config({"rename_server": "new-server-id"}), pytest.raises(ValueError):
+		opsiconfd_setup(explicit=True)
 
 	old_server_id = backend.host_getIdents(type="OpsiConfigserver")[0]
 
@@ -235,7 +232,7 @@ async def test_setup_redis() -> None:
 	await store_deprecated_call("getPossibleMethods_listOfHashes", "10.10.10.11/user-agent-2")
 	await redis.set(
 		f"{dep_prefix}:getPossibleMethods_listOfHashes:last_call",
-		(datetime.now(tz=timezone.utc) - timedelta(seconds=DEPRECATED_RPC_CALL_EXPIRE_SECONDS + 1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+		(datetime.now(tz=UTC) - timedelta(seconds=DEPRECATED_RPC_CALL_EXPIRE_SECONDS + 1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
 	)
 	await store_deprecated_call("readLog", "10.10.10.11/user-agent-3")
 	await redis.delete(f"{dep_prefix}:readLog:last_call")

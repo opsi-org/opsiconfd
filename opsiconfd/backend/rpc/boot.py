@@ -150,7 +150,7 @@ class TemplateContextStates(dict[str, T]):
 	def get_by_prefix(self, prefix: str) -> dict[str, T]:
 		return {key: value for key, value in self.items() if key.startswith(prefix)}
 
-	def cmdline(self: T, pattern: list[str] | str | None = None, remove_prefix: list[str] | str | None = None) -> str:
+	def cmdline(self, pattern: list[str] | str | None = None, remove_prefix: list[str] | str | None = None) -> str:
 		"""
 		Generate Linux command line parameters from states.
 		Optionally filter states by patterns (fnmatch).
@@ -164,9 +164,8 @@ class TemplateContextStates(dict[str, T]):
 				continue
 			if remove_prefix:
 				for prefix in remove_prefix:
-					if name.startswith(prefix):
-						name = name[len(prefix) :]
-			string = cmdline_param_to_string(name, state.values)
+					name = name.removeprefix(prefix)
+			string = cmdline_param_to_string(name, list(state.values()))
 			if string:
 				cmdline.append(string)
 
@@ -200,7 +199,7 @@ class TemplateContextGRUB:
 
 @dataclass
 class TemplateContextOpsiLinuxBootimage:
-	CMDLINE_PARAM_POSITION = {
+	CMDLINE_PARAM_POSITION = {  # noqa: RUF012
 		"quiet": 1,
 		"splash": 2,
 		"loglevel": 3,
@@ -241,7 +240,6 @@ class TemplateContextOpsiLinuxBootimage:
 
 		if config_id_prefix:
 			config_id_prefix = f"{config_id_prefix.rstrip('.')}."
-			self._context.config_states.cmdline
 			for key, config_state in self._context.config_states.get_by_prefix(config_id_prefix).items():
 				param_name = key.removeprefix(config_id_prefix).lstrip(".")
 				if param_name == "pwh":

@@ -11,7 +11,7 @@ import json
 import re
 import sys
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 from uuid import UUID
@@ -94,7 +94,7 @@ def setup_redis() -> None:
 	prefix = f"{config.redis_key('stats')}:rpcs:deprecated:"
 	methods = []
 	methods_processed = set()
-	now = datetime.now(tz=timezone.utc)
+	now = datetime.now(tz=UTC)
 	for key_b in redis.scan_iter(f"{prefix}*", count=1000):
 		key = str(key_b.decode("utf-8"))
 		method = key.removeprefix(prefix).split(":")[0]
@@ -110,7 +110,7 @@ def setup_redis() -> None:
 			delete_recursively(base_method_key)
 			continue
 
-		last_call_dt = datetime.fromisoformat(last_call.replace("Z", "")).astimezone(timezone.utc)
+		last_call_dt = datetime.fromisoformat(last_call.replace("Z", "")).astimezone(UTC)
 		if now - last_call_dt > timedelta(seconds=DEPRECATED_RPC_CALL_EXPIRE_SECONDS):
 			logger.info("Deleting expired deprecated RPC call %s", base_method_key)
 			delete_recursively(base_method_key)
@@ -174,7 +174,7 @@ def setup_depotserver(interactive: bool = True, unattended_configuration: dict[s
 				rich_print(f"[b][green]Connected to service as {service.username!r}[/green][/b]")
 				break
 			except KeyboardInterrupt:
-				print("")
+				print()
 				return False
 			except Exception as err:
 				if unattended_configuration:
@@ -241,7 +241,7 @@ def setup_depotserver(interactive: bool = True, unattended_configuration: dict[s
 
 				return True
 			except KeyboardInterrupt:
-				print("")
+				print()
 				return False
 			except Exception as err:
 				rich_print(f"[b][red]Failed to register depot[/red]: {err}[/b]")

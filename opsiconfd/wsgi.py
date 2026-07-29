@@ -10,8 +10,9 @@ opsiconfd.wsgi
 import asyncio
 import os
 import sys
+from collections.abc import Callable
 from queue import Queue
-from typing import Any, Callable
+from typing import Any
 
 from starlette.concurrency import run_in_threadpool
 from starlette.types import Receive, Scope, Send
@@ -75,8 +76,7 @@ def build_environ(scope: Scope) -> dict:
 	"""
 	script_name = scope.get("root_path", "").encode("utf8").decode("latin1")
 	path_info = scope["path"].encode("utf8").decode("latin1")
-	if path_info.startswith(script_name):
-		path_info = path_info[len(script_name) :]
+	path_info = path_info.removeprefix(script_name)
 
 	script_name_environ_var = os.environ.get("SCRIPT_NAME", "")
 	if script_name_environ_var:

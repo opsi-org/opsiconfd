@@ -117,7 +117,7 @@ def opsiconfd_main() -> None:
 		# Subprocesses will inherit file descriptors
 		# Redirectring sys.stdin to prevent S_ISFIFO(stdin) to return true
 		# This is important for subprocesses like opsi-package postinst scripts
-		stdin = open(os.devnull, "rb")
+		stdin = open(os.devnull, "rb")  # noqa: SIM115
 		try:
 			os.dup2(stdin.fileno(), sys.stdin.fileno())
 		except UnsupportedOperation as err:

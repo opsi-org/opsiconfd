@@ -14,7 +14,7 @@ from .const import ADDON_ID, ADDON_NAME, ADDON_VERSION
 
 class FailAddonTest(Addon):
 	# addon can not be loaded
-	error  # ty: ignore[unresolved-reference] # noqa: F821
+	error  # ty: ignore[unresolved-reference] # noqa
 	id = ADDON_ID
 	name = ADDON_NAME
 	version = ADDON_VERSION

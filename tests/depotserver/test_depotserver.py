@@ -8,10 +8,10 @@ test depotserver
 """
 
 import tomllib
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from time import sleep
-from typing import Generator
 from unittest.mock import patch
 
 import pytest
@@ -39,7 +39,7 @@ logger = get_logger()
 
 
 @contextmanager
-def depotserver_setup(tmp_path: Path) -> Generator[Config, None, None]:
+def depotserver_setup(tmp_path: Path) -> Generator[Config]:
 	ssl_ca_cert = tmp_path / "opsi-ca-cert.pem"
 	with get_config({"ssl_ca_cert": str(ssl_ca_cert)}) as conf:
 		opsi_config_file = Path(conf.opsi_config)
@@ -99,7 +99,7 @@ def test_messagebus_jsonrpc(tmp_path: Path, test_client: OpsiconfdTestClient) ->
 		service = ServiceClient(address=CONFIGSERVER, username=ADMIN_USER, password=ADMIN_PASS, verify=ServiceVerificationFlags.ACCEPT_ALL)
 
 		class TestMessagebusListener(MessagebusListener):
-			messages = []
+			messages = []  # noqa: RUF012
 
 			def message_received(self, message: Message) -> None:
 				self.messages.append(message)
@@ -141,10 +141,10 @@ def test_messagebus_jsonrpc(tmp_path: Path, test_client: OpsiconfdTestClient) ->
 				assert listener.messages[0].result["capacity"] > 0
 
 
-def test_setup_ssl(tmp_path: Path) -> None:  # noqa: F811
+def test_setup_ssl(tmp_path: Path) -> None:
 	cmds = []
 
-	def run_command(cmd: list[str], timeout: float | int | None) -> None:
+	def run_command(cmd: list[str], timeout: float | None) -> None:
 		nonlocal cmds
 		cmds.append(cmd)
 
@@ -175,7 +175,7 @@ def test_setup_ssl(tmp_path: Path) -> None:  # noqa: F811
 		assert not setup_ssl()
 
 
-def test_rename_depotserver(tmp_path: Path) -> None:  # noqa: F811
+def test_rename_depotserver(tmp_path: Path) -> None:
 	with depotserver_setup(tmp_path) as conf:
 		opsi_config_file = Path(conf.opsi_config)
 		depot_id = get_depotserver_id()
@@ -210,7 +210,7 @@ def test_rename_depotserver(tmp_path: Path) -> None:  # noqa: F811
 
 
 @pytest.mark.parametrize("forceProductId", [None, "other_product_id"])
-def test_install_and_uninstall_package(tmp_path: Path, forceProductId: str | None) -> None:  # noqa: F811
+def test_install_and_uninstall_package(tmp_path: Path, forceProductId: str | None) -> None:
 	package = Path("tests/data/workbench/localboot_legacy_42.0-1337.opsi").absolute()
 	product_id = forceProductId or "localboot_legacy"
 	depot_id = get_depotserver_id()

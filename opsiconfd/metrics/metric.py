@@ -29,7 +29,7 @@ class ZeroIfMissingType(Enum):
 
 class Metric:
 	_initialized = False
-	vars: list[str] = []
+	vars: list[str] = []  # noqa: RUF012
 
 	def __init__(
 		self,
@@ -144,15 +144,15 @@ class Metric:
 
 
 class NodeMetric(Metric):
-	vars = ["node_name"]
+	vars = ["node_name"]  # noqa: RUF012
 
 
 class WorkerMetric(Metric):
-	vars = ["node_name", "worker_num"]
+	vars = ["node_name", "worker_num"]  # noqa: RUF012
 
 
 class DepotMetric(Metric):
-	vars = ["depot_id"]
+	vars = ["depot_id"]  # noqa: RUF012
 
 
 ALL_METRICS = [

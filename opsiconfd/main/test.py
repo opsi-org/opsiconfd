@@ -38,7 +38,7 @@ def test_pam_auth() -> None:
 			logger.error(err, exc_info=True)
 			console.print(f"[b][red]PAM authentication failed: {err}")
 
-		if not (Prompt.ask("Test again?", console=console, choices=["y", "n"]) or "").strip() == "y":
+		if (Prompt.ask("Test again?", console=console, choices=["y", "n"]) or "").strip() != "y":
 			break
 	if error:
 		sys.exit(1)
@@ -133,7 +133,7 @@ def test_ldap_auth() -> None:
 				opsi_config.set("ldap_auth", "use_member_of_rdn", use_member_of_rdn)
 				opsi_config.write_config_file()
 
-		if not (Prompt.ask("Test again?", console=console, choices=["y", "n"], default="n") or "") == "y":
+		if (Prompt.ask("Test again?", console=console, choices=["y", "n"], default="n") or "") != "y":
 			break
 	if error:
 		sys.exit(1)

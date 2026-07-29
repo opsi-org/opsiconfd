@@ -37,7 +37,7 @@ def backup_main() -> None:
 	backup_file = None
 
 	def backup_filename() -> str:
-		now = datetime.now().strftime("%Y%m%d-%H%M%S")
+		now = datetime.now().strftime("%Y%m%d-%H%M%S")  # noqa: DTZ005
 		return f"opsiconfd-backup-{now}.msgpack.lz4{'.aes' if config.password else ''}"
 
 	try:
@@ -60,7 +60,7 @@ def backup_main() -> None:
 				backup_file = backup_file / backup_filename()
 
 			if not config.overwrite and backup_file.exists():
-				raise FileExistsError(f"Backup file '{str(backup_file)}' already exists, use --overwrite to replace.")
+				raise FileExistsError(f"Backup file '{backup_file!s}' already exists, use --overwrite to replace.")
 
 			suffixes = [s.strip(".") for s in backup_file.suffixes[-3:]]
 
@@ -113,7 +113,7 @@ def backup_main() -> None:
 			finally:
 				app.stop_app_state_manager_task(wait=True)
 
-			progress.console.print(f"Backup file '{str(backup_file)}' successfully created.")
+			progress.console.print(f"Backup file '{backup_file!s}' successfully created.")
 	except KeyboardInterrupt:
 		logger.error("Backup interrupted")
 		console.quiet = False
@@ -122,7 +122,7 @@ def backup_main() -> None:
 	except Exception as err:
 		logger.error(err, exc_info=True)
 		console.quiet = False
-		baf = f" '{str(backup_file)}'" if backup_file else ""
+		baf = f" '{backup_file!s}'" if backup_file else ""
 		console.print(f"[bold red]Failed to create backup file{baf}: {err}[/bold red]")
 		sys.exit(1)
 	sys.exit(0)
@@ -160,7 +160,7 @@ def backup_info_main() -> None:
 	except Exception as err:
 		logger.error(err, exc_info=True)
 		console.quiet = False
-		baf = f" from '{str(backup_file)}'" if backup_file else ""
+		baf = f" from '{backup_file!s}'" if backup_file else ""
 		console.print(f"[bold red]Failed to get backup info{baf}: {err}[/bold red]")
 		sys.exit(1)
 	sys.exit(0)
@@ -183,7 +183,7 @@ def restore_main() -> None:
 			init_logging(log_mode="rich", console=progress.console)
 			backup_file = Path(config.backup_file)
 			if not backup_file.exists():
-				raise FileExistsError(f"Backup file '{str(backup_file)}' not found")
+				raise FileExistsError(f"Backup file '{backup_file!s}' not found")
 
 			server_id = config.server_id
 			if server_id not in ("backup", "local"):
@@ -228,7 +228,7 @@ def restore_main() -> None:
 			finally:
 				app.stop_app_state_manager_task(wait=True)
 
-			progress.console.print(f"Backup file '{str(backup_file)}' successfully restored.")
+			progress.console.print(f"Backup file '{backup_file!s}' successfully restored.")
 	except KeyboardInterrupt:
 		logger.error("Restore interrupted")
 		console.quiet = False
@@ -237,7 +237,7 @@ def restore_main() -> None:
 	except Exception as err:
 		logger.error(err, exc_info=True)
 		console.quiet = False
-		baf = f" from '{str(backup_file)}'" if backup_file else ""
+		baf = f" from '{backup_file!s}'" if backup_file else ""
 		console.print(f"[bold red]Failed to restore backup{baf}: {err}[/bold red]")
 		sys.exit(1)
 	sys.exit(0)
@@ -257,7 +257,7 @@ def backup_extract_main() -> None:
 			init_logging(log_mode="rich", console=progress.console)
 			backup_file = Path(config.backup_file)
 			if not backup_file.exists():
-				raise FileExistsError(f"Backup file '{str(backup_file)}' not found")
+				raise FileExistsError(f"Backup file '{backup_file!s}' not found")
 
 			extract_dir = Path(config.extract_dir)
 			if not extract_dir.is_absolute():
@@ -265,7 +265,7 @@ def backup_extract_main() -> None:
 
 			if extract_dir.exists():
 				if not config.overwrite:
-					raise FileExistsError(f"Extract directory '{str(extract_dir)}' already exists, use --overwrite to replace.")
+					raise FileExistsError(f"Extract directory '{extract_dir!s}' already exists, use --overwrite to replace.")
 				shutil.rmtree(extract_dir)
 
 			progress.console.print(f"Extracting backup [bold]{backup_file.name}[/bold] to [bold]{extract_dir}[/bold]")
@@ -328,7 +328,7 @@ def backup_extract_main() -> None:
 				redis_file.write_text(json.dumps(dumped_keys, indent=2), encoding="utf-8")
 				progress.console.print(f"Extracted Redis data to {redis_file}")
 
-			progress.console.print(f"Backup contents successfully extracted to '{str(extract_dir)}'")
+			progress.console.print(f"Backup contents successfully extracted to '{extract_dir!s}'")
 
 	except KeyboardInterrupt:
 		logger.error("Backup extract interrupted")
@@ -338,7 +338,7 @@ def backup_extract_main() -> None:
 	except Exception as err:
 		logger.error(err, exc_info=True)
 		console.quiet = False
-		baf = f" from '{str(backup_file)}'" if backup_file else ""
+		baf = f" from '{backup_file!s}'" if backup_file else ""
 		console.print(f"[bold red]Failed to extract backup{baf}: {err}[/bold red]")
 		sys.exit(1)
 	sys.exit(0)

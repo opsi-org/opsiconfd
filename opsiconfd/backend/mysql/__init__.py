@@ -11,16 +11,17 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import lru_cache
 from inspect import signature
 from json import JSONDecodeError, dumps, loads
 from pathlib import Path
 from time import sleep
 from types import NoneType
-from typing import TYPE_CHECKING, Any, Callable, Generator, Literal, Type, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 
 from opsi.exception import OpsiServicePermissionError
@@ -65,7 +66,7 @@ class ColumnInfo:
 
 
 @contextmanager
-def query_log_level(level: str) -> Generator[None, None, None]:
+def query_log_level(level: str) -> Generator[None]:
 	current = MySQLSession.query_log
 	MySQLSession.query_log = getattr(logger, level)
 	try:
@@ -153,7 +154,7 @@ class MySQLSession(Session):
 
 
 class MySQLConnection:
-	_column_to_attribute = {
+	_column_to_attribute = {  # noqa: RUF012
 		"AUDIT_LOG": {"auditLogId": "id"},
 		"AUDIT_PRODUCT_ACTION_REQUEST": {"auditLogId": "id"},
 		"USER": {"userId": "id"},
@@ -165,7 +166,7 @@ class MySQLConnection:
 		"SOFTWARE_LICENSE": {"softwareLicenseId": "id"},
 		"LICENSE_POOL": {"licensePoolId": "id"},
 	}
-	_attribute_to_column = {
+	_attribute_to_column = {  # noqa: RUF012
 		"AUDIT_LOG": {"id": "auditLogId"},
 		"AUDIT_PRODUCT_ACTION_REQUEST": {"id": "auditLogId"},
 		"USER": {"id": "userId"},
@@ -177,7 +178,7 @@ class MySQLConnection:
 		"SOFTWARE_LICENSE": {"id": "softwareLicenseId"},
 		"LICENSE_POOL": {"id": "licensePoolId"},
 	}
-	_client_id_column = {
+	_client_id_column = {  # noqa: RUF012
 		"HOST": "hostId",
 		"PRODUCT_ON_CLIENT": "clientId",
 		"CONFIG_STATE": "objectId",
@@ -230,7 +231,7 @@ class MySQLConnection:
 		return f"<{self.__class__.__name__}(address={self.address})>"
 
 	@contextmanager
-	def disable_unique_hardware_addresses(self) -> Generator[None, None, None]:
+	def disable_unique_hardware_addresses(self) -> Generator[None]:
 		unique_hardware_addresses = self.unique_hardware_addresses
 		self.unique_hardware_addresses = False
 		try:
@@ -239,7 +240,7 @@ class MySQLConnection:
 			self.unique_hardware_addresses = unique_hardware_addresses
 
 	@contextmanager
-	def disable_unique_systemUUIDs(self) -> Generator[None, None, None]:
+	def disable_unique_systemUUIDs(self) -> Generator[None]:
 		unique_systemUUID = self.unique_system_uuids
 		self.unique_system_uuids = False
 		try:
@@ -290,7 +291,7 @@ class MySQLConnection:
 		if not mysql_conf.exists():
 			return
 		loc: dict[str, Any] = {}
-		exec(compile(mysql_conf.read_bytes(), "<string>", "exec"), None, loc)
+		exec(compile(mysql_conf.read_bytes(), "<string>", "exec"), None, loc)  # noqa: S102
 		self._parse_config(loc["config"])
 
 	def upgrade_config_file(self) -> None:
@@ -450,7 +451,7 @@ class MySQLConnection:
 
 			db_time = session.execute("SELECT CURRENT_TIMESTAMP()").fetchone()[0]
 			db_time_utc = datetime.fromisoformat(str(db_time).replace(" ", "T") + "+00:00")
-			now = datetime.now(tz=timezone.utc)
+			now = datetime.now(tz=UTC)
 			time_diff = abs((db_time_utc - now).total_seconds())
 			log = logger.info if time_diff < 30 else logger.warning
 			log(
@@ -461,7 +462,7 @@ class MySQLConnection:
 			)
 
 	@contextmanager
-	def connection(self) -> Generator[None, None, None]:
+	def connection(self) -> Generator[None]:
 		self.connect()
 		try:
 			yield
@@ -497,7 +498,7 @@ class MySQLConnection:
 			]
 
 	@contextmanager
-	def session(self, session: MySQLSession | None = None, commit: bool = True) -> Generator[MySQLSession, None, None]:
+	def session(self, session: MySQLSession | None = None, commit: bool = True) -> Generator[MySQLSession]:
 		if session:
 			yield session
 			return
@@ -518,7 +519,7 @@ class MySQLConnection:
 			self._Session.remove()
 
 	@contextmanager
-	def table_lock(self, session: MySQLSession, locks: dict[str, str]) -> Generator[None, None, None]:
+	def table_lock(self, session: MySQLSession, locks: dict[str, str]) -> Generator[None]:
 		qlock = []
 		for table, lock in locks.items():
 			if lock.upper() not in ("READ", "WRITE"):
@@ -695,22 +696,22 @@ class MySQLConnection:
 			return "WHERE " + " AND ".join([f"({c})" for c in conditions]), params
 		return "", {}
 
-	@lru_cache
-	def _get_read_conversions(self, object_type: Type[BaseObject]) -> dict[str, Callable]:
+	@lru_cache  # noqa: B019 - MySQLConnection instances are long-lived, no memory leak.
+	def _get_read_conversions(self, object_type: type[BaseObject]) -> dict[str, Callable]:
 		conversions: dict[str, Callable] = {}
-		sig = signature(getattr(object_type, "__init__"))
-		for name, param in sig.parameters.items():
+		sig = signature(object_type.__init__)
+		for name in sig.parameters:
 			if name in ("authMethods", "values"):
 				conversions[name] = loads
 			elif name == "groups":
 				conversions[name] = split_values_on_comma
 		return conversions
 
-	@lru_cache
-	def _get_write_conversions(self, object_type: Type[BaseObject]) -> dict[str, Callable]:
+	@lru_cache  # noqa: B019 - MySQLConnection instances are long-lived, no memory leak.
+	def _get_write_conversions(self, object_type: type[BaseObject]) -> dict[str, Callable]:
 		conversions: dict[str, Callable] = {}
-		sig = signature(getattr(object_type, "__init__"))
-		for name, param in sig.parameters.items():
+		sig = signature(object_type.__init__)
+		for name in sig.parameters:
 			if name in ("authMethods", "values"):
 				conversions[name] = dumps
 			elif name == "groups":
@@ -785,7 +786,7 @@ class MySQLConnection:
 	def _row_to_dict(
 		self,
 		row: Row,
-		object_type: Type[BaseObject] | None = None,
+		object_type: type[BaseObject] | None = None,
 		ident_type: IdentType | None = None,
 		aggregates: list[str] | None = None,
 		conversions: dict[str, Callable] | None = None,
@@ -813,7 +814,7 @@ class MySQLConnection:
 	def _row_to_object(
 		self,
 		row: Row,
-		object_type: Type[BaseObjectT] | None = None,
+		object_type: type[BaseObjectT] | None = None,
 		aggregates: list[str] | None = None,
 		conversions: dict[str, Callable] | None = None,
 	) -> BaseObject:
@@ -862,7 +863,7 @@ class MySQLConnection:
 
 			self._check_attribute_permissions(attr, ace)
 			if not isinstance(direction, str):
-				raise ValueError(f"Invalid order direction {direction!r} for attribute {attr!r}")
+				raise ValueError(f"Invalid order direction {direction!r} for attribute {attr!r}")  # noqa: TRY004
 			direction = direction.lower()
 			if direction not in ("asc", "desc"):
 				raise ValueError(f"Invalid order direction {direction!r} for attribute {attr!r}")
@@ -876,7 +877,7 @@ class MySQLConnection:
 	def get_objects(
 		self,
 		table: str,
-		object_type: Type[BaseObjectT],
+		object_type: type[BaseObjectT],
 		return_type: Literal["object"] = "object",
 		aggregates: dict[str, str] | None = None,
 		ace: list[RPCACE] | None = None,
@@ -892,7 +893,7 @@ class MySQLConnection:
 	def get_objects(
 		self,
 		table: str,
-		object_type: Type[BaseObjectT],
+		object_type: type[BaseObjectT],
 		return_type: Literal["dict", "ident"],
 		aggregates: dict[str, str] | None = None,
 		ace: list[RPCACE] | None = None,
@@ -907,7 +908,7 @@ class MySQLConnection:
 	def get_objects(
 		self,
 		table: str,
-		object_type: Type[BaseObjectT],
+		object_type: type[BaseObjectT],
 		return_type: Literal["object", "dict", "ident"] = "object",
 		aggregates: dict[str, str] | None = None,
 		ace: list[RPCACE] | None = None,
@@ -929,7 +930,7 @@ class MySQLConnection:
 			table = f"FROM {table}"
 		tables = re.findall(r"(?:FROM|JOIN)\s+`?([a-zA-Z_]+)`?", table)
 
-		ident_attributes: tuple[str, ...] = tuple()
+		ident_attributes: tuple[str, ...] = ()
 		if return_type == "ident" or attributes or aggregates:
 			ident_attributes = get_ident_attributes(object_type)
 
@@ -1005,7 +1006,7 @@ class MySQLConnection:
 	def get_idents(
 		self,
 		table: str,
-		object_type: Type[BaseObject],
+		object_type: type[BaseObject],
 		ace: list[RPCACE],
 		ident_type: IdentType = "str",
 		filter: dict[str, Any] | None = None,
@@ -1054,9 +1055,8 @@ class MySQLConnection:
 			if attr not in data:
 				continue
 
-			if allowed_client_ids and column.client_id_column:
-				if data.get(attr) not in allowed_client_ids:
-					raise OpsiServicePermissionError(f"No permission for {column}/{attr}: {data.get(attr)}")
+			if allowed_client_ids and column.client_id_column and data.get(attr) not in allowed_client_ids:
+				raise OpsiServicePermissionError(f"No permission for {column}/{attr}: {data.get(attr)}")
 
 			if attr in ident_attrs:
 				where.append(f"`{column.column}` = :{attr}")
@@ -1129,7 +1129,7 @@ class MySQLConnection:
 			additional_data=additional_data,
 		)
 		if query:
-			with self.session(session) as session:
+			with self.session(session) as session:  # noqa: PLR1704
 				result = session.execute(query, params=params)
 				return result.lastrowid  # ty: ignore[unresolved-attribute]
 		return None
@@ -1170,13 +1170,13 @@ class MySQLConnection:
 			data.append(dat)
 
 		query = f"INSERT INTO `{table}` ({','.join(cols)}) VALUES ({','.join(vals)})"
-		with self.session(session) as session:
+		with self.session(session) as session:  # noqa: PLR1704
 			session.execute(query, params=data)
 
 	def delete_query(
 		self,
 		table: str,
-		object_type: Type[BaseObjectT],
+		object_type: type[BaseObjectT],
 		obj: list[BaseObjectT] | BaseObjectT | list[dict[str, Any]] | dict[str, Any],
 		ace: list[RPCACE],
 	) -> tuple[str, dict[str, Any], list[dict[str, Any]]]:
@@ -1226,7 +1226,7 @@ class MySQLConnection:
 	def delete_objects(
 		self,
 		table: str,
-		object_type: Type[BaseObjectT],
+		object_type: type[BaseObjectT],
 		obj: list[BaseObjectT] | BaseObjectT | list[dict[str, Any]] | dict[str, Any],
 		ace: list[RPCACE],
 	) -> None:

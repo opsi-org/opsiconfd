@@ -7,7 +7,7 @@
 health check
 """
 
-from typing import Iterator
+from collections.abc import Iterator
 
 from opsiconfd.check.common import CheckResult, check_manager
 from opsiconfd.logging import logger

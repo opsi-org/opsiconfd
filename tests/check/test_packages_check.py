@@ -7,7 +7,7 @@
 check tests
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest import mock
 
 import pytest
@@ -276,7 +276,7 @@ REPO_DATA = """{
 
 
 def test_get_available_product_versions() -> None:
-	now = datetime.now(tz=timezone.utc)
+	now = datetime.now(tz=UTC)
 	yesterday = now - timedelta(days=1)
 	repo_data = REPO_DATA.replace("<<release_date_opsi-client-agent>>", yesterday.isoformat()).replace(
 		"<<release_date_opsi-script>>", now.isoformat()
@@ -306,7 +306,7 @@ def test_check_products_on_depots(relase_age: int) -> None:
 	_prepare_products()
 	check_manager.register(opsi_products_on_depots_check)
 
-	now = datetime.now(tz=timezone.utc)
+	now = datetime.now(tz=UTC)
 	release_date = now - timedelta(days=relase_age)
 	repo_data = REPO_DATA.replace("<<release_date_opsi-client-agent>>", release_date.isoformat()).replace(
 		"<<release_date_opsi-script>>", release_date.isoformat()
@@ -366,7 +366,7 @@ def test_check_products_on_depots(relase_age: int) -> None:
 
 @pytest.mark.parametrize("installation_age", [OUTDATED_AFTER_DAYS - 1, OUTDATED_AFTER_DAYS + 1])
 def test_check_products_on_clients(installation_age: int) -> None:
-	now = datetime.now(tz=timezone.utc)
+	now = datetime.now(tz=UTC)
 	installation_date = now - timedelta(days=installation_age)
 
 	_prepare_products(depot_installation_time=installation_date)

@@ -67,7 +67,7 @@ def read_acl_file(acl_file: Path | str) -> list[RPCACE]:
 			if ace_type not in ("all", "self", "opsi_depotserver", "opsi_client", "sys_group", "sys_user"):
 				raise ValueError(f"Unhandled acl type: '{ace_type}' {position_text}")
 
-			ace = RPCACE(method_re=method_re, type=ace_type)  # ty: ignore[invalid-argument-type]
+			ace = RPCACE(method_re=method_re, type=ace_type)
 			if not ace_type_params:
 				if ace_type in ("sys_group", "sys_user"):
 					raise ValueError(f"Bad formatted acl type '{ace_type}': no params given {position_text}")

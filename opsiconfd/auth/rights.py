@@ -7,7 +7,7 @@
 opsiconfd.auth.rights
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from opsi.opsi.service.model.object import BoolConfig, UnicodeConfig
@@ -48,7 +48,7 @@ class Rights:
 	ssh_server_configuration: bool = True
 	connect_terminal_forbidden: list[Terminals] | None = None
 	message_of_the_day_forbidden: list[MessageTypes] | None = None
-	configs: dict[str, UnicodeConfig | BoolConfig] = {}
+	configs: dict[str, UnicodeConfig | BoolConfig] = {}  # noqa: RUF012
 	config_prefix: str = "user"
 
 	# @property
@@ -99,7 +99,7 @@ class Rights:
 		self.connect_terminal_forbidden = connect_terminal_forbidden
 		self.message_of_the_day_forbidden = message_of_the_day_forbidden
 
-		now = datetime.now(tz=timezone.utc)
+		now = datetime.now(tz=UTC)
 		self.modified = now.strftime("%Y-%m-%d %H:%M:%S")
 
 		from opsiconfd.backend import get_unprotected_backend

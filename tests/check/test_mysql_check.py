@@ -26,7 +26,7 @@ from tests.utils import (  # noqa: F401
 	OpsiconfdTestClient,
 	captured_function_output,
 	clean_mysql,
-	cleanup_checks,  # noqa: F401
+	cleanup_checks,
 	get_config,
 	get_opsi_config,
 	sync_clean_redis,

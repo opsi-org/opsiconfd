@@ -68,10 +68,9 @@ class OpsiUserCheck(Check):
 						f"OPSI user '{self.user}' has a home directory '{user_info.home}' "
 						f"not owned by the user (uid: {stat.st_uid} != {user_info.uid})"
 					)
-				if os.geteuid() == user_info.uid:
-					if not os.access(user_info.home, os.R_OK | os.W_OK | os.X_OK):
-						result.check_status = CheckStatus.ERROR
-						result.message = f"OPSI user '{self.user}' cannot access its home directory: '{user_info.home}'"
+				if os.geteuid() == user_info.uid and not os.access(user_info.home, os.R_OK | os.W_OK | os.X_OK):
+					result.check_status = CheckStatus.ERROR
+					result.message = f"OPSI user '{self.user}' cannot access its home directory: '{user_info.home}'"
 			else:
 				result.check_status = CheckStatus.ERROR
 				result.message = f"OPSI user '{self.user}' has a non existing home directory configured: '{user_info.home}'"
@@ -94,10 +93,9 @@ class OpsiUserCheck(Check):
 			)
 
 		depot_dir = Path(DEPOT_DIR)
-		if os.geteuid() == uid and depot_dir.exists():
-			if not os.access(depot_dir, os.R_OK | os.W_OK | os.X_OK):
-				result.check_status = CheckStatus.ERROR
-				result.message = f"OPSI user '{self.user}' does not have full access to depot directory '{depot_dir}'"
+		if os.geteuid() == uid and depot_dir.exists() and not os.access(depot_dir, os.R_OK | os.W_OK | os.X_OK):
+			result.check_status = CheckStatus.ERROR
+			result.message = f"OPSI user '{self.user}' does not have full access to depot directory '{depot_dir}'"
 
 		return result
 

@@ -17,7 +17,7 @@ import pytest
 
 from opsiconfd.config import opsi_config
 from opsiconfd.setup.samba import get_smbd_service_name, is_samba3, setup_samba
-from tests.utils import MockProcess  # noqa: F401
+from tests.utils import MockProcess
 
 EXPECTED_CONF = f"""
 [opsi_depot]

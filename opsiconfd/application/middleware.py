@@ -9,7 +9,7 @@ application.middelware
 
 import warnings
 from ctypes import c_long
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from time import time
 from urllib.parse import urlparse
 
@@ -52,7 +52,7 @@ def get_server_date() -> tuple[bytes, bytes]:
 		server_date = (
 			now,
 			str(now).encode("ascii"),
-			datetime.fromtimestamp(now, timezone.utc).strftime("%a, %d %b %Y %H:%M:%S %Z").encode("utf-8"),
+			datetime.fromtimestamp(now, UTC).strftime("%a, %d %b %Y %H:%M:%S %Z").encode("utf-8"),
 		)
 	return server_date[1], server_date[2]
 
@@ -68,7 +68,7 @@ class BaseMiddleware:
 			auth_methods.append("saml")
 
 		self.default_headers = (
-			(b"Server", f"opsiconfd {__version__} (uvicorn)".encode("utf-8")),
+			(b"Server", f"opsiconfd {__version__} (uvicorn)".encode()),
 			(b"X-opsi-server-role", get_server_role().encode("utf-8")),
 			(b"X-opsi-worker-id", Worker.get_instance().id.encode("utf-8")),
 			(b"X-opsi-auth-methods", (",".join(auth_methods)).encode("utf-8")),
@@ -152,7 +152,7 @@ class BaseMiddleware:
 						origin = urlparse(scope["request_headers"]["origin"])
 						origin_scheme = origin.scheme
 						origin_port = int(origin.port)
-					except Exception:
+					except Exception:  # noqa: S110
 						pass
 					headers.append("Access-Control-Allow-Origin", f"{origin_scheme}://{host}:{origin_port}")
 				headers.append("Access-Control-Allow-Methods", "*")

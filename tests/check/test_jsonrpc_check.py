@@ -8,7 +8,7 @@ check tests
 """
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest import mock
 from warnings import catch_warnings, simplefilter
 
@@ -44,7 +44,7 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # no
 	assert result.check_status == CheckStatus.OK
 
 	rpc = {"id": 1, "method": DEPRECATED_METHOD, "params": []}
-	current_dt = datetime.now(timezone.utc)
+	current_dt = datetime.now(UTC)
 	with mock.patch("opsiconfd.application.jsonrpc.AWAIT_STORE_RPC_INFO", True), catch_warnings():
 		simplefilter("ignore")
 		res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
@@ -63,7 +63,7 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # no
 	assert partial_result.details["last_call"]
 	assert partial_result.details["drop_version"] == "4.4"
 	assert partial_result.upgrade_issue == "4.4"
-	last_call_dt = datetime.fromisoformat(partial_result.details["last_call"]).astimezone(timezone.utc)
+	last_call_dt = datetime.fromisoformat(partial_result.details["last_call"]).astimezone(UTC)
 	assert (last_call_dt - current_dt).total_seconds() < 3
 	assert isinstance(partial_result.details["applications"], list)
 	assert partial_result.details["applications"] == ["testclient"]

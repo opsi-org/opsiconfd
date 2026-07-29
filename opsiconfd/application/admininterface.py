@@ -436,7 +436,7 @@ def _install_addon(data: bytes) -> None:
 async def install_addon(request: Request) -> RESTResponse:
 	form = await request.form()
 	if isinstance(form["addonfile"], str):
-		raise RuntimeError("Invalid addon")
+		raise RuntimeError("Invalid addon")  # noqa: TRY004
 	data = await form["addonfile"].read()
 	await run_in_threadpool(_install_addon, data)
 	return RESTResponse("Addon installed")
@@ -902,11 +902,11 @@ def get_licensing_info() -> RESTResponse:
 	modules: dict[str, dict] = {}
 	previous: dict[str, dict] = {}
 	obsolete_modules = info.get("obsolete_modules", [])
-	module_ids = sorted(set(m for di in info.get("dates", {}).values() for m in di["modules"] if m not in obsolete_modules))
+	module_ids = sorted({m for di in info.get("dates", {}).values() for m in di["modules"] if m not in obsolete_modules})
 
 	for at_date, date_info in info.get("dates", {}).items():
 		at_date = datetime.date.fromisoformat(at_date)
-		if (at_date <= datetime.date.today()) and (not active_date or at_date > active_date):
+		if (at_date <= datetime.date.today()) and (not active_date or at_date > active_date):  # noqa: DTZ011
 			active_date = at_date
 
 		for module_id in module_ids:

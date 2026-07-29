@@ -79,12 +79,10 @@ def test_checks_and_skip_checks() -> None:
 	with get_config({"checks": ["redis", "mysql", "ssl"]}):
 		register_checks()
 		assert len(check_manager.check_ids) == 3
-		assert len(check_manager.possible_checks) == 20
 
 	with get_config({"skip_checks": ["redis", "mysql", "ssl"]}):
 		register_checks()
-		assert len(check_manager.check_ids) == 20
-		assert len(check_manager.possible_checks) == 3
+		assert len(check_manager.check_ids) == len(check_manager.possible_checks) - 3
 
 
 def test_check_opsi_config_checkmk(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

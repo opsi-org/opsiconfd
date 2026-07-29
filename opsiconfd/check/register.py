@@ -7,6 +7,8 @@ __all__ = ["register_checks"]
 
 
 def register_checks() -> None:
+	from opsiconfd.check.common import check_manager
+
 	import opsiconfd.check.addon
 	import opsiconfd.check.backend
 	import opsiconfd.check.backup
@@ -23,3 +25,8 @@ def register_checks() -> None:
 	import opsiconfd.check.system
 	import opsiconfd.check.users
 	import opsiconfd.check.worker  # noqa: F401
+
+	# Modules register their checks on first import only.
+	# Re-apply the current configuration so that checks/skip_checks
+	# take effect even if the modules were already imported.
+	check_manager.apply_config()

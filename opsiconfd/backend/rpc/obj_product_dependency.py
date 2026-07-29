@@ -578,7 +578,7 @@ class RPCProductDependencyMixin(Protocol):
 									product_ids.add(dep_action.product_id)
 
 					group_idx: set[int] = set()
-					for pid in product_ids:
+					for pid in product_ids.copy():
 						for idx, pids in enumerate(p_groups):
 							if pid in pids:
 								product_ids.update(pids)

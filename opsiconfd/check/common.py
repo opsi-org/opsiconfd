@@ -192,9 +192,15 @@ class CheckManager:
 		self._checks = {}
 
 	def register(self, *checks: Check) -> None:
-		role = get_server_role()
 		for check in checks:
 			self._possible_checks[check.id] = check
+		self.apply_config()
+
+	def apply_config(self) -> None:
+		"""Recompute the active checks from all possible checks based on the current configuration."""
+		role = get_server_role()
+		self._checks = {}
+		for check in self._possible_checks.values():
 			if role == "depotserver" and not check.depot_check:
 				continue
 			if (config.checks and check.id not in config.checks) or (config.skip_checks and check.id in config.skip_checks):

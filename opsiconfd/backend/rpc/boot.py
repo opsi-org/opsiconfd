@@ -165,7 +165,7 @@ class TemplateContextStates(dict[str, T]):
 			if remove_prefix:
 				for prefix in remove_prefix:
 					name = name.removeprefix(prefix)
-			string = cmdline_param_to_string(name, list(state.values()))
+			string = cmdline_param_to_string(name, state.values)  # ty: ignore[invalid-argument-type]
 			if string:
 				cmdline.append(string)
 

@@ -839,15 +839,6 @@ wheels = [
 ]
 
 [[package]]
-name = "isodate"
-version = "0.7.2"
-source = { registry = "https://pypi.uib.gmbh/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/54/4d/e940025e2ce31a8ce1202635910747e5a87cc3a6a6bb2d00973375014749/isodate-0.7.2.tar.gz", hash = "sha256:4cd1aa0f43ca76f4a6c6c0292a85f40b35ec2e43e315b59f06e6d32171a953e6", size = 29705, upload-time = "2024-10-08T23:04:11.5Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/15/aa/0aca39a37d3c7eb941ba736ede56d689e7be91cab5d9ca846bde3999eba6/isodate-0.7.2-py3-none-any.whl", hash = "sha256:28009937d8031054830160fce6d409ed342816b543597cece116d966c6d99e15", size = 22320, upload-time = "2024-10-08T23:04:09.501Z" },
-]
-
-[[package]]
 name = "itsdangerous"
 version = "2.2.0"
 source = { registry = "https://pypi.uib.gmbh/simple" }
@@ -1034,6 +1025,34 @@ wheels = [
 ]
 
 [[package]]
+name = "minisaml"
+version = "26.1"
+source = { registry = "https://pypi.uib.gmbh/simple" }
+dependencies = [
+    { name = "lxml" },
+    { name = "minisignxml" },
+    { name = "yarl" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d9/c7/8792a4af5d74954228fb66dc8e536739f7a3a2a95b77bdb17a08ad0a8004/minisaml-26.1.tar.gz", hash = "sha256:d92d6d1c5f340f7dae0f0e12528e268ae33735b2e7917e4fac5a51b782253f97", size = 5752, upload-time = "2026-01-27T08:14:14.066Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5b/07/5b9293631e13acc9ab9056ac83c21ba149c11b40d9132757fd5b4ee424e0/minisaml-26.1-py3-none-any.whl", hash = "sha256:44d2a67c135f3a2053bc32e9be7825c2987b08fae775aaebb544dd523c0f692f", size = 7863, upload-time = "2026-01-27T08:14:12.309Z" },
+]
+
+[[package]]
+name = "minisignxml"
+version = "26.1"
+source = { registry = "https://pypi.uib.gmbh/simple" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "defusedxml" },
+    { name = "lxml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/53/ad/ea5de327946cc57294eb239867e47629f72155b35521671f183a2facef9c/minisignxml-26.1.tar.gz", hash = "sha256:7e4af7185258efbfa7e048909ba2d00f7694a9b8cc63a920ac14819f3bfa74c6", size = 6585, upload-time = "2026-01-22T02:49:47.598Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a3/fd/9f44de09ae4bc3ba40798cf2b873a974d3e5c15fe7ade74b68dd3af4c7f2/minisignxml-26.1-py3-none-any.whl", hash = "sha256:6c16aee979fe09395dea45281adf0e3255864ea121950953531bc4f609279d9b", size = 9528, upload-time = "2026-01-22T02:49:46.621Z" },
+]
+
+[[package]]
 name = "mock"
 version = "5.2.0"
 source = { registry = "https://pypi.uib.gmbh/simple" }
@@ -1184,6 +1203,7 @@ dependencies = [
     { name = "ldap3" },
     { name = "lxml" },
     { name = "lz4" },
+    { name = "minisaml" },
     { name = "mysqlclient" },
     { name = "netifaces" },
     { name = "objgraph" },
@@ -1199,7 +1219,6 @@ dependencies = [
     { name = "python-multipart" },
     { name = "python-opsi" },
     { name = "python-opsi-legacy" },
-    { name = "python3-saml" },
     { name = "qrcode" },
     { name = "redis" },
     { name = "rich" },
@@ -1211,7 +1230,6 @@ dependencies = [
     { name = "werkzeug" },
     { name = "wsgidav" },
     { name = "wsproto" },
-    { name = "xmlsec" },
     { name = "yappi", marker = "platform_machine == 'x86_64'" },
 ]
 
@@ -1265,6 +1283,7 @@ requires-dist = [
     { name = "ldap3", specifier = ">=2.9.1" },
     { name = "lxml" },
     { name = "lz4", specifier = ">=4.4.5" },
+    { name = "minisaml", specifier = ">=26.1" },
     { name = "mysqlclient", specifier = ">=2.0,<2.2" },
     { name = "netifaces", specifier = ">=0.11" },
     { name = "objgraph", specifier = ">=3.5" },
@@ -1280,7 +1299,6 @@ requires-dist = [
     { name = "python-multipart", specifier = ">=0.0" },
     { name = "python-opsi", specifier = ">=4.3.22" },
     { name = "python-opsi-legacy", specifier = ">=4.3.6,<4.4" },
-    { name = "python3-saml", specifier = "==1.16.0" },
     { name = "qrcode", specifier = ">=8.0" },
     { name = "redis", specifier = ">=8.1" },
     { name = "rich", specifier = ">=13.0" },
@@ -1292,7 +1310,6 @@ requires-dist = [
     { name = "werkzeug", specifier = ">=3.0" },
     { name = "wsgidav", specifier = ">=4.3.4" },
     { name = "wsproto", specifier = ">=1.2" },
-    { name = "xmlsec", specifier = "<=1.3.13" },
     { name = "yappi", marker = "platform_machine == 'x86_64'", specifier = ">=1.4" },
 ]
 
@@ -1854,20 +1871,6 @@ source = { registry = "https://pypi.uib.gmbh/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6a/da/879f1c849e886b783239b8a4710daac73535ba2cfcf672ee4548543e3a74/python-pam-2.0.2.tar.gz", hash = "sha256:97235235ba9b82dbae8068d1099508455949b275f77273ca22fdbd8b1fb5d950", size = 11439, upload-time = "2022-03-18T00:32:09.856Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9b/2d/9fbb3bd686a474d76fbd0b79abdcc016f3da760b1d1c2048bf4c611a4939/python_pam-2.0.2-py3-none-any.whl", hash = "sha256:4ac51dd8953ac59aa45505882b565eef6a22e0423dcf25d63369902080416c20", size = 10658, upload-time = "2022-03-18T00:32:07.802Z" },
-]
-
-[[package]]
-name = "python3-saml"
-version = "1.16.0"
-source = { registry = "https://pypi.uib.gmbh/simple" }
-dependencies = [
-    { name = "isodate" },
-    { name = "lxml" },
-    { name = "xmlsec" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5d/98/6e0268c3a9893af3d4c5cf670183e0314cd6b5cb034a612d6a7cc5060df8/python3-saml-1.16.0.tar.gz", hash = "sha256:97c9669aecabc283c6e5fb4eb264f446b6e006f5267d01c9734f9d8bffdac133", size = 83468, upload-time = "2023-10-09T10:37:43.128Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/07/14/49d9828443b58bd5cc80a454c91b0f867fbf36a24975d501945e6cb9e32f/python3_saml-1.16.0-py3-none-any.whl", hash = "sha256:20b97d11b04f01ee22e98f4a38242e2fea2e28fbc7fbc9bdd57cab5ac7fc2d0d", size = 76155, upload-time = "2023-10-09T10:40:34.001Z" },
 ]
 
 [[package]]
@@ -2459,15 +2462,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/c7/79/12135bdf8b9c9367b
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a4/f5/10b68b7b1544245097b2a1b8238f66f2fc6dcaeb24ba5d917f52bd2eed4f/wsproto-1.3.2-py3-none-any.whl", hash = "sha256:61eea322cdf56e8cc904bd3ad7573359a242ba65688716b0710a5eb12beab584", size = 24405, upload-time = "2025-11-20T18:18:00.454Z" },
 ]
-
-[[package]]
-name = "xmlsec"
-version = "1.3.13"
-source = { registry = "https://pypi.uib.gmbh/simple" }
-dependencies = [
-    { name = "lxml" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/37/9f/342d4562eac99178d0d515c780285e107c6828cefad37d02f05b7b7d8751/xmlsec-1.3.13.tar.gz", hash = "sha256:916f5d78e8041f6cd9391abba659da8c94a4fef7196d126d40af1ff417f2cf86", size = 64640, upload-time = "2022-08-20T20:44:59.433Z" }
 
 [[package]]
 name = "yappi"

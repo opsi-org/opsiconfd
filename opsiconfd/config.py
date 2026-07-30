@@ -60,7 +60,7 @@ CONFIG_FILE_HEADER = """
 # networks = [192.168.0.0/16, 10.0.0.0/8, ::/0, host.example.corp]
 # update-ip = true
 """
-DEPRECATED = ("monitoring-debug", "verify-ip", "dispatch-config-file", "jsonrpc-time-to-cache", "debug")
+DEPRECATED = ("monitoring-debug", "verify-ip", "dispatch-config-file", "jsonrpc-time-to-cache", "debug", "saml-encrypted-assertions")
 CA_KEY_DEFAULT_PASSPHRASE = "Toohoerohpiep8yo"
 SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"
 GC_THRESHOLDS = (150_000, 50, 100)
@@ -1418,18 +1418,6 @@ class Config:
 			help=self._help(
 				"opsiconfd",
 				"Enable signining of messages and assertions.",
-			),
-		)
-		self._parser.add_argument(
-			"--saml-encrypted-assertions",
-			env_var="OPSICONFD_SAML_ENCRYPTED_ASSERTIONS",
-			type=str2bool,
-			nargs="?",
-			const=True,
-			default=False,
-			help=self._help(
-				"opsiconfd",
-				"Enable encrypted assertions.",
 			),
 		)
 		self._parser.add_argument(

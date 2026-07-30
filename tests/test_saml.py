@@ -4,18 +4,27 @@
 # License: AGPL-3.0-only
 
 import json
-from base64 import b64encode
+import zlib
+from base64 import b64decode, b64encode
+from collections.abc import Collection
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 from pathlib import Path
 from unittest.mock import patch
+from urllib.parse import parse_qs, unquote, urlparse
+from xml.etree import ElementTree
 
 import pytest
-import xmlsec
 from _pytest.capture import CaptureFixture
-from lxml.etree import Element
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from lxml import etree
+from minisignxml.config import VerifyConfig
 from opsi.testing.helper import http_test_server
 
-from opsiconfd.auth.saml import get_sp_metadata_xml, update_config_from_idp_metadata_xml
+from opsiconfd.auth.saml import build_login_redirect_url, get_sp_metadata_xml, update_config_from_idp_metadata_xml
+from opsiconfd.config import get_configserver_id
 from opsiconfd.redis import redis_client
 from opsiconfd.session import OPSISession
 from opsiconfd.setup import setup
@@ -33,13 +42,45 @@ from .utils import (  # noqa: F401
 )
 
 
-def test_saml_xmlsec() -> None:
-	# Assert that xmlsec is not producing segmentation fault
-	# https://github.com/SAML-Toolkits/python3-saml/issues/389
-	for _ in range(25):
-		elem = Element("root")
-		elem.attrib["ID"] = "ID"
-		xmlsec.tree.add_ids(elem, ["ID"])
+@lru_cache
+def create_test_certificate() -> tuple[str, str]:
+	"""Create a self-signed test certificate.
+
+	Returns:
+		Tuple of Base64 encoded DER certificate and Base64 encoded DER PKCS#8 private key.
+	"""
+	key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+	subject = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, "test")])
+	cert = x509.CertificateBuilder(
+		issuer_name=subject,
+		subject_name=subject,
+		public_key=key.public_key(),
+		serial_number=x509.random_serial_number(),
+		not_valid_before=datetime.now(tz=UTC) - timedelta(days=1),
+		not_valid_after=datetime.now(tz=UTC) + timedelta(days=30),
+	).sign(key, hashes.SHA256())
+	cert_b64 = b64encode(cert.public_bytes(serialization.Encoding.DER)).decode("ascii")
+	key_b64 = b64encode(
+		key.private_bytes(serialization.Encoding.DER, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+	).decode("ascii")
+	return cert_b64, key_b64
+
+
+def fake_extract_verified_element_and_certificate(
+	*,
+	xml: bytes,
+	certificates: Collection[x509.Certificate],
+	config: VerifyConfig,  # noqa: F811
+) -> tuple[etree._Element, x509.Certificate]:
+	"""Bypass the XML signature verification and return the parsed root element."""
+	return etree.fromstring(xml), next(iter(certificates))
+
+
+def get_saml_request_id(redirect_url: str) -> str:
+	"""Extract the SAML request ID from a HTTP-Redirect binding URL."""
+	saml_request = parse_qs(urlparse(redirect_url).query)["SAMLRequest"][0]
+	xml_data = zlib.decompress(b64decode(saml_request), -15)
+	return ElementTree.fromstring(xml_data).attrib["ID"]
 
 
 @pytest.mark.parametrize(
@@ -67,7 +108,7 @@ def test_saml_login(
 
 	assertion_id = "ID_0cda0c90-ba3d-4b03-aa3d-1e0899e71615"
 	saml_response = f"""<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
-		xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" Destination="https://server.opsi.test:4447/auth/saml/callback/login" ID="ID_f347561d-180c-46c6-8840-f44fc12d6d2e" InResponseTo="ONELOGIN_b153d66c2d481283663e72adee0c576657c907d6" IssueInstant="{not_before_str}" Version="2.0">
+		xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" Destination="https://server.opsi.test:4447/auth/saml/callback/login" ID="ID_f347561d-180c-46c6-8840-f44fc12d6d2e" InResponseTo="__REQUEST_ID__" IssueInstant="{not_before_str}" Version="2.0">
 		<saml:Issuer>https://keycloak.opsi.test/realms/master</saml:Issuer>
 		<dsig:Signature xmlns:dsig="http://www.w3.org/2000/09/xmldsig#">
 			<dsig:SignedInfo>
@@ -97,12 +138,12 @@ def test_saml_login(
 			<saml:Subject>
 				<saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified">adminuser</saml:NameID>
 				<saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
-					<saml:SubjectConfirmationData InResponseTo="ONELOGIN_b153d66c2d481283663e72adee0c576657c907d6" NotOnOrAfter="{not_on_or_after_str}" Recipient="https://server.opsi.test:4447/auth/saml/callback/login"/>
+					<saml:SubjectConfirmationData InResponseTo="__REQUEST_ID__" NotOnOrAfter="{not_on_or_after_str}" Recipient="https://server.opsi.test:4447/auth/saml/callback/login"/>
 				</saml:SubjectConfirmation>
 			</saml:Subject>
 			<saml:Conditions NotBefore="{not_before_str}" NotOnOrAfter="{not_on_or_after_str}">
 				<saml:AudienceRestriction>
-					<saml:Audience>server.opsi.test</saml:Audience>
+					<saml:Audience>{get_configserver_id()}</saml:Audience>
 				</saml:AudienceRestriction>
 			</saml:Conditions>
 			<saml:AuthnStatement AuthnInstant="{not_before_str}" SessionIndex="ff584b64-6bb2-4138-a8d7-e275b1303933::3b94df11-7bab-441c-a15f-2717404dbb15" SessionNotOnOrAfter="{not_on_or_after_str}">
@@ -134,11 +175,11 @@ def test_saml_login(
 	redis = redis_client()
 	saml_idp_sso_url = "https://keycloak.opsi.test/realms/master/protocol/saml"
 	with (
-		patch("onelogin.saml2.utils.OneLogin_Saml2_Utils.validate_sign", lambda *args, **kwargs: True),
+		patch("minisaml.response.extract_verified_element_and_certificate", fake_extract_verified_element_and_certificate),
 		get_config(
 			{
 				"saml-idp-entity-id": "https://keycloak.opsi.test/realms/master",
-				"saml-idp-x509-cert": "==",
+				"saml-idp-x509-cert": create_test_certificate()[0],
 				"saml-idp-sso-url": saml_idp_sso_url,
 				"saml-role-group-mappings": [" view-profile=map-view-profile  ", " offline_access =  group_offline_access"],
 			}
@@ -149,6 +190,13 @@ def test_saml_login(
 		assert res.headers["location"].startswith(saml_idp_sso_url + "?")
 		cookie = next(iter(test_client.cookies.jar))
 		session_id = cookie.value
+
+		request_id = get_saml_request_id(res.headers["location"])
+		saml_response = saml_response.replace("__REQUEST_ID__", request_id)
+		redis_request_key = f"{config.redis_key('saml_login_request_ids')}:{request_id}"
+		assert redis.get(redis_request_key) == session_id.encode("utf-8")
+		assert 0 < redis.ttl(redis_request_key) <= 600
+
 		data: dict[str, str] = {
 			"SAMLResponse": b64encode(saml_response.encode()).decode(),
 			"RelayState": json.dumps({"session_id": session_id, "redirect": redirect}),
@@ -168,13 +216,9 @@ def test_saml_login(
 			if attempt == 0:
 				assert res.status_code == expected_status_code
 				assert expected_text in res.text
+				# The SAML login request ID must be consumed after the first callback
+				assert redis.get(redis_request_key) is None
 				if res.status_code == 200:
-					redis_key = f"{config.redis_key('saml_processed_assertion_ids')}:{assertion_id}"
-					assert redis.get(redis_key) == b"1"
-					exp = redis.ttl(redis_key)
-					assert exp > expiration_seconds
-					assert exp < expiration_seconds + 70
-
 					session_data = OPSISession.deserialize(redis.hgetall(redis_session_key))
 					assert session_data
 					assert session_data["username"] == "adminuser"
@@ -205,7 +249,7 @@ def test_saml_keycloak_group_membership(
 	not_on_or_after_str = not_on_or_after.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 	saml_response = f"""<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
-		xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" Destination="https://opsi.acme.corp:4447/auth/saml/callback/login" ID="ID_2289cf5d-f901-4222-a4a7-1f14887fb8af" InResponseTo="ONELOGIN_9c52a28bfda30cbb55f91e57bb3158ecd6caec5b" IssueInstant="{not_before_str}" Version="2.0">
+		xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" Destination="https://opsi.acme.corp:4447/auth/saml/callback/login" ID="ID_2289cf5d-f901-4222-a4a7-1f14887fb8af" InResponseTo="__REQUEST_ID__" IssueInstant="{not_before_str}" Version="2.0">
 		<saml:Issuer>https://sso.acme.corp/auth/realms/CORP-REALM</saml:Issuer>
 		<dsig:Signature xmlns:dsig="http://www.w3.org/2000/09/xmldsig#">
 			<dsig:SignedInfo>
@@ -228,12 +272,12 @@ def test_saml_keycloak_group_membership(
 			<saml:Subject>
 				<saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified">user125343</saml:NameID>
 				<saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
-					<saml:SubjectConfirmationData InResponseTo="ONELOGIN_9c52a28bfda30cbb55f91e57bb3158ecd6caec5b" NotOnOrAfter="{not_on_or_after_str}" Recipient="https://opsi.acme.corp:4447/auth/saml/callback/login" />
+					<saml:SubjectConfirmationData InResponseTo="__REQUEST_ID__" NotOnOrAfter="{not_on_or_after_str}" Recipient="https://opsi.acme.corp:4447/auth/saml/callback/login" />
 				</saml:SubjectConfirmation>
 			</saml:Subject>
 			<saml:Conditions NotBefore="{not_before_str}" NotOnOrAfter="{not_on_or_after_str}">
 				<saml:AudienceRestriction>
-					<saml:Audience>opsi.acme.corp</saml:Audience>
+					<saml:Audience>{get_configserver_id()}</saml:Audience>
 				</saml:AudienceRestriction>
 			</saml:Conditions>
 			<saml:AuthnStatement AuthnInstant="{not_before_str}" SessionIndex="5804e342-7dee-4cdd-a0fe-8c087ec447df::44dd6da6-bce0-4b76-be42-3ced873ad01f" SessionNotOnOrAfter="{not_on_or_after_str}">
@@ -271,11 +315,11 @@ def test_saml_keycloak_group_membership(
 	redis = redis_client()
 	saml_idp_sso_url = "https://keycloak.opsi.test/realms/master/protocol/saml"
 	with (
-		patch("onelogin.saml2.utils.OneLogin_Saml2_Utils.validate_sign", lambda *args, **kwargs: True),
+		patch("minisaml.response.extract_verified_element_and_certificate", fake_extract_verified_element_and_certificate),
 		get_config(
 			{
-				"saml-idp-entity-id": "https://keycloak.opsi.test/realms/master",
-				"saml-idp-x509-cert": "==",
+				"saml-idp-entity-id": "https://sso.acme.corp/auth/realms/CORP-REALM",
+				"saml-idp-x509-cert": create_test_certificate()[0],
 				"saml-idp-sso-url": saml_idp_sso_url,
 				"saml-role-group-mappings": ["CN=opsi-admin,OU=abc,OU=PermissionGroups,OU=Services,O=acms,C=corp =  opsiadmin"],
 			}
@@ -286,6 +330,10 @@ def test_saml_keycloak_group_membership(
 		assert res.headers["location"].startswith(saml_idp_sso_url + "?")
 		cookie = next(iter(test_client.cookies.jar))
 		session_id = cookie.value
+
+		request_id = get_saml_request_id(res.headers["location"])
+		saml_response = saml_response.replace("__REQUEST_ID__", request_id)
+
 		data: dict[str, str] = {
 			"SAMLResponse": b64encode(saml_response.encode()).decode(),
 			"RelayState": json.dumps({"session_id": session_id}),
@@ -312,18 +360,10 @@ def test_saml_keycloak_group_membership(
 		assert session_data["auth_methods"] == {"saml"}
 
 
-@pytest.mark.parametrize(
-	"saml_sp_client_signature, saml_encrypted_assertions",
-	(
-		(False, False),
-		(True, False),
-		(True, True),
-	),
-)
+@pytest.mark.parametrize("saml_sp_client_signature", (False, True))
 def test_saml_get_sp_metadata_xml(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 	saml_sp_client_signature: bool,
-	saml_encrypted_assertions: bool,
 ) -> None:
 	with get_config(
 		{
@@ -334,7 +374,6 @@ def test_saml_get_sp_metadata_xml(
 			"saml-sp-x509-cert": "== SP_CERT ==",
 			"saml-sp-private-key": "== SP_KEY ==",
 			"saml-sp-client-signature": saml_sp_client_signature,
-			"saml-encrypted-assertions": saml_encrypted_assertions,
 		}
 	):
 		metadata = get_sp_metadata_xml(login_callback_path="/login___callback", logout_callback_path="/logout___callback")
@@ -342,23 +381,19 @@ def test_saml_get_sp_metadata_xml(
 		assert metadata.count("<?xml") == 1
 		assert "login___callback" in metadata
 		assert "logout___callback" in metadata
+		# minisaml always requires signed responses / assertions
+		assert 'WantAssertionsSigned="true"' in metadata
 		if saml_sp_client_signature:
 			assert 'AuthnRequestsSigned="true"' in metadata
-			assert 'WantAssertionsSigned="true"' in metadata
 			assert '<md:KeyDescriptor use="signing">' in metadata
 		else:
 			assert 'AuthnRequestsSigned="false"' in metadata
-			assert 'WantAssertionsSigned="false"' in metadata
 			assert '<md:KeyDescriptor use="signing">' not in metadata
 
-		if saml_encrypted_assertions:
-			assert '<md:KeyDescriptor use="encryption">' in metadata
-		else:
-			assert '<md:KeyDescriptor use="encryption">' not in metadata
+		# Encrypted assertions are no longer supported
+		assert '<md:KeyDescriptor use="encryption">' not in metadata
 
-		assert metadata.count("<ds:X509Certificate>==SP_CERT==</ds:X509Certificate>") == int(saml_sp_client_signature) + int(
-			saml_encrypted_assertions
-		)
+		assert metadata.count("<ds:X509Certificate>==SP_CERT==</ds:X509Certificate>") == int(saml_sp_client_signature)
 
 		res = test_client.get("/auth/saml/sp-meta.xml")
 		assert res.status_code == 200
@@ -367,6 +402,33 @@ def test_saml_get_sp_metadata_xml(
 		assert metadata == metadata2.replace("/auth/saml/callback/login", "/login___callback").replace(
 			"/auth/saml/callback/logout", "/logout___callback"
 		)
+
+
+def test_saml_login_redirect_url_signature() -> None:
+	cert_b64, key_b64 = create_test_certificate()
+	with get_config(
+		{
+			"saml-idp-entity-id": "https://keycloak.opsi.test/realms/master",
+			"saml-idp-sso-url": "https://keycloak.opsi.test/realms/master/protocol/saml",
+			"saml-idp-x509-cert": cert_b64,
+			"saml-sp-x509-cert": cert_b64,
+			"saml-sp-private-key": key_b64,
+			"saml-sp-client-signature": True,
+		}
+	):
+		redirect_url = build_login_redirect_url(request_id="id-test-request", relay_state="relay-state-data")
+		query = urlparse(redirect_url).query
+		signed_query, _, signature_b64 = query.rpartition("&Signature=")
+		assert "SAMLRequest=" in signed_query
+		assert "RelayState=" in signed_query
+		assert signed_query.endswith("SigAlg=" + "http%3A%2F%2Fwww.w3.org%2F2001%2F04%2Fxmldsig-more%23rsa-sha256")
+		assert get_saml_request_id(redirect_url) == "id-test-request"
+
+		certificate = x509.load_der_x509_certificate(b64decode(cert_b64))
+		public_key = certificate.public_key()
+		assert isinstance(public_key, rsa.RSAPublicKey)
+		# Raises InvalidSignature if the signature is invalid
+		public_key.verify(b64decode(unquote(signature_b64)), signed_query.encode("utf-8"), padding.PKCS1v15(), hashes.SHA256())
 
 
 IDP_METDATA_XML = """

@@ -15,15 +15,21 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, FastAPI, Request, Response, status
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
-from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from opsi.logging import TRACE
 from opsi.opsi.service.model.object import AuditLogAuthenticationLogoutReason, AuditLogEventType
-from opsi.time import unix_timestamp
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.auth.const import AuthenticationMethod
-from opsiconfd.auth.saml import get_saml_settings, get_sp_metadata_xml, saml_auth_request_data
+from opsiconfd.auth.saml import (
+	SAML_STATUS_SUCCESS,
+	build_login_redirect_url,
+	build_logout_redirect_url,
+	generate_saml_id,
+	get_logout_response_status,
+	get_sp_metadata_xml,
+	validate_login_response,
+)
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import get_logger
 from opsiconfd.redis import async_redis_client
@@ -43,6 +49,9 @@ from opsiconfd.utils import asyncio_create_task
 logger = get_logger()
 saml_logger = get_logger("opsiconfd.saml")
 auth_router = APIRouter()
+
+# Lifetime in seconds of a pending SAML login request ID in Redis (time allowed to complete the login at the IdP)
+SAML_LOGIN_REQUEST_LIFETIME = 600
 
 
 def auth_setup(app: FastAPI) -> None:
@@ -141,18 +150,14 @@ async def saml_login(request: Request) -> RedirectResponse:
 	if saml_logger.isEnabledFor(TRACE):
 		saml_logger.trace("SAML Login RelayState data: %s", relay_state_data)
 
-	request_data = await saml_auth_request_data(request)
-	if saml_logger.isEnabledFor(TRACE):
-		saml_logger.trace("SAML Login Request data: %s", request_data)
+	# Store the SAML request ID in Redis to verify InResponseTo of the SAML response.
+	# This prevents replay attacks and unsolicited (IdP initiated) SAML responses.
+	request_id = generate_saml_id()
+	redis = await async_redis_client()
+	redis_key = f"{config.redis_key('saml_login_request_ids')}:{request_id}"
+	await redis.set(redis_key, session.session_id or "", ex=SAML_LOGIN_REQUEST_LIFETIME)
 
-	auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
-	# The value passed as return_to will be send as RelayState in the SAML request
-	try:
-		redirect_url = await run_in_threadpool(auth.login, return_to=json.dumps(relay_state_data))
-	finally:
-		if saml_logger.isEnabledFor(TRACE):
-			saml_logger.trace("Last request XML: %s", auth.get_last_request_xml())
-			saml_logger.trace("Last response XML: %s", auth.get_last_response_xml())
+	redirect_url = await run_in_threadpool(build_login_redirect_url, request_id, json.dumps(relay_state_data))
 	return RedirectResponse(url=redirect_url)
 
 
@@ -161,6 +166,7 @@ async def saml_logout(request: Request) -> RedirectResponse:
 	session: OPSISession | None = request.scope.get("session")
 	redirect_url = "/"
 	if session:
+		username = session.username
 		await session.delete()
 		asyncio_create_task(
 			audit_authentication_event(
@@ -169,13 +175,10 @@ async def saml_logout(request: Request) -> RedirectResponse:
 				logout_reason=AuditLogAuthenticationLogoutReason.USER_REQUESTED,
 			)
 		)
-
-		request_data = await saml_auth_request_data(request)
-		if saml_logger.isEnabledFor(TRACE):
-			saml_logger.trace("SAML Logout Request data: %s", request_data)
-
-		auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
-		redirect_url = auth.logout()
+		if config.saml_idp_slo_url:
+			redirect_url = await run_in_threadpool(build_logout_redirect_url, username)
+			if saml_logger.isEnabledFor(TRACE):
+				saml_logger.trace("SAML Logout redirect URL: %s", redirect_url)
 
 	return RedirectResponse(url=redirect_url)
 
@@ -184,15 +187,15 @@ async def saml_logout(request: Request) -> RedirectResponse:
 @auth_router.post("/saml/callback/login")
 async def saml_callback_login(request: Request) -> Response:
 	try:
-		request_data = await saml_auth_request_data(request)
+		form_data = await request.form()
+		saml_response = form_data.get("SAMLResponse")
+		if not saml_response or not isinstance(saml_response, str):
+			raise RuntimeError("No SAMLResponse in SAML login callback")
 		if saml_logger.isEnabledFor(TRACE):
-			saml_logger.trace("SAML Login Callback Request data: %s", request_data)
-			saml_logger.trace(
-				"SAML Login Callback Request SAMLResponse: %s", b64decode(request_data.get("post_data", {}).get("SAMLResponse") or "")
-			)
+			saml_logger.trace("SAML Login Callback SAMLResponse: %s", b64decode(saml_response))
 
-		relay_state = request_data.get("post_data", {}).get("RelayState")
-		if not relay_state:
+		relay_state = form_data.get("RelayState")
+		if not relay_state or not isinstance(relay_state, str):
 			raise RuntimeError("No RelayState in SAML login callback")
 
 		try:
@@ -209,49 +212,46 @@ async def saml_callback_login(request: Request) -> Response:
 		await pre_authenticate(request.scope, session_id=session_id)
 		session: OPSISession = request.scope["session"]
 
-		auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
-		try:
-			await run_in_threadpool(auth.process_response)
-		finally:
-			if saml_logger.isEnabledFor(TRACE):
-				saml_logger.trace("Last request XML: %s", auth.get_last_request_xml())
-				saml_logger.trace("Last response XML: %s", auth.get_last_response_xml())
+		response = await run_in_threadpool(validate_login_response, saml_response)
 
-		errors = auth.get_errors()
-		if errors:
-			raise RuntimeError(f"Failed to process SAML SSO response: {errors} {auth.get_last_error_reason()}")
+		# Verify that the SAML response answers a login request initiated by this SP.
+		# Each request ID can only be consumed once, which also prevents replay attacks.
+		if not response.in_response_to:
+			raise RuntimeError("SAML SSO response has no InResponseTo")
+		redis = await async_redis_client()
+		redis_key = f"{config.redis_key('saml_login_request_ids')}:{response.in_response_to}"
+		stored_session_id = await redis.getdel(redis_key)
+		if not stored_session_id:
+			raise RuntimeError(f"SAML SSO response unsolicited or already processed: {response.in_response_to!r}")
+		if stored_session_id.decode("utf-8") != session_id:
+			raise RuntimeError("Session ID mismatch in SAML login callback")
 
 		# Entra ID does not support SessionNotOnOrAfter attribute
 		expiration_seconds = 3600
-		expiration_ts = auth.get_session_expiration()
-		if expiration_ts is not None:
-			expiration_time = datetime.fromtimestamp(expiration_ts, tz=UTC)
-			expiration_seconds = expiration_ts - unix_timestamp()
+		if response.session_not_on_or_after is not None:
+			expiration_seconds = int((response.session_not_on_or_after - datetime.now(tz=UTC)).total_seconds())
 			if expiration_seconds <= 0:
-				raise RuntimeError(f"SAML SSO response session expired at {expiration_time}")
+				raise RuntimeError(f"SAML SSO response session expired at {response.session_not_on_or_after}")
 
-		if not auth.is_authenticated():
-			raise RuntimeError("SAML SSO not authenticated")
-
-		# https://github.com/SAML-Toolkits/python3-saml#avoiding-replay-attacks
-		last_assertion_id = auth.get_last_assertion_id()
-		assert last_assertion_id
-		redis_key = f"{config.redis_key('saml_processed_assertion_ids')}:{last_assertion_id}"
-		redis = await async_redis_client()
-		if await redis.exists(redis_key):
-			raise RuntimeError(f"SAML SSO response already processed: {last_assertion_id!r}")
-		await redis.set(redis_key, "1", ex=int(expiration_seconds) + 60)
-
-		username = auth.get_nameid()
+		username = response.name_id
 		if not username:
 			raise RuntimeError("SAML SSO response has no NameID")
 
+		def get_attribute_values(name: str) -> list[str]:
+			"""Return all values of the SAML attributes with the given name."""
+			values: list[str] = []
+			for attribute in response.attributes:
+				if attribute.name == name:
+					values.extend(v for v in attribute.values if v)
+			return values
+
 		roles = [
-			g.lower()
-			for g in auth.get_attribute("Role")
-			or auth.get_attribute("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
-			or auth.get_attribute("groupMembership")
-			or []
+			r.lower()
+			for r in (
+				get_attribute_values("Role")
+				or get_attribute_values("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
+				or get_attribute_values("groupMembership")
+			)
 		]
 		saml_logger.info("SAML SSO successful for user %s with roles %s", username, roles)
 
@@ -296,22 +296,17 @@ async def saml_callback_login(request: Request) -> Response:
 @auth_router.post("/saml/callback/logout")
 async def saml_callback_logout(request: Request) -> RedirectResponse:
 	try:
-		request_data = await saml_auth_request_data(request)
+		form_data = await request.form()
+		saml_response = request.query_params.get("SAMLResponse") or form_data.get("SAMLResponse")
+		if not saml_response or not isinstance(saml_response, str):
+			raise RuntimeError("No SAMLResponse in SAML logout callback")
+		status_value = await run_in_threadpool(get_logout_response_status, saml_response)
 		if saml_logger.isEnabledFor(TRACE):
-			saml_logger.trace("SAML Logout Callback Request data: %s", request_data)
-
-		auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
-		try:
-			await run_in_threadpool(auth.process_slo)
-		finally:
-			if saml_logger.isEnabledFor(TRACE):
-				saml_logger.trace("Last request XML: %s", auth.get_last_request_xml())
-				saml_logger.trace("Last response XML: %s", auth.get_last_response_xml())
-		errors = auth.get_errors()
-		if errors:
-			saml_logger.error("Failed to process SAML SLO response: %s %s", errors, auth.get_last_error_reason())
-		else:
+			saml_logger.trace("SAML Logout Callback status: %s", status_value)
+		if status_value == SAML_STATUS_SUCCESS:
 			saml_logger.info("SAML SLO successful")
+		else:
+			saml_logger.error("Failed to process SAML SLO response, status: %s", status_value)
 	except Exception as err:
 		saml_logger.error("SAML logout error: %s", err, exc_info=True)
 

@@ -5,24 +5,36 @@
 
 """
 opsiconfd.auth.saml
+
+SAML 2.0 Service Provider (SP) implementation based on minisaml.
+
+SAML responses (HTTP-POST binding) are validated by minisaml.
+The HTTP-Redirect binding for AuthnRequest and LogoutRequest messages,
+including the optional query string signature as specified in the
+SAML 2.0 bindings specification, is implemented in this module.
 """
 
+from __future__ import annotations
+
 import re
+import secrets
 import xml.dom.minidom
+import zlib
+from base64 import b64decode, b64encode
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from textwrap import dedent
-from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 from xml.etree import ElementTree
 
 from cryptography import x509
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.x509 import CertificateBuilder
-from fastapi import Request
-from onelogin.saml2.metadata import OneLogin_Saml2_Metadata
+from minisaml.response import Response as SamlResponse
+from minisaml.response import TimeDriftLimits, validate_response
 from opsi.exception import OpsiServiceAuthenticationError
+from opsi.logging import TRACE
 from opsi.opsi.service.model.object import AuditLogAuthenticationFailureReason
 from rich import print as rich_print
 from rich.prompt import Prompt
@@ -35,8 +47,22 @@ from opsiconfd.utils.modules import module_available
 
 logger = get_logger("opsiconfd.saml")
 
+SAML_NS_PROTOCOL = "urn:oasis:names:tc:SAML:2.0:protocol"
+SAML_NS_ASSERTION = "urn:oasis:names:tc:SAML:2.0:assertion"
+SAML_NS_METADATA = "urn:oasis:names:tc:SAML:2.0:metadata"
+XMLDSIG_NS = "http://www.w3.org/2000/09/xmldsig#"
+SAML_BINDING_HTTP_REDIRECT = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+SAML_BINDING_HTTP_POST = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+SAML_NAME_ID_FORMAT_UNSPECIFIED = "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"
+SAML_STATUS_SUCCESS = "urn:oasis:names:tc:SAML:2.0:status:Success"
+SIG_ALG_RSA_SHA256 = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
+SAML_DATE_TIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+# Tolerated clock skew between IdP and SP when validating the conditions of a SAML response
+ALLOWED_TIME_DRIFT = TimeDriftLimits(not_before_max_drift=timedelta(seconds=30), not_on_or_after_max_drift=timedelta(seconds=30))
+
 
 def check_if_saml_available() -> None:
+	"""Raise an exception if SAML authentication is unavailable or not configured."""
 	if not module_available("sso"):
 		raise RuntimeError("Single Sign On module not licensed. Please check your OPSI licenses.")
 	if "saml" in config.disabled_auth_methods:
@@ -53,116 +79,166 @@ def check_if_saml_available() -> None:
 
 
 def get_sp_entity_id() -> str:
+	"""Return the SAML entity ID of the Service Provider."""
 	return get_configserver_id()
 
 
 def get_sp_base_url() -> str:
+	"""Return the external base URL of the Service Provider."""
 	return config.external_url
 
 
 def get_sp_url(path: str | None = None) -> str:
+	"""Return the absolute external URL of the Service Provider for the given path."""
 	base_url = get_sp_base_url()
 	if not path:
 		return base_url
 	return f"{base_url.rstrip('/')}/{path.lstrip('/')}"
 
 
-def get_saml_settings(
-	login_callback_path: str = "/auth/saml/callback/login", logout_callback_path: str = "/auth/saml/callback/logout"
-) -> dict[str, Any]:
-	check_if_saml_available()
+def generate_saml_id() -> str:
+	"""Generate a random SAML message ID (must be an xsd:ID / NCName, therefore it must not start with a digit)."""
+	return f"id-{secrets.token_hex(20)}"
 
-	settings: dict[str, Any] = {
-		"strict": False,
-		# If debug is True, xmlsec errors will be printed
-		"debug": False,
-		"security": {
-			"allowRepeatAttributeName": True,
-			# Prevent sending RequestedAuthnContext in AuthnRequest to avoid error AADSTS75011
-			# See https://learn.microsoft.com/de-de/troubleshoot/entra/entra-id/app-integration/error-code-AADSTS75011-auth-method-mismatch
-			"requestedAuthnContext": False,
-			# Indicates whether the <samlp:AuthnRequest> messages sent by this SP
-			# will be signed. [Metadata of the SP will offer this info]
-			"authnRequestsSigned": False,
-			# Indicates whether the <samlp:logoutRequest> messages sent by this SP
-			# will be signed.
-			"logoutRequestSigned": False,
-			# Indicates whether the <samlp:logoutResponse> messages sent by this SP
-			# will be signed.
-			"logoutResponseSigned": False,
-			# Indicates a requirement for the <samlp:Response>, <samlp:LogoutRequest>
-			# and <samlp:LogoutResponse> elements received by this SP to be signed.
-			"wantMessagesSigned": False,
-			# Indicates a requirement for the <saml:Assertion> elements received by
-			# this SP to be signed. [Metadata of the SP will offer this info]
-			# This setting is not needed if document is already being signed.
-			"wantAssertionsSigned": False,
-		},
-		# Identity Provider
-		"idp": {
-			"entityId": config.saml_idp_entity_id,
-			"singleSignOnService": {
-				"url": config.saml_idp_sso_url,
-				"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
-			},
-			"x509cert": config.saml_idp_x509_cert,
-			# TODO: Support separate certificates for signing and encryption?
-			# "x509certMulti": {"signing": [config.saml_idp_x509_cert], "encryption": [config.saml_idp_x509_cert]},
-		},
-		# Service Provider
-		"sp": {
-			"entityId": get_sp_entity_id(),
-			"NameIDFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified",
-			"assertionConsumerService": {
-				"url": f"{get_sp_url(login_callback_path)}",
-				"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
-			},
-		},
-	}
-	if config.saml_idp_slo_url:
-		settings["idp"]["singleLogoutService"] = {
-			"url": config.saml_idp_slo_url,
-			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
-		}
-		settings["sp"]["singleLogoutService"] = {
-			"url": f"{get_sp_url(logout_callback_path)}",
-			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
-		}
 
-	if config.saml_sp_client_signature or config.saml_encrypted_assertions:
-		if not config.saml_sp_x509_cert or not config.saml_sp_private_key:
-			raise ValueError("saml-sp-x509-cert and saml-sp-private-key must be set in config")
-		settings["sp"]["x509cert"] = config.saml_sp_x509_cert
-		settings["sp"]["privateKey"] = config.saml_sp_private_key
+def get_idp_certificate() -> x509.Certificate:
+	"""Load the X.509 certificate of the IdP from the config (Base64 encoded DER)."""
+	if not config.saml_idp_x509_cert:
+		raise ValueError("saml-idp-x509-cert not set in config")
+	return x509.load_der_x509_certificate(b64decode("".join(config.saml_idp_x509_cert.split())))
 
+
+def get_sp_private_key() -> rsa.RSAPrivateKey:
+	"""Load the RSA private key of the SP from the config (Base64 encoded DER / PKCS#8)."""
+	if not config.saml_sp_private_key:
+		raise ValueError("saml-sp-private-key not set in config")
+	private_key = serialization.load_der_private_key(b64decode("".join(config.saml_sp_private_key.split())), password=None)
+	if not isinstance(private_key, rsa.RSAPrivateKey):
+		raise TypeError("saml-sp-private-key is not an RSA private key")
+	return private_key
+
+
+def deflate_and_base64_encode(data: bytes) -> str:
+	"""Compress data with raw deflate and encode it as Base64 as required by the SAML HTTP-Redirect binding."""
+	# Strip zlib header (2 bytes) and checksum (4 bytes) to get a raw deflate stream
+	return b64encode(zlib.compress(data, 9)[2:-4]).decode("ascii")
+
+
+def build_redirect_binding_url(endpoint: str, parameters: dict[str, str]) -> str:
+	"""Build a SAML HTTP-Redirect binding URL, signing the query string if saml-sp-client-signature is enabled.
+
+	According to the SAML 2.0 bindings specification the signature is computed over the
+	URL-encoded query string containing SAMLRequest/SAMLResponse, RelayState and SigAlg
+	(in this order) and transmitted in the Signature query parameter.
+	"""
 	if config.saml_sp_client_signature:
-		settings["security"]["authnRequestsSigned"] = True
-		settings["security"]["logoutRequestSigned"] = True
-		settings["security"]["logoutResponseSigned"] = True
-		settings["security"]["wantMessagesSigned"] = True
-		settings["security"]["wantAssertionsSigned"] = True
+		parameters["SigAlg"] = SIG_ALG_RSA_SHA256
+	query = urlencode(parameters)
+	if config.saml_sp_client_signature:
+		signature = get_sp_private_key().sign(query.encode("utf-8"), padding.PKCS1v15(), hashes.SHA256())
+		query += "&" + urlencode({"Signature": b64encode(signature).decode("ascii")})
+	separator = "&" if urlparse(endpoint).query else "?"
+	return f"{endpoint}{separator}{query}"
 
-	return settings
+
+def build_authn_request_xml(request_id: str, login_callback_path: str = "/auth/saml/callback/login") -> bytes:
+	"""Build a SAML AuthnRequest for the HTTP-Redirect binding.
+
+	No RequestedAuthnContext is included to avoid error AADSTS75011 with Entra ID.
+	See https://learn.microsoft.com/de-de/troubleshoot/entra/entra-id/app-integration/error-code-AADSTS75011-auth-method-mismatch
+	"""
+	authn_request = ElementTree.Element(
+		f"{{{SAML_NS_PROTOCOL}}}AuthnRequest",
+		{
+			"ID": request_id,
+			"Version": "2.0",
+			"IssueInstant": datetime.now(tz=UTC).strftime(SAML_DATE_TIME_FORMAT),
+			"Destination": config.saml_idp_sso_url,
+			"ProtocolBinding": SAML_BINDING_HTTP_POST,
+			"AssertionConsumerServiceURL": get_sp_url(login_callback_path),
+		},
+	)
+	issuer = ElementTree.SubElement(authn_request, f"{{{SAML_NS_ASSERTION}}}Issuer")
+	issuer.text = get_sp_entity_id()
+	ElementTree.SubElement(
+		authn_request, f"{{{SAML_NS_PROTOCOL}}}NameIDPolicy", {"Format": SAML_NAME_ID_FORMAT_UNSPECIFIED, "AllowCreate": "true"}
+	)
+	return ElementTree.tostring(authn_request, encoding="utf-8", xml_declaration=True)
 
 
-async def saml_auth_request_data(request: Request) -> dict[str, Any]:
-	assert request.client
-	assert request.url
-	params: dict[str, Any] = {
-		"http_host": request.client.host,
-		"server_port": request.url.port,
-		"script_name": request.url.path,
-		"post_data": {},
-		"get_data": {},
-	}
-	form_data = await request.form()
-	if request.query_params:
-		params["get_data"].update(request.query_params)
-	if "SAMLResponse" in form_data:
-		params["post_data"]["SAMLResponse"] = form_data["SAMLResponse"]
-	if "RelayState" in form_data:
-		params["post_data"]["RelayState"] = form_data["RelayState"]
-	return params
+def build_login_redirect_url(request_id: str, relay_state: str, login_callback_path: str = "/auth/saml/callback/login") -> str:
+	"""Build the IdP redirect URL for a SP initiated login via SAML HTTP-Redirect binding."""
+	check_if_saml_available()
+	authn_request_xml = build_authn_request_xml(request_id=request_id, login_callback_path=login_callback_path)
+	if logger.isEnabledFor(TRACE):
+		logger.trace("SAML AuthnRequest XML: %s", authn_request_xml)
+	parameters = {"SAMLRequest": deflate_and_base64_encode(authn_request_xml), "RelayState": relay_state}
+	return build_redirect_binding_url(config.saml_idp_sso_url, parameters)
+
+
+def build_logout_request_xml(name_id: str) -> bytes:
+	"""Build a SAML LogoutRequest for the HTTP-Redirect binding."""
+	logout_request = ElementTree.Element(
+		f"{{{SAML_NS_PROTOCOL}}}LogoutRequest",
+		{
+			"ID": generate_saml_id(),
+			"Version": "2.0",
+			"IssueInstant": datetime.now(tz=UTC).strftime(SAML_DATE_TIME_FORMAT),
+			"Destination": config.saml_idp_slo_url,
+		},
+	)
+	issuer = ElementTree.SubElement(logout_request, f"{{{SAML_NS_ASSERTION}}}Issuer")
+	issuer.text = get_sp_entity_id()
+	name_id_element = ElementTree.SubElement(logout_request, f"{{{SAML_NS_ASSERTION}}}NameID", {"Format": SAML_NAME_ID_FORMAT_UNSPECIFIED})
+	name_id_element.text = name_id
+	return ElementTree.tostring(logout_request, encoding="utf-8", xml_declaration=True)
+
+
+def build_logout_redirect_url(name_id: str) -> str:
+	"""Build the IdP redirect URL for a SP initiated Single Logout via SAML HTTP-Redirect binding."""
+	check_if_saml_available()
+	if not config.saml_idp_slo_url:
+		raise ValueError("saml-idp-slo-url not set in config")
+	logout_request_xml = build_logout_request_xml(name_id=name_id)
+	if logger.isEnabledFor(TRACE):
+		logger.trace("SAML LogoutRequest XML: %s", logout_request_xml)
+	parameters = {"SAMLRequest": deflate_and_base64_encode(logout_request_xml)}
+	return build_redirect_binding_url(config.saml_idp_slo_url, parameters)
+
+
+def validate_login_response(saml_response: bytes | str) -> SamlResponse:
+	"""Validate a Base64 encoded SAML response including its XML signature and return the parsed response.
+
+	Raises:
+		minisaml.errors.MiniSAMLError: If the response is invalid, expired or does not match audience / issuer.
+	"""
+	check_if_saml_available()
+	return validate_response(
+		data=saml_response,
+		certificate=get_idp_certificate(),
+		expected_audience=get_sp_entity_id(),
+		idp_issuer=config.saml_idp_entity_id,
+		allowed_time_drift=ALLOWED_TIME_DRIFT,
+	)
+
+
+def get_logout_response_status(saml_response: str) -> str:
+	"""Decode a Base64 encoded SAML LogoutResponse (HTTP-Redirect or HTTP-POST binding) and return its status code.
+
+	The signature of the LogoutResponse is not verified, the status is used for logging purposes only.
+	The local session is terminated regardless of the outcome of the Single Logout at the IdP.
+	"""
+	data = b64decode(saml_response)
+	try:
+		# HTTP-Redirect binding uses raw deflate compression
+		data = zlib.decompress(data, wbits=-15)
+	except zlib.error:
+		pass
+	root = ElementTree.fromstring(data)
+	status_code = root.find(f".//{{{SAML_NS_PROTOCOL}}}StatusCode")
+	if status_code is None:
+		raise ValueError("StatusCode not found in LogoutResponse")
+	return status_code.attrib.get("Value", "")
 
 
 def update_config_from_idp_metadata_xml(metadata_xml: str) -> None:
@@ -215,30 +291,54 @@ def update_config_from_idp_metadata_xml(metadata_xml: str) -> None:
 def get_sp_metadata_xml(
 	login_callback_path: str = "/auth/saml/callback/login", logout_callback_path: str = "/auth/saml/callback/logout"
 ) -> str:
-	now = datetime.now(tz=UTC)
-	valid_until = now + timedelta(days=2)
+	"""Generate the SAML metadata XML document of the Service Provider.
 
-	saml_settings = get_saml_settings(login_callback_path=login_callback_path, logout_callback_path=logout_callback_path)
-	metadata = OneLogin_Saml2_Metadata.builder(
-		sp=saml_settings["sp"],
-		authnsign=saml_settings["security"]["authnRequestsSigned"],
-		wsign=saml_settings["security"]["wantAssertionsSigned"],
-		valid_until=valid_until,
+	WantAssertionsSigned is always true, as minisaml requires a valid XML signature
+	on the SAML response or assertion.
+	"""
+	check_if_saml_available()
+	valid_until = (datetime.now(tz=UTC) + timedelta(days=2)).strftime(SAML_DATE_TIME_FORMAT)
+
+	ElementTree.register_namespace("md", SAML_NS_METADATA)
+	ElementTree.register_namespace("ds", XMLDSIG_NS)
+	entity_descriptor = ElementTree.Element(
+		f"{{{SAML_NS_METADATA}}}EntityDescriptor", {"validUntil": valid_until, "entityID": get_sp_entity_id()}
 	)
-	if saml_settings["sp"].get("x509cert"):
-		metadata = OneLogin_Saml2_Metadata.add_x509_key_descriptors(
-			metadata=metadata,
-			cert=saml_settings["sp"]["x509cert"],
-			add_encryption=config.saml_encrypted_assertions,
+	sp_sso_descriptor = ElementTree.SubElement(
+		entity_descriptor,
+		f"{{{SAML_NS_METADATA}}}SPSSODescriptor",
+		{
+			"AuthnRequestsSigned": "true" if config.saml_sp_client_signature else "false",
+			"WantAssertionsSigned": "true",
+			"protocolSupportEnumeration": SAML_NS_PROTOCOL,
+		},
+	)
+	if config.saml_sp_client_signature:
+		if not config.saml_sp_x509_cert:
+			raise ValueError("saml-sp-x509-cert not set in config")
+		key_descriptor = ElementTree.SubElement(sp_sso_descriptor, f"{{{SAML_NS_METADATA}}}KeyDescriptor", {"use": "signing"})
+		key_info = ElementTree.SubElement(key_descriptor, f"{{{XMLDSIG_NS}}}KeyInfo")
+		x509_data = ElementTree.SubElement(key_info, f"{{{XMLDSIG_NS}}}X509Data")
+		x509_certificate = ElementTree.SubElement(x509_data, f"{{{XMLDSIG_NS}}}X509Certificate")
+		x509_certificate.text = "".join(config.saml_sp_x509_cert.split())
+	if config.saml_idp_slo_url:
+		ElementTree.SubElement(
+			sp_sso_descriptor,
+			f"{{{SAML_NS_METADATA}}}SingleLogoutService",
+			{"Binding": SAML_BINDING_HTTP_REDIRECT, "Location": get_sp_url(logout_callback_path)},
 		)
-	if isinstance(metadata, bytes):
-		metadata = metadata.decode("utf-8")
+	name_id_format = ElementTree.SubElement(sp_sso_descriptor, f"{{{SAML_NS_METADATA}}}NameIDFormat")
+	name_id_format.text = SAML_NAME_ID_FORMAT_UNSPECIFIED
+	ElementTree.SubElement(
+		sp_sso_descriptor,
+		f"{{{SAML_NS_METADATA}}}AssertionConsumerService",
+		{"Binding": SAML_BINDING_HTTP_POST, "Location": get_sp_url(login_callback_path), "index": "1"},
+	)
 
-	# Fix XML formatting
+	metadata = ElementTree.tostring(entity_descriptor, encoding="unicode")
 	dom = xml.dom.minidom.parseString(metadata)
 	metadata = dom.toprettyxml()
-	metadata = re.sub(r"^\s*\n", "", metadata, flags=re.MULTILINE)
-	return metadata
+	return re.sub(r"^\s*\n", "", metadata, flags=re.MULTILINE)
 
 
 def generate_client_certificate() -> None:
@@ -290,16 +390,6 @@ def setup_saml_configuration(interactive: bool = True, unattended_configuration:
 		metadata_xml = file.read_text(encoding="utf-8")
 
 	rich_print("Updating configuration")
-	rich_print(
-		dedent(
-			"""
-			Encrypted assertions are generally unnecessary because the connection to the Identity Provider is already secure.
-			If you still want to enable encrypted assertions, activate saml-encrypted-assertions in the opsiconfd configuration
-			and ensure that RSA1_5 (http://www.w3.org/2001/04/xmlenc#rsa-1_5) is set as the key transport algorithm
-			on the Service Provider side, since RSA-OAEP-11 and RSA-OAEP-MGF1P are not currently supported.
-			"""
-		)
-	)
 	update_config_from_idp_metadata_xml(metadata_xml)
 	config.update_config({"saml_sp_client_signature": True})
 	generate_client_certificate()

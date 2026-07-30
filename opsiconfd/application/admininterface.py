@@ -888,7 +888,7 @@ def get_routes(request: Request) -> RESTResponse:
 			module = route.endpoint.__module__
 			if module.startswith("opsiconfd.addon_"):
 				module = f"opsiconfd.addon.{module.split('/')[-1]}"
-			routes[path] = f"{module}.{route.endpoint.__qualname__}"
+			routes[path] = f"{module}.{getattr(route.endpoint, '__qualname__', route.endpoint.__class__.__qualname__)}"
 		else:
 			routes[path] = route.__class__.__name__
 

@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 redis_pool_lock = threading.Lock()
 redis_connection_pool: dict[str, ConnectionPool] = {}
 async_redis_connection_pool: dict[str, AsyncConnectionPool] = {}
+REDIS_MAX_CONNECTIONS = 2**31
 
 
 def __con_del__(self: AbstractConnection) -> None:
@@ -154,7 +155,9 @@ def get_redis_connection(
 			with redis_pool_lock:
 				if con_id not in redis_connection_pool:
 					new_pool = True
-					redis_connection_pool[con_id] = ConnectionPool.from_url(url, db=db)
+					redis_connection_pool[con_id] = ConnectionPool.from_url(
+						url, db=db, max_connections=REDIS_MAX_CONNECTIONS, socket_timeout=None
+					)
 			client = Redis(connection_pool=redis_connection_pool[con_id])
 			if new_pool or test_connection:
 				client.ping()
@@ -182,7 +185,9 @@ async def get_async_redis_connection(
 			new_pool = False
 			if con_id not in async_redis_connection_pool:
 				new_pool = True
-				async_redis_connection_pool[con_id] = AsyncConnectionPool.from_url(url, db=db)
+				async_redis_connection_pool[con_id] = AsyncConnectionPool.from_url(
+					url, db=db, max_connections=REDIS_MAX_CONNECTIONS, socket_timeout=None
+				)
 			# This will return a client (no Exception) even if connection is currently lost
 			client = AsyncRedis(connection_pool=async_redis_connection_pool[con_id])
 			if new_pool or test_connection:

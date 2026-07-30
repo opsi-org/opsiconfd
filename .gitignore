@@ -1,4 +1,5 @@
 /.venv
+/.codebase-memory
 /build
 /BUILD
 /debian

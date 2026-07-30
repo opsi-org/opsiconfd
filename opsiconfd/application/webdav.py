@@ -169,10 +169,23 @@ class VirtualRootFilesystemProvider(DAVProvider):
 		super().__init__()
 		self.provider_mapping = provider_mapping
 		self.readonly = True
+		# wsgidav >= 4.3 accesses provider.fs_opts in FolderResource.get_member_names()
+		self.fs_opts = {"follow_symlinks": True}
 
-	def get_resource_inst(self, path: str, environ: dict) -> _DAVResource:
-		root = VirtualRootFilesystemCollection(environ, self)
-		return root.resolve("", path)
+	def get_resource_inst(self, path: str, environ: dict) -> _DAVResource | None:
+		if path in ("", "/"):
+			return VirtualRootFilesystemCollection(environ, self)
+
+		share, _, sub_path = path.strip("/").partition("/")
+		if not (provider := self.provider_mapping.get(f"/{share}")):
+			raise DAVError(HTTP_FORBIDDEN)
+
+		fp = provider._loc_to_file_path(f"/{sub_path}", environ)
+		if not os.path.exists(fp):
+			return None
+		if os.path.isdir(fp):
+			return FolderResource(path, environ, fp)
+		return FileResource(path, environ, fp)
 
 
 def webdav_setup(app: FastAPI) -> None:

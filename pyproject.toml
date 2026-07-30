@@ -16,8 +16,7 @@ dependencies = [
 	"configargparse>=1.4",
 	"configupdater>=3.1",
 	"distro>=1.5",
-	# Breaking change in fastapi 0.137 regarding router.routes
-	"fastapi>=0.115,<0.137",
+	"fastapi>=0.141.1",
 	"greenlet>=3.0",
 	"hiredis>=3.1",
 	"httpx>=0.28",

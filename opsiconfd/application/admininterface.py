@@ -54,6 +54,7 @@ from opsiconfd.session import OPSISession
 from opsiconfd.ssl import get_ca_certs_info, get_server_cert_info
 from opsiconfd.utils import get_manager_process
 from opsiconfd.utils.cryptography import encrypt
+from opsiconfd.utils.fastapi import iter_routes
 
 admin_interface_router = APIRouter()
 welcome_interface_router = APIRouter()
@@ -880,16 +881,16 @@ def get_confd_conf(all: bool = False) -> RESTResponse:
 def get_routes(request: Request) -> RESTResponse:
 	app = request.app
 	routes = {}
-	for route in app.routes:
+	for path, route in iter_routes(app):
 		if isinstance(route, Mount):
-			routes[route.path] = str(route.app.__module__)
+			routes[path] = str(route.app.__module__)
 		elif isinstance(route, APIRoute):
 			module = route.endpoint.__module__
 			if module.startswith("opsiconfd.addon_"):
 				module = f"opsiconfd.addon.{module.split('/')[-1]}"
-			routes[route.path] = f"{module}.{route.endpoint.__qualname__}"
+			routes[path] = f"{module}.{route.endpoint.__qualname__}"
 		else:
-			routes[route.path] = route.__class__.__name__
+			routes[path] = route.__class__.__name__
 
 	return RESTResponse(collections.OrderedDict(sorted(routes.items())))
 

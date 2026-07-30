@@ -15,7 +15,6 @@ from typing import Any
 
 import wsgidav.fs_dav_provider
 from fastapi import FastAPI
-from fastapi.routing import Mount
 from wsgidav import util
 from wsgidav.dav_error import HTTP_FORBIDDEN, DAVError
 from wsgidav.dav_provider import (
@@ -280,7 +279,7 @@ def webdav_setup(app: FastAPI) -> None:
 			conf["path"], readonly=conf["read_only"], fs_opts={"follow_symlinks": True, "ignore_case": conf["ignore_case"]}
 		)
 		app_config["mount_path"] = f"/{name}"
-		app.routes.append(Mount(f"/{name}", WSGIMiddleware(WsgiDAVApp(app_config))))
+		app.mount(f"/{name}", WSGIMiddleware(WsgiDAVApp(app_config)))
 
 	# Virtual filesystem /dav
 	app_config = app_config_template.copy()
@@ -292,4 +291,4 @@ def webdav_setup(app: FastAPI) -> None:
 	virt_root_provider = VirtualRootFilesystemProvider(app_config["provider_mapping"])
 	app_config["provider_mapping"]["/"] = virt_root_provider
 	app_config["mount_path"] = "/dav"
-	app.routes.append(Mount("/dav", WSGIMiddleware(WsgiDAVApp(app_config))))
+	app.mount("/dav", WSGIMiddleware(WsgiDAVApp(app_config)))

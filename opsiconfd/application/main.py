@@ -56,6 +56,7 @@ from opsiconfd.rest import OpsiApiException, rest_api
 from opsiconfd.session import SessionMiddleware, session_manager
 from opsiconfd.ssl import get_ca_certs_as_pem, get_opsi_ca_cert_as_pem
 from opsiconfd.utils import asyncio_create_task
+from opsiconfd.utils.fastapi import iter_routes
 
 
 @app.get("/")
@@ -223,16 +224,16 @@ def application_setup() -> None:
 
 	logger.debug("Routing:")
 	routes = {}
-	for route in app.routes:
+	for path, route in iter_routes(app):
 		if isinstance(route, Mount):
-			routes[route.path] = str(route.app.__module__)
+			routes[path] = str(route.app.__module__)
 		elif isinstance(route, APIRoute):
 			module = route.endpoint.__module__
 			if module.startswith("opsiconfd.addon_"):
 				module = f"opsiconfd.addon.{module.split('/')[-1]}"
-			routes[route.path] = f"{module}.{getattr(route.endpoint, '__qualname__', '?')}"
-		elif hasattr(route, "path"):
-			routes[getattr(route, "path", "")] = route.__class__.__name__
+			routes[path] = f"{module}.{getattr(route.endpoint, '__qualname__', '?')}"
+		else:
+			routes[path] = route.__class__.__name__
 	for path in sorted(routes):
 		logger.debug("%s: %s", path, routes[path])
 

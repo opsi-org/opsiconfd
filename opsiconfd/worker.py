@@ -51,6 +51,7 @@ from opsiconfd.websocket import WebSocketProtocolOpsiconfd, WSProtocolOpsiconfd
 
 if TYPE_CHECKING:
 	from uvicorn.protocols.http.httptools_impl import HttpToolsProtocol
+	from uvicorn.protocols.http.zttp_impl import ZttpProtocol
 	from uvicorn.protocols.websockets.websockets_impl import WebSocketProtocol
 
 
@@ -442,7 +443,7 @@ class Worker(WorkerInfo, UvicornServer):
 			logger.info("All connections closed")
 
 	def get_connection_info(
-		self, connection: H11Protocol | HttpToolsProtocol | WSProtocol | WebSocketProtocol | WebSocketsSansIOProtocol
+		self, connection: H11Protocol | HttpToolsProtocol | WSProtocol | WebSocketProtocol | WebSocketsSansIOProtocol | ZttpProtocol
 	) -> str:
 		info = ""
 		client = connection.client

@@ -1,6 +1,6 @@
 [project]
 name = "opsiconfd"
-version = "4.3.56.11"
+version = "4.3.57.0"
 description = "OPSI configuration service"
 readme = "README.md"
 license = "AGPL-3.0-only"

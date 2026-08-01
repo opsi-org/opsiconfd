@@ -38,7 +38,6 @@ pyinstaller:
     all:
       - ipaddress
       - colorsys
-      - opsi_legacy.Util.WIM
   collect_all:
     - opsiconfd_data
   collect_submodules:

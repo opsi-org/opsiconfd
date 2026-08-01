@@ -1172,9 +1172,11 @@ dependencies = [
     { name = "argon2-cffi" },
     { name = "bcrypt" },
     { name = "click" },
+    { name = "colorlog" },
     { name = "configargparse" },
     { name = "configupdater" },
     { name = "crypt-r" },
+    { name = "cryptography" },
     { name = "distro" },
     { name = "fastapi" },
     { name = "greenlet" },
@@ -1188,7 +1190,9 @@ dependencies = [
     { name = "netifaces" },
     { name = "objgraph" },
     { name = "pam" },
+    { name = "psutil" },
     { name = "py3dns" },
+    { name = "pycryptodome" },
     { name = "pydantic" },
     { name = "pydantic-core" },
     { name = "pydantic-extra-types" },
@@ -1198,12 +1202,12 @@ dependencies = [
     { name = "python-magic" },
     { name = "python-multipart" },
     { name = "python-opsi" },
-    { name = "python-opsi-legacy" },
     { name = "python3-saml" },
     { name = "qrcode" },
     { name = "redis" },
     { name = "rich" },
     { name = "six" },
+    { name = "sqlalchemy" },
     { name = "starlette" },
     { name = "uvicorn" },
     { name = "uvloop" },
@@ -1223,6 +1227,7 @@ dev = [
     { name = "idna" },
     { name = "lxml-stubs" },
     { name = "mock" },
+    { name = "msgpack" },
     { name = "pydevd" },
     { name = "pyinstaller" },
     { name = "pyinstaller-hooks-contrib" },
@@ -1231,6 +1236,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-retry" },
     { name = "pytest-subprocess" },
+    { name = "pyzsync" },
     { name = "ruff" },
     { name = "ty" },
     { name = "types-aiofiles" },
@@ -1253,9 +1259,11 @@ requires-dist = [
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "bcrypt", specifier = ">=4.0.0" },
     { name = "click", specifier = ">=8.1" },
+    { name = "colorlog", specifier = ">=6.6" },
     { name = "configargparse", specifier = ">=1.4" },
     { name = "configupdater", specifier = ">=3.1" },
     { name = "crypt-r", specifier = ">=3.13.1" },
+    { name = "cryptography", specifier = ">=42.0" },
     { name = "distro", specifier = ">=1.5" },
     { name = "fastapi", specifier = ">=0.141.1" },
     { name = "greenlet", specifier = ">=3.0" },
@@ -1269,7 +1277,9 @@ requires-dist = [
     { name = "netifaces", specifier = ">=0.11" },
     { name = "objgraph", specifier = ">=3.5" },
     { name = "pam", specifier = ">=0.2.0" },
+    { name = "psutil", specifier = ">=6.0" },
     { name = "py3dns", specifier = ">=4.0" },
+    { name = "pycryptodome", specifier = ">=3.10" },
     { name = "pydantic", specifier = ">=2.12.0a1" },
     { name = "pydantic-core", specifier = ">=2.18" },
     { name = "pydantic-extra-types", specifier = ">=2.10.6" },
@@ -1279,12 +1289,12 @@ requires-dist = [
     { name = "python-magic", specifier = ">=0.4" },
     { name = "python-multipart", specifier = ">=0.0" },
     { name = "python-opsi", specifier = ">=4.3.22" },
-    { name = "python-opsi-legacy", specifier = ">=4.3.6,<4.4" },
     { name = "python3-saml", specifier = "==1.16.0" },
     { name = "qrcode", specifier = ">=8.0" },
     { name = "redis", specifier = ">=8.1" },
     { name = "rich", specifier = ">=13.0" },
     { name = "six", specifier = ">=1.16" },
+    { name = "sqlalchemy", specifier = ">=1.4,<2.0" },
     { name = "starlette", specifier = ">=0.46" },
     { name = "uvicorn", specifier = ">=0.34" },
     { name = "uvloop", specifier = ">=0.22" },
@@ -1304,6 +1314,7 @@ dev = [
     { name = "idna", specifier = ">=3.3" },
     { name = "lxml-stubs", specifier = ">=0.5" },
     { name = "mock", specifier = ">=5.0" },
+    { name = "msgpack", specifier = ">=1.0" },
     { name = "pydevd", specifier = ">=3.0" },
     { name = "pyinstaller", specifier = ">=6.12" },
     { name = "pyinstaller-hooks-contrib", specifier = ">=2025.1" },
@@ -1312,6 +1323,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=6.0" },
     { name = "pytest-retry", specifier = ">=1.6" },
     { name = "pytest-subprocess", specifier = ">=1.5" },
+    { name = "pyzsync", specifier = ">=1.2" },
     { name = "ruff", specifier = ">=0.9" },
     { name = "ty", specifier = ">=0.0.1a34" },
     { name = "types-aiofiles", specifier = ">=25.1.0.20251011" },
@@ -1325,11 +1337,11 @@ dev = [
 
 [[package]]
 name = "packaging"
-version = "24.2"
+version = "26.2"
 source = { registry = "https://pypi.uib.gmbh/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d0/63/68dbb6eb2de9cb10ee4c9c14a0148804425e13c4fb20d61cce69f53106da/packaging-24.2.tar.gz", hash = "sha256:c228a6dc5e932d346bc5739379109d49e8853dd8223571c7c5b55260edc0b97f", size = 163950, upload-time = "2024-11-08T09:47:47.202Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d7/f1/e7a6dd94a8d4a5626c03e4e99c87f241ba9e350cd9e6d75123f992427270/packaging-26.2.tar.gz", hash = "sha256:ff452ff5a3e828ce110190feff1178bb1f2ea2281fa2075aadb987c2fb221661", size = 228134, upload-time = "2026-04-24T20:15:23.917Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/88/ef/eb23f262cca3c0c4eb7ab1933c3b1f03d021f2c48f54763065b6f0e321be/packaging-24.2-py3-none-any.whl", hash = "sha256:09abb1bccd265c01f4a3aa3f7a7db064b36514d2cba19a2f694fe6150451a759", size = 65451, upload-time = "2024-11-08T09:47:44.722Z" },
+    { url = "https://files.pythonhosted.org/packages/df/b2/87e62e8c3e2f4b32e5fe99e0b86d576da1312593b39f47d8ceef365e95ed/packaging-26.2-py3-none-any.whl", hash = "sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e", size = 100195, upload-time = "2026-04-24T20:15:22.081Z" },
 ]
 
 [[package]]
@@ -1773,7 +1785,7 @@ wheels = [
 
 [[package]]
 name = "python-opsi"
-version = "4.3.26.0"
+version = "4.3.26.2"
 source = { registry = "https://pypi.uib.gmbh/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -1809,42 +1821,9 @@ dependencies = [
     { name = "wmi", marker = "sys_platform == 'win32'" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.26.0.tar.gz", hash = "sha256:e28102ab5d670be105de8fd8c8fab33f19302be857672b8159966381941a2fce" }
+sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.26.2.tar.gz", hash = "sha256:b0126ae05684d6aa9573bc8cd931e4348fb38173bb5b6e6742d65463451d2646" }
 wheels = [
-    { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.26.0-py3-none-any.whl", hash = "sha256:a1542b65bd8bbf0ef1d463d880870d5afcbe2e1b3675f85d98e6cb52d0080b8b" },
-]
-
-[[package]]
-name = "python-opsi-legacy"
-version = "4.3.12.1"
-source = { registry = "https://pypi.uib.gmbh/simple" }
-dependencies = [
-    { name = "colorlog" },
-    { name = "cryptography" },
-    { name = "distro" },
-    { name = "lz4" },
-    { name = "msgpack" },
-    { name = "packaging" },
-    { name = "pefile" },
-    { name = "pexpect" },
-    { name = "psutil" },
-    { name = "pyasn1" },
-    { name = "pycryptodome" },
-    { name = "python-opsi" },
-    { name = "python-pam" },
-    { name = "pywin32", marker = "sys_platform == 'win32'" },
-    { name = "pyzsync" },
-    { name = "ruyaml" },
-    { name = "service-identity" },
-    { name = "six" },
-    { name = "sqlalchemy" },
-    { name = "tomlkit" },
-    { name = "typing-extensions" },
-    { name = "wmi", marker = "sys_platform == 'win32'" },
-]
-sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi_legacy-4.3.12.1.tar.gz", hash = "sha256:af040d6f001390562744d05bcad374577b0f963512896bc3136244468c03f14c" }
-wheels = [
-    { url = "https://pypi.uib.gmbh/packages/python_opsi_legacy-4.3.12.1-py3-none-any.whl", hash = "sha256:ca84b253cc152a814e111532acbe646ab567bf62d02a54cdbdd14b709faa1f43" },
+    { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.26.2-py3-none-any.whl", hash = "sha256:9800534b0f936c78c1c65f3b710ca522d202b4a14fbcfe25e801a46a7f22f0af" },
 ]
 
 [[package]]
@@ -2008,32 +1987,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/fc/8a/fb22af2fd78a736e241fabf67e30ce1799a64244026377a49e133af90762/ruff-0.16.1-py3-none-win32.whl", hash = "sha256:d31765e131295b8445caf301e3e8a85b34d1b9b211b4109b7ba457888b051806", size = 10838258, upload-time = "2026-07-30T19:36:53.298Z" },
     { url = "https://files.pythonhosted.org/packages/d4/35/e57fd9fb5d423961df087a00b12d42c0a830288dc2f3b45ecca299158b4f/ruff-0.16.1-py3-none-win_amd64.whl", hash = "sha256:09b05e8b90c2cb06ad63464350e7a45e8e44a2dfe52072ebfba6666ca8d3f596", size = 11961111, upload-time = "2026-07-30T19:36:56.107Z" },
     { url = "https://files.pythonhosted.org/packages/cb/46/240ea004bf6dc4feb40e9832f2205a476a47dd5b8a3f8211a5fc5f95e20e/ruff-0.16.1-py3-none-win_arm64.whl", hash = "sha256:dbaadaac38c70239f056d306b7476f246b0bf000fa6b3876402acbf5b227eaf8", size = 11309414, upload-time = "2026-07-30T19:36:58.79Z" },
-]
-
-[[package]]
-name = "ruyaml"
-version = "0.91.0"
-source = { registry = "https://pypi.uib.gmbh/simple" }
-dependencies = [
-    { name = "distro" },
-    { name = "setuptools" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/4b/75/abbc7eab08bad7f47887a0555d3ac9e3947f89d2416678c08e025e449fdc/ruyaml-0.91.0.tar.gz", hash = "sha256:6ce9de9f4d082d696d3bde264664d1bcdca8f5a9dff9d1a1f1a127969ab871ab", size = 239075, upload-time = "2021-12-07T16:19:58.427Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/1e/9a/16ca152a04b231c179c626de40af1d5d0bc2bc57bc875c397706016ddb2b/ruyaml-0.91.0-py3-none-any.whl", hash = "sha256:50e0ee3389c77ad340e209472e0effd41ae0275246df00cdad0a067532171755", size = 108906, upload-time = "2021-12-07T16:19:56.798Z" },
-]
-
-[[package]]
-name = "service-identity"
-version = "26.1.0"
-source = { registry = "https://pypi.uib.gmbh/simple" }
-dependencies = [
-    { name = "attrs" },
-    { name = "cryptography" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/61/87/ad52e2c582c0f0e7f0a1b86950494c38d67422dc0f5ed9044a5fb9569a49/service_identity-26.1.0.tar.gz", hash = "sha256:6358c52882c96e66ac4a55eb3a72c7dd4a70763f8cc6fa4e70abde2656f4bf3b", size = 42898, upload-time = "2026-05-30T12:04:55.184Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/93/eb/2433e1af4ff903499144de4846569fb3300b816179ae99a03c2f011b666a/service_identity-26.1.0-py3-none-any.whl", hash = "sha256:68c32dadbb69135fb951077677e07cd7f6031020f3a8c8f47a28cda8a0742118", size = 11370, upload-time = "2026-05-30T12:04:53.911Z" },
 ]
 
 [[package]]

@@ -14,8 +14,9 @@ import shutil
 import sys
 import tempfile
 import time
+from urllib.parse import urlparse
 
-from opsi_legacy.System import mount, umount
+from opsi.system.network import mount_webdav_share, unmount_network_share
 
 
 def main() -> None:
@@ -35,7 +36,17 @@ def main() -> None:
 
 	dst_dir = tempfile.mkdtemp()
 	mnt_dir = tempfile.mkdtemp()
-	mount(args.base_url, mnt_dir, username=args.username, password=args.password, verify_server_cert=False)
+	base_url = urlparse(args.base_url)
+	if not base_url.hostname:
+		raise ValueError(f"Invalid WebDAV URL: {args.base_url!r}")
+	mount_webdav_share(
+		address=base_url.hostname,
+		port=base_url.port or 443,
+		path=base_url.path,
+		mount_point=mnt_dir,
+		username=args.username,
+		password=args.password,
+	)
 	try:
 		start = time.perf_counter()
 		for iternum in range(args.iterations):
@@ -52,7 +63,7 @@ def main() -> None:
 		print(f"Fetched {num_files} files with an avgerage size of {avg_size:0.0f} bytes in {elapsed:0.3f} seconds")
 	finally:
 		shutil.rmtree(dst_dir)
-		umount(mnt_dir)
+		unmount_network_share(mnt_dir)
 		os.rmdir(mnt_dir)
 
 

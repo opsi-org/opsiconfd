@@ -9,7 +9,6 @@ webdav tests
 
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
-from opsi_legacy.Backend.Replicator import BackendReplicator
 
 from opsiconfd.backend import (
 	get_mysql,
@@ -173,7 +172,3 @@ def test_opsiconfd_backend_host_get_tls_certificate_permitted_domains(
 		# IP addresses are not affected by the CA name constraints
 		assert ip_address in cert_ips
 		assert "10.10.10.10" in cert_ips
-
-
-def test_backend_replicator_instance(backend: UnprotectedBackend) -> None:  # noqa: F811
-	BackendReplicator(readBackend=backend, writeBackend=backend, cleanupFirst=False)  # ty: ignore[invalid-argument-type]

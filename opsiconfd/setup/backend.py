@@ -14,9 +14,7 @@ import time
 from pathlib import Path
 from socket import AF_INET, AF_INET6
 
-import opsi_legacy.Backend.File
 from opsi.opsi.service.model.object import OpsiConfigserver
-from opsi_legacy.Backend.Replicator import BackendReplicator
 from rich import print as rich_print
 from rich.prompt import Confirm, Prompt
 
@@ -41,6 +39,7 @@ from opsiconfd.config import (
 )
 from opsiconfd.exception import ConfigurationError
 from opsiconfd.logging import logger, secret_filter
+from opsiconfd.setup.legacy_file_backend import LegacyFileBackendReader, import_legacy_file_backend
 from opsiconfd.ssl import fetch_server_cert, store_local_server_cert, store_local_server_key
 from opsiconfd.utils import get_primary_ip_interface, get_random_string
 
@@ -194,44 +193,44 @@ def setup_mysql(interactive: bool = False, explicit: bool = False, force: bool =
 
 
 def file_mysql_migration() -> None:
-	dipatch_conf = Path(config.dispatch_config_file)
-	if not dipatch_conf.exists():
+	dispatch_conf = Path(config.dispatch_config_file)
+	if not dispatch_conf.exists():
 		return
 
 	file_backend_used = False
-	for line in dipatch_conf.read_text(encoding="utf-8").split("\n"):
+	for line in dispatch_conf.read_text(encoding="utf-8").splitlines():
 		line = line.strip()
 		if not line or line.startswith("#") or ":" not in line:
 			continue
-		if "file" in line.split(":", 1)[1]:
+		backends = re.split(r"[,\s]+", line.split(":", 1)[1].strip())
+		if "file" in backends:
 			file_backend_used = True
 			break
 	if not file_backend_used:
-		dipatch_conf.rename(dipatch_conf.with_suffix(".conf.old"))
+		dispatch_conf.rename(dispatch_conf.with_suffix(".conf.old"))
 		return
 
 	logger.notice("Converting File to MySQL backend, please wait...")
 	config_server_id = opsi_config.get("host", "id")
-	opsi_legacy.Backend.File.getfqdn = lambda: config_server_id  # ty: ignore[invalid-assignment]
-
-	file_backend = opsi_legacy.Backend.File.FileBackend()
-	config_servers = file_backend.host_getObjects(type="OpsiConfigserver")
+	reader = LegacyFileBackendReader(config_server_id=config_server_id)
+	legacy_data = reader.read()
+	config_servers = [host for host in legacy_data.hosts if isinstance(host, OpsiConfigserver)]
 
 	if not config_servers:
-		depot_servers = file_backend.host_getObjects(type="OpsiDepotserver")
-		if len(depot_servers) > 1:
+		depot_servers = [host for host in legacy_data.hosts if host.getType() == "OpsiDepotserver"]
+		if len(depot_servers) != 1:
 			error = (
 				"Cannot convert File to MySQL backend:\n"
-				f"Configserver {file_backend.__serverId!r} not found in File backend.\n"
+				f"Configserver {config_server_id!r} not found in File backend.\n"
 				f"Depot servers in File backend are: {', '.join(d.id for d in depot_servers)}.\n"
-				f"Set host.id in {opsi_config.config_file!r} to one of these IDs and retry."
+				f"Set host.id in {opsi_config.config_file!r} to the depot ID and retry."
 			)
 			logger.error(error)
 			raise ValueError(error)
 
 		config_server_id = depot_servers[0].id
-		config_servers = file_backend.host_getObjects(type="OpsiConfigserver")
 		opsi_config.set("host", "id", config_server_id, persistent=True)
+	logger.notice("Legacy File backend object counts: %s", legacy_data.counts())
 
 	from opsiconfd.backend import get_unprotected_backend
 
@@ -246,10 +245,9 @@ def file_mysql_migration() -> None:
 		update_database(mysql, force=True)
 
 		with mysql.disable_unique_hardware_addresses(), mysql.disable_unique_systemUUIDs():
-			backend_replicator = BackendReplicator(readBackend=file_backend, writeBackend=backend, cleanupFirst=False)  # ty: ignore[invalid-argument-type]
-			backend_replicator.replicate(audit=False)
+			import_legacy_file_backend(legacy_data, backend)
 
-		dipatch_conf.rename(dipatch_conf.with_suffix(".conf.old"))
+		dispatch_conf.rename(dispatch_conf.with_suffix(".conf.old"))
 
 
 def setup_backend_configserver(new_server_id: str | None = None) -> None:

@@ -75,6 +75,7 @@ test:lint-and-test:
 
     - echo -e "${TXT_HEAD}Check for vulnerabilities${TXT_CLEAR}"
     - $DOCKER_COMPOSE exec opsiserver43-dev uv audit
+    - $DOCKER_COMPOSE exec opsiserver43-dev npm --prefix admininterface-tests audit
 
     - echo -e "${TXT_HEAD}Run pytest${TXT_CLEAR}"
     - $DOCKER_COMPOSE exec opsiserver43-dev uv run pytest -x --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests

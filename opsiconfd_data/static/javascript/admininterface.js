@@ -465,11 +465,12 @@ const AUDIT_LOG_EVENT_TYPE_COLUMNS = {
 	"authentication.login.failed": ["authMethods", "failureReason"],
 	"authentication.logout": ["authMethods", "logoutReason"],
 	"client.product.action_request": ["productId", "actionRequest"],
-	"host_parameter.value.set": ["configId", "newValue"],
-	"host_parameter.value.deleted": ["configId"],
+	"config.value.set": ["configId", "scope", "newValue"],
+	"config.value.deleted": ["configId", "scope"],
 };
+const AUDIT_LOG_CONFIG_EVENTS = ["config.value.set", "config.value.deleted"];
 const AUDIT_LOG_BASE_COLUMNS = ["created", "eventType", "username", "clientAddress", "userAgent", "hostId"];
-const AUDIT_LOG_ALL_EXTRA_COLUMNS = ["authMethods", "failureReason", "logoutReason", "productId", "actionRequest", "configId", "newValue"];
+const AUDIT_LOG_ALL_EXTRA_COLUMNS = ["authMethods", "failureReason", "logoutReason", "productId", "actionRequest", "configId", "scope", "newValue"];
 
 function getAuditLogColumns(selectedEventTypes) {
 	if (selectedEventTypes.length === 0) {
@@ -497,7 +498,9 @@ function onAuditLogConfigIdFilterInput() {
 
 function updateAuditLogDynamicFilters() {
 	const eventTypes = getSelectedAuditLogEventTypes();
-	const showConfigId = eventTypes.includes("host_parameter.value.set");
+	const hasConfigEvents = eventTypes.some(eventType => AUDIT_LOG_CONFIG_EVENTS.includes(eventType));
+	const onlyConfigEventsSelected = eventTypes.length > 0 && eventTypes.every(eventType => AUDIT_LOG_CONFIG_EVENTS.includes(eventType));
+	const showConfigId = hasConfigEvents;
 	const configIdLabel = document.getElementById("audit-log-config-id-filter-label");
 	if (configIdLabel) {
 		configIdLabel.style.display = showConfigId ? "" : "none";
@@ -505,6 +508,24 @@ function updateAuditLogDynamicFilters() {
 			const input = document.getElementById("audit-log-config-id-filter");
 			if (input) input.value = "";
 		}
+	}
+
+	const actorTypeFilterField = document.getElementById("audit-log-actor-type-filter-field");
+	if (actorTypeFilterField) {
+		actorTypeFilterField.style.display = onlyConfigEventsSelected ? "none" : "";
+	}
+	if (onlyConfigEventsSelected) {
+		document.querySelectorAll(".audit-log-actor-type-checkbox").forEach(checkbox => checkbox.checked = false);
+		updateAuditLogFilterButton("audit-log-actor-type-filter", "All actor types", "actor types");
+	}
+
+	const scopeFilterField = document.getElementById("audit-log-scope-filter-field");
+	if (scopeFilterField) {
+		scopeFilterField.style.display = onlyConfigEventsSelected ? "" : "none";
+	}
+	if (!onlyConfigEventsSelected) {
+		document.querySelectorAll(".audit-log-scope-checkbox").forEach(checkbox => checkbox.checked = false);
+		updateAuditLogFilterButton("audit-log-scope-filter", "All scopes", "scopes");
 	}
 }
 
@@ -547,7 +568,7 @@ function closeAuditLogFilter(filterId) {
 }
 
 function closeAllAuditLogFilters(exceptFilterId = null) {
-	["audit-log-event-type-filter", "audit-log-actor-type-filter"].forEach(filterId => {
+	["audit-log-event-type-filter", "audit-log-actor-type-filter", "audit-log-scope-filter"].forEach(filterId => {
 		if (filterId != exceptFilterId) {
 			closeAuditLogFilter(filterId);
 		}
@@ -621,12 +642,20 @@ function getSelectedAuditLogActorTypes() {
 	return getSelectedAuditLogFilterValues("audit-log-actor-type-filter");
 }
 
+function getSelectedAuditLogScopes() {
+	return getSelectedAuditLogFilterValues("audit-log-scope-filter");
+}
+
 function toggleAuditLogEventTypeFilter(event) {
 	toggleAuditLogFilter("audit-log-event-type-filter", event);
 }
 
 function toggleAuditLogActorTypeFilter(event) {
 	toggleAuditLogFilter("audit-log-actor-type-filter", event);
+}
+
+function toggleAuditLogScopeFilter(event) {
+	toggleAuditLogFilter("audit-log-scope-filter", event);
 }
 
 function onAuditLogEventTypeFilterChanged() {
@@ -646,6 +675,15 @@ function onAuditLogActorTypeFilterChanged() {
 
 function initAuditLogActorTypeFilter() {
 	initAuditLogFilter("audit-log-actor-type-filter", "All actor types", "actor types");
+}
+
+function onAuditLogScopeFilterChanged() {
+	updateAuditLogFilterButton("audit-log-scope-filter", "All scopes", "scopes");
+	loadAuditLogTable();
+}
+
+function initAuditLogScopeFilter() {
+	initAuditLogFilter("audit-log-scope-filter", "All scopes", "scopes");
 }
 
 function loadAuditLogTable(sortBy, sortDesc) {
@@ -682,9 +720,13 @@ function loadAuditLogTable(sortBy, sortDesc) {
 	req.then((result) => {
 		const configIdInput = document.getElementById("audit-log-config-id-filter");
 		let filtered = result;
+		const selectedScopes = getSelectedAuditLogScopes();
+		if (selectedScopes.length > 0) {
+			filtered = filtered.filter(entry => selectedScopes.includes((entry.scope || "").toLowerCase()));
+		}
 		if (configIdInput && configIdInput.value) {
 			const val = configIdInput.value.toLowerCase();
-			filtered = result.filter(entry => (entry.configId || "").toLowerCase().includes(val));
+			filtered = filtered.filter(entry => (entry.configId || "").toLowerCase().includes(val));
 		}
 		renderAuditLogTable(filtered, "audit-log-table-div");
 		return result;

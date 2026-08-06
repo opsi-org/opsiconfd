@@ -79,6 +79,11 @@ def config_audit_log(
 		userAgent=session.user_agent if session and session.user_agent else None,
 		hostId=host_id,
 		message=message,
+		config={
+			"configId": config_id,
+			"scope": scope,
+			"newValue": new_value,
+		},
 	)
 
 

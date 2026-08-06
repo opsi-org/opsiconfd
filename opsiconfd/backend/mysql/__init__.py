@@ -156,6 +156,7 @@ class MySQLSession(Session):
 class MySQLConnection:
 	_column_to_attribute = {  # noqa: RUF012
 		"AUDIT_LOG": {"auditLogId": "id"},
+		"AUDIT_CONFIG": {"auditLogId": "id"},
 		"AUDIT_PRODUCT_ACTION_REQUEST": {"auditLogId": "id"},
 		"USER": {"userId": "id"},
 		"CONFIG": {"configId": "id"},
@@ -168,6 +169,7 @@ class MySQLConnection:
 	}
 	_attribute_to_column = {  # noqa: RUF012
 		"AUDIT_LOG": {"id": "auditLogId"},
+		"AUDIT_CONFIG": {"id": "auditLogId"},
 		"AUDIT_PRODUCT_ACTION_REQUEST": {"id": "auditLogId"},
 		"USER": {"id": "userId"},
 		"CONFIG": {"id": "configId"},
@@ -188,7 +190,7 @@ class MySQLConnection:
 	}
 	record_separator = "␞"
 
-	schema_version = 23
+	schema_version = 24
 
 	def __init__(self) -> None:
 		self.address = "localhost"

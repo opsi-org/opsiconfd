@@ -10,7 +10,7 @@ RPC methods for reading and writing audit log entries.
 
 Audit log entries are stored in the `AUDIT_LOG` table.
 Event type specific details are stored in separate detail tables
-(`AUDIT_AUTHENTICATION`, `AUDIT_PRODUCT_ACTION_REQUEST`) keyed by `auditLogId`.
+(`AUDIT_AUTHENTICATION`, `AUDIT_PRODUCT_ACTION_REQUEST`, `AUDIT_CONFIG`) keyed by `auditLogId`.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from __future__ import annotations
 from json import dumps, loads
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
-from opsi.opsi.service.model.object import AuditLog, AuditLogEventType
+from opsi.opsi.service.model.object import AuditLog, AuditLogConfig, AuditLogEventType
 from opsi.opsi.service.model.type import to_list
 
 from . import rpc_method
@@ -32,6 +32,10 @@ AUTHENTICATION_EVENT_TYPES = {
 	AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
 	AuditLogEventType.AUTHENTICATION_LOGIN_FAILED,
 	AuditLogEventType.AUTHENTICATION_LOGOUT,
+}
+CONFIG_EVENT_TYPES = {
+	AuditLogEventType.CONFIG_VALUE_SET,
+	AuditLogEventType.CONFIG_VALUE_DELETED,
 }
 
 
@@ -55,7 +59,7 @@ class RPCAuditLogMixin(Protocol):
 		"""Validate an `AuditLog` object before it is written to the database.
 
 		Checks that the eventType is set and valid and that event type specific details
-		(authentication, productActionRequest) are only present for matching event types.
+		(authentication, productActionRequest, config) are only present for matching event types.
 
 		Args:
 			auditLog: The `AuditLog` object to validate.
@@ -72,11 +76,15 @@ class RPCAuditLogMixin(Protocol):
 			raise ValueError(f"AuditLog authentication is not allowed for eventType: {auditLog.eventType!r}")
 		if auditLog.productActionRequest and auditLog.eventType != AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST:
 			raise ValueError(f"AuditLog productActionRequest is not allowed for eventType: {auditLog.eventType!r}")
+		if auditLog.config and auditLog.eventType not in CONFIG_EVENT_TYPES:
+			raise ValueError(f"AuditLog config is not allowed for eventType: {auditLog.eventType!r}")
 		if auditLog.eventType == AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST:
 			if not auditLog.productActionRequest:
 				raise ValueError(f"AuditLog productActionRequest is required for eventType: {auditLog.eventType!r}")
 			if not auditLog.hostId:
 				raise ValueError(f"AuditLog hostId is required for eventType: {auditLog.eventType!r}")
+		if auditLog.eventType in CONFIG_EVENT_TYPES and not auditLog.config:
+			raise ValueError(f"AuditLog config is required for eventType: {auditLog.eventType!r}")
 
 	def _auditLog_bulkInsertObjects(self: BackendProtocol, auditLogs: list[dict] | list[AuditLog]) -> None:
 		"""Insert audit log entries in chunks using multi-row INSERT statements.
@@ -191,6 +199,32 @@ class RPCAuditLogMixin(Protocol):
 						params=client_product_params,
 					)
 
+				config_values = []
+				config_params: dict[str, Any] = {}
+				for idx, audit_log in enumerate(chunk):
+					config = audit_log.config
+					if not config:
+						continue
+					config_values.append(f"(:auditLogId_{idx}, :configId_{idx}, :scope_{idx}, :newValue_{idx})")
+					config_params.update(
+						{
+							f"auditLogId_{idx}": audit_log.id,
+							f"configId_{idx}": config.configId,
+							f"scope_{idx}": config.scope,
+							f"newValue_{idx}": dumps(config.newValue) if config.newValue is not None else None,
+						}
+					)
+
+				if config_values:
+					session.execute(
+						"""
+						INSERT INTO `AUDIT_CONFIG` (`auditLogId`, `configId`, `scope`, `newValue`)
+						VALUES
+							"""
+						+ ",".join(config_values),
+						params=config_params,
+					)
+
 	def auditLog_bulkInsertObjects(self: BackendProtocol, auditLogs: list[dict] | list[AuditLog]) -> None:
 		"""Insert a large number of audit log entries efficiently.
 
@@ -258,6 +292,25 @@ class RPCAuditLogMixin(Protocol):
 							"auditLogId": audit_log.id,
 							"productId": client_product_action_request.productId,
 							"actionRequest": client_product_action_request.actionRequest,
+						},
+					)
+
+				config = audit_log.config
+				if config:
+					session.execute(
+						"""
+						INSERT INTO `AUDIT_CONFIG` (`auditLogId`, `configId`, `scope`, `newValue`)
+						VALUES (:auditLogId, :configId, :scope, :newValue)
+						ON DUPLICATE KEY UPDATE
+							`configId` = :configId,
+							`scope` = :scope,
+							`newValue` = :newValue
+						""",
+						params={
+							"auditLogId": audit_log.id,
+							"configId": config.configId,
+							"scope": config.scope,
+							"newValue": dumps(config.newValue) if config.newValue is not None else None,
 						},
 					)
 
@@ -334,7 +387,10 @@ class RPCAuditLogMixin(Protocol):
 			for id, audit_log in audit_log_by_id.items()
 			if audit_log.eventType is None or audit_log.eventType == AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST
 		]
-		if not authentication_ids and not product_action_request_ids:
+		config_ids = [
+			id for id, audit_log in audit_log_by_id.items() if audit_log.eventType is None or audit_log.eventType in CONFIG_EVENT_TYPES
+		]
+		if not authentication_ids and not product_action_request_ids and not config_ids:
 			return audit_logs
 
 		with self._mysql.session() as session:
@@ -367,6 +423,24 @@ class RPCAuditLogMixin(Protocol):
 							"productId": row_dict["productId"],
 							"actionRequest": row_dict["actionRequest"],
 						}
+					)
+
+			if config_ids:
+				rows = session.execute(
+					"SELECT `auditLogId`, `configId`, `scope`, `newValue` FROM `AUDIT_CONFIG` WHERE `auditLogId` IN :ids",
+					params={"ids": config_ids},
+				).fetchall()
+				for row in rows:
+					row_dict = dict(row)
+					new_value = row_dict["newValue"]
+					if isinstance(new_value, str):
+						new_value = loads(new_value)
+					audit_log_by_id[str(row_dict["auditLogId"])].setConfig(
+						AuditLogConfig(
+							configId=row_dict["configId"],
+							scope=row_dict["scope"],
+							newValue=new_value,
+						)
 					)
 		return audit_logs
 

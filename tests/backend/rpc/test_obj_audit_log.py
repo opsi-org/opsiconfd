@@ -15,6 +15,7 @@ from opsi.opsi.service.model.object import (
 	AuditLogAuthentication,
 	AuditLogAuthenticationFailureReason,
 	AuditLogAuthenticationLogoutReason,
+	AuditLogConfig,
 	AuditLogEventType,
 	AuditLogProductActionRequest,
 )
@@ -76,6 +77,30 @@ def test_audit_log_client_product_action_request_object() -> None:
 		"actionRequest": "setup",
 	}
 	assert "futureAttribute" not in audit_log.to_hash()["productActionRequest"]
+
+
+def test_audit_log_config_object() -> None:
+	audit_log = AuditLog(
+		eventType=AuditLogEventType.CONFIG_VALUE_SET,
+		hostId="test-client.opsi.test",
+		config={
+			"configId": "ClientConfig.Depot.Id",
+			"scope": "client",
+			"newValue": ["depot1.opsi.test"],
+			"futureAttribute": "ignored",
+		},
+	)
+
+	assert isinstance(audit_log.config, AuditLogConfig)
+	assert audit_log.config.configId == "clientconfig.depot.id"
+	assert audit_log.config.scope == "client"
+	assert audit_log.config.newValue == ["depot1.opsi.test"]
+	assert audit_log.to_hash()["config"] == {
+		"configId": "clientconfig.depot.id",
+		"scope": "client",
+		"newValue": ["depot1.opsi.test"],
+	}
+	assert "futureAttribute" not in audit_log.to_hash()["config"]
 
 
 def test_audit_log_accepts_unknown_event_type_for_client_compatibility() -> None:
@@ -209,6 +234,25 @@ def test_audit_log_client_product_action_request_create_and_get_objects(backend:
 	assert audit_logs[0].productActionRequest == AuditLogProductActionRequest(
 		productId="test-product",
 		actionRequest="setup",
+	)
+
+
+def test_audit_log_config_create_and_get_objects(backend: UnprotectedBackend) -> None:  # noqa: F811
+	audit_log = AuditLog(
+		eventType=AuditLogEventType.CONFIG_VALUE_SET,
+		hostId="test-client.opsi.test",
+		config=AuditLogConfig(configId="clientconfig.depot.id", scope="client", newValue=["depot1.opsi.test"]),
+	)
+
+	backend.auditLog_bulkInsertObjects([audit_log])  # ty: ignore[invalid-argument-type]
+
+	audit_logs = backend.auditLog_getObjects(filter={"id": audit_log.id})
+	assert len(audit_logs) == 1
+	assert audit_logs[0].hostId == "test-client.opsi.test"
+	assert audit_logs[0].config == AuditLogConfig(
+		configId="clientconfig.depot.id",
+		scope="client",
+		newValue=["depot1.opsi.test"],
 	)
 
 
@@ -402,6 +446,23 @@ def test_audit_log_rejects_client_product_action_request_for_wrong_event_type(ba
 	)
 
 	with pytest.raises(ValueError, match="productActionRequest is not allowed"):
+		backend.auditLog_bulkInsertObjects([audit_log])  # ty: ignore[invalid-argument-type]
+
+
+def test_audit_log_rejects_config_for_wrong_event_type(backend: UnprotectedBackend) -> None:  # noqa: F811
+	audit_log = AuditLog(
+		eventType=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+		config={"configId": "clientconfig.depot.id", "scope": "default", "newValue": ["depot1.opsi.test"]},
+	)
+
+	with pytest.raises(ValueError, match="config is not allowed"):
+		backend.auditLog_bulkInsertObjects([audit_log])  # ty: ignore[invalid-argument-type]
+
+
+def test_audit_log_requires_config_for_config_event_type(backend: UnprotectedBackend) -> None:  # noqa: F811
+	audit_log = AuditLog(eventType=AuditLogEventType.CONFIG_VALUE_SET)
+
+	with pytest.raises(ValueError, match="config is required"):
 		backend.auditLog_bulkInsertObjects([audit_log])  # ty: ignore[invalid-argument-type]
 
 

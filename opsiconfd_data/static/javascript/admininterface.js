@@ -458,6 +458,26 @@ function loadRPCTable(sortBy, sortDesc) {
 let auditLogTableSort = { sortBy: "created", sortDesc: true };
 let auditLogUsernameFilterTimer;
 let auditLogHostIdFilterTimer;
+let auditLogConfigIdFilterTimer;
+
+const AUDIT_LOG_EVENT_TYPE_COLUMNS = {
+	"authentication.login.succeeded": ["authMethods"],
+	"authentication.login.failed": ["authMethods", "failureReason"],
+	"authentication.logout": ["authMethods", "logoutReason"],
+	"client.product.action_request": ["productId", "actionRequest"],
+	"host_parameter.value.set": ["configId", "newValue"],
+};
+const AUDIT_LOG_BASE_COLUMNS = ["created", "eventType", "username", "clientAddress", "userAgent", "hostId"];
+const AUDIT_LOG_ALL_EXTRA_COLUMNS = ["authMethods", "failureReason", "logoutReason", "productId", "actionRequest", "configId", "newValue"];
+
+function getAuditLogColumns(selectedEventTypes) {
+	if (selectedEventTypes.length === 0) {
+		return [...AUDIT_LOG_BASE_COLUMNS, ...AUDIT_LOG_ALL_EXTRA_COLUMNS, "message"];
+	}
+	const extraCols = new Set();
+	selectedEventTypes.forEach(et => (AUDIT_LOG_EVENT_TYPE_COLUMNS[et] || []).forEach(col => extraCols.add(col)));
+	return [...AUDIT_LOG_BASE_COLUMNS, ...AUDIT_LOG_ALL_EXTRA_COLUMNS.filter(c => extraCols.has(c)), "message"];
+}
 
 function onAuditLogUsernameFilterInput() {
 	clearTimeout(auditLogUsernameFilterTimer);
@@ -467,6 +487,24 @@ function onAuditLogUsernameFilterInput() {
 function onAuditLogHostIdFilterInput() {
 	clearTimeout(auditLogHostIdFilterTimer);
 	auditLogHostIdFilterTimer = setTimeout(() => loadAuditLogTable(), 300);
+}
+
+function onAuditLogConfigIdFilterInput() {
+	clearTimeout(auditLogConfigIdFilterTimer);
+	auditLogConfigIdFilterTimer = setTimeout(() => loadAuditLogTable(), 300);
+}
+
+function updateAuditLogDynamicFilters() {
+	const eventTypes = getSelectedAuditLogEventTypes();
+	const showConfigId = eventTypes.includes("host_parameter.value.set");
+	const configIdLabel = document.getElementById("audit-log-config-id-filter-label");
+	if (configIdLabel) {
+		configIdLabel.style.display = showConfigId ? "" : "none";
+		if (!showConfigId) {
+			const input = document.getElementById("audit-log-config-id-filter");
+			if (input) input.value = "";
+		}
+	}
 }
 
 function getSelectedAuditLogFilterValues(filterId) {
@@ -592,6 +630,7 @@ function toggleAuditLogActorTypeFilter(event) {
 
 function onAuditLogEventTypeFilterChanged() {
 	updateAuditLogFilterButton("audit-log-event-type-filter", "All event types", "event types");
+	updateAuditLogDynamicFilters();
 	loadAuditLogTable();
 }
 
@@ -640,7 +679,13 @@ function loadAuditLogTable(sortBy, sortDesc) {
 	showTableLoading("audit-log-table-div");
 	let req = ajaxRequest("POST", "/admin/audit-log", requestBody);
 	req.then((result) => {
-		renderAuditLogTable(result, "audit-log-table-div");
+		const configIdInput = document.getElementById("audit-log-config-id-filter");
+		let filtered = result;
+		if (configIdInput && configIdInput.value) {
+			const val = configIdInput.value.toLowerCase();
+			filtered = result.filter(entry => (entry.configId || "").toLowerCase().includes(val));
+		}
+		renderAuditLogTable(filtered, "audit-log-table-div");
 		return result;
 	});
 }
@@ -1706,20 +1751,7 @@ function renderAuditLogTable(data, htmlId) {
 		return "";
 	}
 
-	const columns = [
-		"created",
-		"eventType",
-		"username",
-		"clientAddress",
-		"userAgent",
-		"hostId",
-		"authMethods",
-		"failureReason",
-		"logoutReason",
-		"productId",
-		"actionRequest",
-		"message"
-	];
+	const columns = getAuditLogColumns(getSelectedAuditLogEventTypes());
 	const table = createElement("table", { className: "audit-log-table" });
 	const headerRow = createElement("tr");
 	columns.forEach(column => {

@@ -527,6 +527,12 @@ async def get_audit_log_list(
 	for audit_log in audit_logs:
 		authentication = audit_log.authentication
 		product_action_request = audit_log.productActionRequest
+		host_parameter: dict[str, Any] = {}
+		if audit_log.eventType == AuditLogEventType.HOST_PARAMETER_VALUE_SET and audit_log.message:
+			try:
+				host_parameter = json.loads(audit_log.message)
+			except json.JSONDecodeError:
+				pass
 		audit_log_list.append(
 			{
 				"id": int(audit_log.id or "0"),
@@ -543,6 +549,8 @@ async def get_audit_log_list(
 				"logoutReason": _audit_log_value(authentication.logoutReason if authentication else None),
 				"productId": _audit_log_value(product_action_request.productId if product_action_request else None),
 				"actionRequest": _audit_log_value(product_action_request.actionRequest if product_action_request else None),
+				"configId": _audit_log_value(host_parameter.get("configId")),
+				"newValue": _audit_log_value(host_parameter.get("newValue")),
 				"message": _audit_log_value(audit_log.message),
 			}
 		)

@@ -17,7 +17,7 @@ from opsi.opsi.service.model.type import to_list, to_object_class, to_object_cla
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_session
-from opsiconfd.audit_log import audit_log_event_enabled, host_parameter_audit_log
+from opsiconfd.audit_log import audit_log_event_enabled, config_audit_log
 from opsiconfd.auth.role import Role
 from opsiconfd.auth.user import create_user_roles, get_users
 from opsiconfd.logging import logger
@@ -39,7 +39,7 @@ class RPCConfigMixin(Protocol):
 			return config.get("defaultValues") is not None
 		return config.defaultValues is not None
 
-	def _config_to_objects_with_host_parameter_audit_candidates(
+	def _config_to_objects_with_config_audit_candidates(
 		self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config
 	) -> tuple[list[Config], list[Config]]:
 		raw_configs = to_list(configs)
@@ -48,14 +48,14 @@ class RPCConfigMixin(Protocol):
 		return config_objects, [config for config, supplied in zip(config_objects, default_values_supplied) if supplied]
 
 	def _config_audit_default_server_value_set(self: BackendProtocol, configs: list[Config]) -> None:
-		if not configs or not audit_log_event_enabled(AuditLogEventType.HOST_PARAMETER_VALUE_SET):
+		if not configs or not audit_log_event_enabled(AuditLogEventType.CONFIG_VALUE_SET):
 			return
 
 		session = contextvar_client_session.get()
 		audit_logs = [
-			host_parameter_audit_log(
-				event_type=AuditLogEventType.HOST_PARAMETER_VALUE_SET,
-				entity="default/server",
+			config_audit_log(
+				event_type=AuditLogEventType.CONFIG_VALUE_SET,
+				scope="default",
 				config_id=config.id,
 				new_value=config.defaultValues,
 				session=session,
@@ -65,7 +65,27 @@ class RPCConfigMixin(Protocol):
 		try:
 			self.auditLog_bulkInsertObjects(audit_logs)
 		except Exception as err:
-			logger.error("Failed to write HostParameter default/server audit log: %s", err, exc_info=True)
+			logger.error("Failed to write Config default audit log: %s", err, exc_info=True)
+
+	def _config_audit_default_server_value_deleted(self: BackendProtocol, configs: list[Config]) -> None:
+		if not configs or not audit_log_event_enabled(AuditLogEventType.CONFIG_VALUE_DELETED):
+			return
+
+		session = contextvar_client_session.get()
+		audit_logs = [
+			config_audit_log(
+				event_type=AuditLogEventType.CONFIG_VALUE_DELETED,
+				scope="default",
+				config_id=config.id,
+				new_value=None,
+				session=session,
+			)
+			for config in configs
+		]
+		try:
+			self.auditLog_bulkInsertObjects(audit_logs)
+		except Exception as err:
+			logger.error("Failed to write Config default audit log: %s", err, exc_info=True)
 
 	def _config_insert_object(
 		self: BackendProtocol,
@@ -93,7 +113,7 @@ class RPCConfigMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def config_insertObject(self: BackendProtocol, config: dict | Config) -> None:
 		ace = self._get_ace("config_insertObject")
-		configs, audit_candidates = self._config_to_objects_with_host_parameter_audit_candidates(config)
+		configs, audit_candidates = self._config_to_objects_with_config_audit_candidates(config)
 		config = configs[0]
 		self._config_insert_object(config=config, ace=ace, create=True, set_null=True)
 		if audit_candidates:
@@ -105,7 +125,7 @@ class RPCConfigMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def config_updateObject(self: BackendProtocol, config: dict | Config) -> None:
 		ace = self._get_ace("config_updateObject")
-		configs, audit_candidates = self._config_to_objects_with_host_parameter_audit_candidates(config)
+		configs, audit_candidates = self._config_to_objects_with_config_audit_candidates(config)
 		config = configs[0]
 		self._config_insert_object(config=config, ace=ace, create=False, set_null=False)
 		if audit_candidates:
@@ -117,7 +137,7 @@ class RPCConfigMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def config_createObjects(self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config) -> None:
 		ace = self._get_ace("config_createObjects")
-		configs, audit_candidates = self._config_to_objects_with_host_parameter_audit_candidates(configs)
+		configs, audit_candidates = self._config_to_objects_with_config_audit_candidates(configs)
 		with self._mysql.session() as session, self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}):
 			for config in configs:
 				self._config_insert_object(config=config, ace=ace, create=True, set_null=True, session=session, lock=False)
@@ -131,7 +151,7 @@ class RPCConfigMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def config_updateObjects(self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config) -> None:
 		ace = self._get_ace("config_updateObjects")
-		configs, audit_candidates = self._config_to_objects_with_host_parameter_audit_candidates(configs)
+		configs, audit_candidates = self._config_to_objects_with_config_audit_candidates(configs)
 		with self._mysql.session() as session, self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}):
 			for config in configs:
 				self._config_insert_object(config=config, ace=ace, create=True, set_null=False, session=session, lock=False)
@@ -196,13 +216,14 @@ class RPCConfigMixin(Protocol):
 			return
 		# CONFIG_VALUE will be deleted by CASCADE
 		ace = self._get_ace("config_deleteObjects")
+		configs_to_delete = to_object_class_list(configs, Config)
+		self._config_audit_default_server_value_deleted(configs_to_delete)
 		self._mysql.delete_objects(table="CONFIG", object_type=Config, obj=configs, ace=ace)
 		with self._mysql.session() as session:
 			remove_orphans_config_state(session)
 		if not self.events_enabled:
 			return
-		configs = to_object_class_list(configs, Config)
-		for config in configs:
+		for config in configs_to_delete:
 			self._send_messagebus_event("config_deleted", data=config.getIdent("dict"))  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False)

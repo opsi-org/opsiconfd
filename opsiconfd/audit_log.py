@@ -4,7 +4,6 @@
 # License: AGPL-3.0-only
 
 from functools import lru_cache
-from json import dumps
 from typing import TYPE_CHECKING
 
 from opsi.opsi.service.model.object import (
@@ -38,7 +37,13 @@ def audit_log_event_enabled(event_type: AuditLogEventType) -> bool:
 		return False
 	if not module_available("audit_log"):
 		return False
-	return event_type.value in config.audit_log_events
+	configured_events = set()
+	for configured_event in config.audit_log_events:
+		try:
+			configured_events.add(AuditLogEventType(configured_event).value)
+		except Exception:
+			configured_events.add(str(configured_event))
+	return event_type.value in configured_events
 
 
 def _audit_auth_methods(session: OPSISession) -> list[str] | None:
@@ -47,9 +52,9 @@ def _audit_auth_methods(session: OPSISession) -> list[str] | None:
 	return sorted(str(method) for method in session.auth_methods)
 
 
-def host_parameter_audit_log(
+def config_audit_log(
 	event_type: AuditLogEventType,
-	entity: str,
+	scope: str,
 	config_id: str,
 	new_value: list[object] | None,
 	session: OPSISession | None,
@@ -58,14 +63,12 @@ def host_parameter_audit_log(
 	username = session.username if session and session.username else "opsiconfd"
 	actor_type = session.user_type if session and session.user_type else "service"
 	actor_id = session.username if session and session.username else "opsiconfd"
-	message_data: dict[str, object] = {
-		"objectType": "HostParameter",
-		"entity": entity,
-		"configId": config_id,
-		"newValue": new_value,
-	}
-	if host_id:
-		message_data["hostId"] = host_id
+	target = host_id if host_id else "server default"
+	if event_type == AuditLogEventType.CONFIG_VALUE_DELETED:
+		message = f"{config_id} was deleted by {username} for {target}."
+	else:
+		value_text = "none" if new_value is None else ", ".join(str(value) for value in new_value)
+		message = f"{config_id} was changed to '{value_text}' by {username} for {target}."
 
 	return AuditLog(
 		eventType=event_type,
@@ -75,7 +78,7 @@ def host_parameter_audit_log(
 		clientAddress=session.client_addr if session else None,
 		userAgent=session.user_agent if session and session.user_agent else None,
 		hostId=host_id,
-		message=dumps(message_data, ensure_ascii=True, separators=(",", ":"), default=str),
+		message=message,
 	)
 
 

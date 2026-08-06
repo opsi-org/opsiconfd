@@ -508,6 +508,26 @@ def _audit_log_value(value: Any) -> str:
 	return str(value)
 
 
+def _parse_config_audit_message(event_type: AuditLogEventType, message: str) -> dict[str, Any]:
+	if event_type == AuditLogEventType.CONFIG_VALUE_SET:
+		match = re.match(r"^(?P<configId>.+?) was changed to (?P<newValue>.*?) by .+ for .+\.$", message)
+		if match:
+			new_value = match.group("newValue")
+			return {
+				"configId": match.group("configId"),
+				"newValue": [new_value] if new_value else [],
+			}
+	elif event_type == AuditLogEventType.CONFIG_VALUE_DELETED:
+		match = re.match(r"^(?P<configId>.+?) was deleted by .+ for .+\.$", message)
+		if match:
+			return {
+				"configId": match.group("configId"),
+				"newValue": None,
+			}
+
+	return {}
+
+
 @admin_interface_router.post("/audit-log")
 @rest_api
 async def get_audit_log_list(
@@ -528,11 +548,8 @@ async def get_audit_log_list(
 		authentication = audit_log.authentication
 		product_action_request = audit_log.productActionRequest
 		host_parameter: dict[str, Any] = {}
-		if audit_log.eventType == AuditLogEventType.HOST_PARAMETER_VALUE_SET and audit_log.message:
-			try:
-				host_parameter = json.loads(audit_log.message)
-			except json.JSONDecodeError:
-				pass
+		if audit_log.eventType in (AuditLogEventType.CONFIG_VALUE_SET, AuditLogEventType.CONFIG_VALUE_DELETED) and audit_log.message:
+			host_parameter = _parse_config_audit_message(audit_log.eventType, audit_log.message)
 		audit_log_list.append(
 			{
 				"id": int(audit_log.id or "0"),

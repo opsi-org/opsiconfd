@@ -17,7 +17,6 @@ from opsi.opsi.service.model.type import (
 	to_bool,
 	to_host_id_list,
 	to_list,
-	to_object_class,
 	to_object_class_list,
 	to_object_id_list,
 	to_product_id_list,
@@ -25,7 +24,7 @@ from opsi.opsi.service.model.type import (
 )
 
 from opsiconfd import contextvar_client_session
-from opsiconfd.audit_log import audit_log_event_enabled, host_parameter_audit_log
+from opsiconfd.audit_log import audit_log_event_enabled, config_audit_log
 from opsiconfd.backend.auth import RPCACE
 from opsiconfd.config import get_configserver_id
 from opsiconfd.logging import logger
@@ -42,7 +41,7 @@ class RPCConfigStateMixin(Protocol):
 			return config_state.get("values") is not None
 		return config_state.values is not None
 
-	def _configState_to_objects_with_host_parameter_audit_candidates(
+	def _configState_to_objects_with_config_audit_candidates(
 		self: BackendProtocol,
 		configStates: list[dict] | list[ConfigState] | dict | ConfigState,
 	) -> tuple[list[ConfigState], list[ConfigState]]:
@@ -51,37 +50,34 @@ class RPCConfigStateMixin(Protocol):
 		config_states = to_object_class_list(raw_config_states, ConfigState)
 		return config_states, [config_state for config_state, supplied in zip(config_states, values_supplied) if supplied]
 
-	def _configState_audit_host_parameter_value_set(self: BackendProtocol, config_states: list[ConfigState]) -> None:
+	def _configState_audit_config_value_set(self: BackendProtocol, config_states: list[ConfigState]) -> None:
 		if not config_states:
 			return
 
-		if not audit_log_event_enabled(AuditLogEventType.HOST_PARAMETER_VALUE_SET):
+		if not audit_log_event_enabled(AuditLogEventType.CONFIG_VALUE_SET):
 			return
 
 		object_ids = sorted({config_state.objectId for config_state in config_states})
 		client_ids = set(self.host_getIdents(returnType="str", type="OpsiClient", id=object_ids))
-		server_ids = set(self.host_getIdents(returnType="str", type="OpsiConfigserver", id=object_ids))
-		depot_ids = set(self.host_getIdents(returnType="str", type="OpsiDepotserver", id=object_ids)) - server_ids
+		depot_ids = set(self.host_getIdents(returnType="str", type="OpsiDepotserver", id=object_ids))
 
 		session = contextvar_client_session.get()
 		audit_logs = []
 		for config_state in config_states:
 			host_id = config_state.objectId
-			entity: str | None = None
+			scope: str | None = None
 			if host_id in client_ids:
-				entity = "client"
-			elif host_id in server_ids:
-				entity = "default/server"
+				scope = "client"
 			elif host_id in depot_ids:
-				entity = "depot"
+				scope = "depot"
 
-			if entity is None:
+			if scope is None:
 				continue
 
 			audit_logs.append(
-				host_parameter_audit_log(
-					event_type=AuditLogEventType.HOST_PARAMETER_VALUE_SET,
-					entity=entity,
+				config_audit_log(
+					event_type=AuditLogEventType.CONFIG_VALUE_SET,
+					scope=scope,
 					config_id=config_state.configId,
 					new_value=config_state.values,
 					session=session,
@@ -95,7 +91,50 @@ class RPCConfigStateMixin(Protocol):
 		try:
 			self.auditLog_bulkInsertObjects(audit_logs)
 		except Exception as err:
-			logger.error("Failed to write HostParameter ConfigState audit log: %s", err, exc_info=True)
+			logger.error("Failed to write Config ConfigState audit log: %s", err, exc_info=True)
+
+	def _configState_audit_config_value_deleted(self: BackendProtocol, config_states: list[ConfigState]) -> None:
+		if not config_states:
+			return
+
+		if not audit_log_event_enabled(AuditLogEventType.CONFIG_VALUE_DELETED):
+			return
+
+		object_ids = sorted({config_state.objectId for config_state in config_states})
+		client_ids = set(self.host_getIdents(returnType="str", type="OpsiClient", id=object_ids))
+		depot_ids = set(self.host_getIdents(returnType="str", type="OpsiDepotserver", id=object_ids))
+
+		session = contextvar_client_session.get()
+		audit_logs = []
+		for config_state in config_states:
+			host_id = config_state.objectId
+			scope: str | None = None
+			if host_id in client_ids:
+				scope = "client"
+			elif host_id in depot_ids:
+				scope = "depot"
+
+			if scope is None:
+				continue
+
+			audit_logs.append(
+				config_audit_log(
+					event_type=AuditLogEventType.CONFIG_VALUE_DELETED,
+					scope=scope,
+					config_id=config_state.configId,
+					new_value=None,
+					session=session,
+					host_id=host_id,
+				)
+			)
+
+		if not audit_logs:
+			return
+
+		try:
+			self.auditLog_bulkInsertObjects(audit_logs)
+		except Exception as err:
+			logger.error("Failed to write Config ConfigState audit log: %s", err, exc_info=True)
 
 	@rpc_method(check_acl=False)
 	def configState_getValues(
@@ -147,11 +186,11 @@ class RPCConfigStateMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def configState_insertObject(self: BackendProtocol, configState: dict | ConfigState) -> None:
 		ace = self._get_ace("configState_insertObject")
-		config_states, audit_candidates = self._configState_to_objects_with_host_parameter_audit_candidates(configState)
+		config_states, audit_candidates = self._configState_to_objects_with_config_audit_candidates(configState)
 		configState = config_states[0]
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=True, set_null=True)
 		if audit_candidates:
-			self._configState_audit_host_parameter_value_set(audit_candidates)
+			self._configState_audit_config_value_set(audit_candidates)
 		if not self.events_enabled:
 			return
 		self._send_messagebus_event("configState_created", data=configState.getIdent("dict"))  # ty: ignore[invalid-argument-type]
@@ -161,11 +200,11 @@ class RPCConfigStateMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def configState_updateObject(self: BackendProtocol, configState: dict | ConfigState) -> None:
 		ace = self._get_ace("configState_updateObject")
-		config_states, audit_candidates = self._configState_to_objects_with_host_parameter_audit_candidates(configState)
+		config_states, audit_candidates = self._configState_to_objects_with_config_audit_candidates(configState)
 		configState = config_states[0]
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=False, set_null=False)
 		if audit_candidates:
-			self._configState_audit_host_parameter_value_set(audit_candidates)
+			self._configState_audit_config_value_set(audit_candidates)
 		if not self.events_enabled:
 			return
 		self._send_messagebus_event("configState_updated", data=configState.getIdent("dict"))  # ty: ignore[invalid-argument-type]
@@ -176,7 +215,7 @@ class RPCConfigStateMixin(Protocol):
 	def configState_createObjects(self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState) -> None:
 		ace = self._get_ace("configState_createObjects")
 
-		configStates, audit_candidates = self._configState_to_objects_with_host_parameter_audit_candidates(configStates)
+		configStates, audit_candidates = self._configState_to_objects_with_config_audit_candidates(configStates)
 		newConfigStates = [configState for configState in configStates if configState.values != [None]]
 		if len(newConfigStates) != len(configStates):
 			logger.warning("Removed %d [null] values from configStates", len(configStates) - len(newConfigStates))
@@ -190,7 +229,7 @@ class RPCConfigStateMixin(Protocol):
 				self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=True, session=session)
 
 		if audit_candidates:
-			self._configState_audit_host_parameter_value_set(audit_candidates)
+			self._configState_audit_config_value_set(audit_candidates)
 
 		if not self.events_enabled:
 			return
@@ -203,7 +242,7 @@ class RPCConfigStateMixin(Protocol):
 	def configState_updateObjects(self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState) -> None:
 		ace = self._get_ace("configState_updateObjects")
 
-		configStates, audit_candidates = self._configState_to_objects_with_host_parameter_audit_candidates(configStates)
+		configStates, audit_candidates = self._configState_to_objects_with_config_audit_candidates(configStates)
 		newConfigStates = [configState for configState in configStates if configState.values != [None]]
 		if len(newConfigStates) != len(configStates):
 			logger.warning("Removed %d [null] values from configStates", len(configStates) - len(newConfigStates))
@@ -217,7 +256,7 @@ class RPCConfigStateMixin(Protocol):
 				self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=False, session=session)
 
 		if audit_candidates:
-			self._configState_audit_host_parameter_value_set(audit_candidates)
+			self._configState_audit_config_value_set(audit_candidates)
 
 		if not self.events_enabled:
 			return
@@ -260,6 +299,7 @@ class RPCConfigStateMixin(Protocol):
 		if not self.events_enabled:
 			return
 		configStates = to_object_class_list(configStates, ConfigState)
+		self._configState_audit_config_value_deleted(configStates)
 		for configState in configStates:
 			self._send_messagebus_event("configState_deleted", data=configState.getIdent("dict"))  # ty: ignore[invalid-argument-type]
 		self.opsipxeconfd_config_states_deleted(configStates)

@@ -466,6 +466,7 @@ const AUDIT_LOG_EVENT_TYPE_COLUMNS = {
 	"authentication.logout": ["authMethods", "logoutReason"],
 	"client.product.action_request": ["productId", "actionRequest"],
 	"host_parameter.value.set": ["configId", "newValue"],
+	"host_parameter.value.deleted": ["configId"],
 };
 const AUDIT_LOG_BASE_COLUMNS = ["created", "eventType", "username", "clientAddress", "userAgent", "hostId"];
 const AUDIT_LOG_ALL_EXTRA_COLUMNS = ["authMethods", "failureReason", "logoutReason", "productId", "actionRequest", "configId", "newValue"];

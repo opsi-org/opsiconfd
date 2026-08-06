@@ -60,15 +60,15 @@ def config_audit_log(
 	session: OPSISession | None,
 	host_id: str | None = None,
 ) -> AuditLog:
-	username = session.username if session and session.username else "opsiconfd"
-	actor_type = session.user_type if session and session.user_type else "service"
+	username = session.username if session and session.username else None
+	actor_type = session.user_type if session else None
 	actor_id = session.username if session and session.username else "opsiconfd"
 	target = host_id if host_id else "server default"
 	if event_type == AuditLogEventType.CONFIG_VALUE_DELETED:
-		message = f"{config_id} was deleted by {username} for {target}."
+		message = f"{config_id} was deleted by {actor_id} for {target}."
 	else:
 		value_text = "none" if new_value is None else ", ".join(str(value) for value in new_value)
-		message = f"{config_id} was changed to '{value_text}' by {username} for {target}."
+		message = f"{config_id} was changed to '{value_text}' by {actor_id} for {target}."
 
 	return AuditLog(
 		eventType=event_type,

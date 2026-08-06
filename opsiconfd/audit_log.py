@@ -4,6 +4,7 @@
 # License: AGPL-3.0-only
 
 from functools import lru_cache
+from json import dumps
 from typing import TYPE_CHECKING
 
 from opsi.opsi.service.model.object import (
@@ -44,6 +45,38 @@ def _audit_auth_methods(session: OPSISession) -> list[str] | None:
 	if not session.auth_methods:
 		return None
 	return sorted(str(method) for method in session.auth_methods)
+
+
+def host_parameter_audit_log(
+	event_type: AuditLogEventType,
+	entity: str,
+	config_id: str,
+	new_value: list[object] | None,
+	session: OPSISession | None,
+	host_id: str | None = None,
+) -> AuditLog:
+	username = session.username if session and session.username else "opsiconfd"
+	actor_type = session.user_type if session and session.user_type else "service"
+	actor_id = session.username if session and session.username else "opsiconfd"
+	message_data: dict[str, object] = {
+		"objectType": "HostParameter",
+		"entity": entity,
+		"configId": config_id,
+		"newValue": new_value,
+	}
+	if host_id:
+		message_data["hostId"] = host_id
+
+	return AuditLog(
+		eventType=event_type,
+		username=username,
+		actorType=actor_type,
+		actorId=actor_id,
+		clientAddress=session.client_addr if session else None,
+		userAgent=session.user_agent if session and session.user_agent else None,
+		hostId=host_id,
+		message=dumps(message_data, ensure_ascii=True, separators=(",", ":"), default=str),
+	)
 
 
 async def audit_authentication_event(

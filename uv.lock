@@ -1160,7 +1160,7 @@ wheels = [
 
 [[package]]
 name = "opsiconfd"
-version = "4.3.57.1"
+version = "4.3.57.2"
 source = { editable = "." }
 dependencies = [
     { name = "acme" },
@@ -1288,7 +1288,7 @@ requires-dist = [
     { name = "pyotp", specifier = ">=2.8" },
     { name = "python-magic", specifier = ">=0.4" },
     { name = "python-multipart", specifier = ">=0.0" },
-    { name = "python-opsi", specifier = ">=4.3.22" },
+    { name = "python-opsi", specifier = ">=4.3.28" },
     { name = "python3-saml", specifier = "==1.16.0" },
     { name = "qrcode", specifier = ">=8.0" },
     { name = "redis", specifier = ">=8.1" },
@@ -1784,7 +1784,7 @@ wheels = [
 
 [[package]]
 name = "python-opsi"
-version = "4.3.26.2"
+version = "4.3.28.0"
 source = { registry = "https://pypi.uib.gmbh/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -1820,9 +1820,9 @@ dependencies = [
     { name = "wmi", marker = "sys_platform == 'win32'" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.26.2.tar.gz", hash = "sha256:b0126ae05684d6aa9573bc8cd931e4348fb38173bb5b6e6742d65463451d2646" }
+sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.28.0.tar.gz", hash = "sha256:4de291e566ac80608054be84d56f22a3528aa004d59fc71962eab125ab95834e" }
 wheels = [
-    { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.26.2-py3-none-any.whl", hash = "sha256:9800534b0f936c78c1c65f3b710ca522d202b4a14fbcfe25e801a46a7f22f0af" },
+    { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.28.0-py3-none-any.whl", hash = "sha256:b00b488db7b9b47c8c03be9d220a643a446f5a05dacf0e32a34a21009e2e1e12" },
 ]
 
 [[package]]

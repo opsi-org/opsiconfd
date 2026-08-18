@@ -18,7 +18,7 @@ from __future__ import annotations
 from json import dumps, loads
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
-from opsi.opsi.service.model.object import AuditLog, AuditLogConfig, AuditLogEventType
+from opsi.opsi.service.model.object import AuditLog, AuditLogConfig, AuditLogEventType, AuditLogProductPropertyState
 from opsi.opsi.service.model.type import to_list
 
 from . import rpc_method
@@ -36,6 +36,10 @@ AUTHENTICATION_EVENT_TYPES = {
 CONFIG_EVENT_TYPES = {
 	AuditLogEventType.CONFIG_VALUE_SET,
 	AuditLogEventType.CONFIG_VALUE_DELETED,
+}
+PRODUCT_PROPERTY_STATE_EVENT_TYPES = {
+	AuditLogEventType.PRODUCT_PROPERTY_STATE_SET,
+	AuditLogEventType.PRODUCT_PROPERTY_STATE_DELETED,
 }
 
 
@@ -78,6 +82,8 @@ class RPCAuditLogMixin(Protocol):
 			raise ValueError(f"AuditLog productActionRequest is not allowed for eventType: {auditLog.eventType!r}")
 		if auditLog.config and auditLog.eventType not in CONFIG_EVENT_TYPES:
 			raise ValueError(f"AuditLog config is not allowed for eventType: {auditLog.eventType!r}")
+		if auditLog.productPropertyState and auditLog.eventType not in PRODUCT_PROPERTY_STATE_EVENT_TYPES:
+			raise ValueError(f"AuditLog productPropertyState is not allowed for eventType: {auditLog.eventType!r}")
 		if auditLog.eventType == AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST:
 			if not auditLog.productActionRequest:
 				raise ValueError(f"AuditLog productActionRequest is required for eventType: {auditLog.eventType!r}")
@@ -85,6 +91,8 @@ class RPCAuditLogMixin(Protocol):
 				raise ValueError(f"AuditLog hostId is required for eventType: {auditLog.eventType!r}")
 		if auditLog.eventType in CONFIG_EVENT_TYPES and not auditLog.config:
 			raise ValueError(f"AuditLog config is required for eventType: {auditLog.eventType!r}")
+		if auditLog.eventType in PRODUCT_PROPERTY_STATE_EVENT_TYPES and not auditLog.productPropertyState:
+			raise ValueError(f"AuditLog productPropertyState is required for eventType: {auditLog.eventType!r}")
 
 	def _auditLog_bulkInsertObjects(self: BackendProtocol, auditLogs: list[dict] | list[AuditLog]) -> None:
 		"""Insert audit log entries in chunks using multi-row INSERT statements.
@@ -225,6 +233,33 @@ class RPCAuditLogMixin(Protocol):
 						params=config_params,
 					)
 
+				pps_values = []
+				pps_params: dict[str, Any] = {}
+				for idx, audit_log in enumerate(chunk):
+					pps = audit_log.productPropertyState
+					if not pps:
+						continue
+					pps_values.append(f"(:auditLogId_{idx}, :productId_{idx}, :propertyId_{idx}, :scope_{idx}, :newValue_{idx})")
+					pps_params.update(
+						{
+							f"auditLogId_{idx}": audit_log.id,
+							f"productId_{idx}": pps.productId,
+							f"propertyId_{idx}": pps.propertyId,
+							f"scope_{idx}": pps.scope,
+							f"newValue_{idx}": dumps(pps.newValue) if pps.newValue is not None else None,
+						}
+					)
+
+				if pps_values:
+					session.execute(
+						"""
+						INSERT INTO `AUDIT_PRODUCT_PROPERTY_STATE` (`auditLogId`, `productId`, `propertyId`, `scope`, `newValue`)
+						VALUES
+							"""
+						+ ",".join(pps_values),
+						params=pps_params,
+					)
+
 	def auditLog_bulkInsertObjects(self: BackendProtocol, auditLogs: list[dict] | list[AuditLog]) -> None:
 		"""Insert a large number of audit log entries efficiently.
 
@@ -314,6 +349,27 @@ class RPCAuditLogMixin(Protocol):
 						},
 					)
 
+				pps = audit_log.productPropertyState
+				if pps:
+					session.execute(
+						"""
+						INSERT INTO `AUDIT_PRODUCT_PROPERTY_STATE` (`auditLogId`, `productId`, `propertyId`, `scope`, `newValue`)
+						VALUES (:auditLogId, :productId, :propertyId, :scope, :newValue)
+						ON DUPLICATE KEY UPDATE
+							`productId` = :productId,
+							`propertyId` = :propertyId,
+							`scope` = :scope,
+							`newValue` = :newValue
+						""",
+						params={
+							"auditLogId": audit_log.id,
+							"productId": pps.productId,
+							"propertyId": pps.propertyId,
+							"scope": pps.scope,
+							"newValue": dumps(pps.newValue) if pps.newValue is not None else None,
+						},
+					)
+
 	def auditLog_insertObject(self: BackendProtocol, auditLog: dict | AuditLog) -> None:
 		"""Insert a single audit log entry.
 
@@ -390,7 +446,12 @@ class RPCAuditLogMixin(Protocol):
 		config_ids = [
 			id for id, audit_log in audit_log_by_id.items() if audit_log.eventType is None or audit_log.eventType in CONFIG_EVENT_TYPES
 		]
-		if not authentication_ids and not product_action_request_ids and not config_ids:
+		product_property_state_ids = [
+			id
+			for id, audit_log in audit_log_by_id.items()
+			if audit_log.eventType is None or audit_log.eventType in PRODUCT_PROPERTY_STATE_EVENT_TYPES
+		]
+		if not authentication_ids and not product_action_request_ids and not config_ids and not product_property_state_ids:
 			return audit_logs
 
 		with self._mysql.session() as session:
@@ -438,6 +499,25 @@ class RPCAuditLogMixin(Protocol):
 					audit_log_by_id[str(row_dict["auditLogId"])].setConfig(
 						AuditLogConfig(
 							configId=row_dict["configId"],
+							scope=row_dict["scope"],
+							newValue=new_value,
+						)
+					)
+
+			if product_property_state_ids:
+				rows = session.execute(
+					"SELECT `auditLogId`, `productId`, `propertyId`, `scope`, `newValue` FROM `AUDIT_PRODUCT_PROPERTY_STATE` WHERE `auditLogId` IN :ids",
+					params={"ids": product_property_state_ids},
+				).fetchall()
+				for row in rows:
+					row_dict = dict(row)
+					new_value = row_dict["newValue"]
+					if isinstance(new_value, str):
+						new_value = loads(new_value)
+					audit_log_by_id[str(row_dict["auditLogId"])].setProductPropertyState(
+						AuditLogProductPropertyState(
+							productId=row_dict["productId"],
+							propertyId=row_dict["propertyId"],
 							scope=row_dict["scope"],
 							newValue=new_value,
 						)

@@ -87,6 +87,42 @@ def config_audit_log(
 	)
 
 
+def product_property_state_audit_log(
+	event_type: AuditLogEventType,
+	scope: str,
+	product_id: str,
+	property_id: str,
+	object_id: str,
+	new_value: list[object] | None,
+	session: OPSISession | None,
+) -> AuditLog:
+	username = session.username if session and session.username else None
+	actor_type = session.user_type if session else None
+	actor_id = session.username if session and session.username else "opsiconfd"
+	if event_type == AuditLogEventType.PRODUCT_PROPERTY_STATE_DELETED:
+		message = f"{product_id}/{property_id} was deleted by {actor_id} for {object_id}."
+	else:
+		value_text = "none" if new_value is None else ", ".join(str(value) for value in new_value)
+		message = f"{product_id}/{property_id} was changed to '{value_text}' by {actor_id} for {object_id}."
+
+	return AuditLog(
+		eventType=event_type,
+		username=username,
+		actorType=actor_type,
+		actorId=actor_id,
+		clientAddress=session.client_addr if session else None,
+		userAgent=session.user_agent if session and session.user_agent else None,
+		hostId=object_id,
+		message=message,
+		productPropertyState={
+			"productId": product_id,
+			"propertyId": property_id,
+			"scope": scope,
+			"newValue": new_value,
+		},
+	)
+
+
 async def audit_authentication_event(
 	scope: Scope,
 	event_type: AuditLogEventType,

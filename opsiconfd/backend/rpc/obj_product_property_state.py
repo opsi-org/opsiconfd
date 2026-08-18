@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsi.opsi.service.model.object import ProductPropertyState
+from opsi.opsi.service.model.object import AuditLogEventType, ProductPropertyState
 from opsi.opsi.service.model.type import (
 	to_object_class,
 	to_object_class_list,
@@ -20,6 +20,8 @@ from opsi.opsi.service.model.type import (
 	to_string_list,
 )
 
+from opsiconfd import contextvar_client_session
+from opsiconfd.audit_log import audit_log_event_enabled, product_property_state_audit_log
 from opsiconfd.backend.auth import RPCACE
 from opsiconfd.config import get_configserver_id
 from opsiconfd.logging import logger
@@ -31,6 +33,47 @@ if TYPE_CHECKING:
 
 
 class RPCProductPropertyStateMixin(Protocol):
+	def _productPropertyState_audit(
+		self: BackendProtocol,
+		event_type: AuditLogEventType,
+		product_property_states: list[ProductPropertyState],
+	) -> None:
+		if not product_property_states:
+			return
+		if not audit_log_event_enabled(event_type):
+			return
+
+		object_ids = sorted({pps.objectId for pps in product_property_states})
+		client_ids = set(self.host_getIdents(returnType="str", type="OpsiClient", id=object_ids))
+		depot_ids = set(self.host_getIdents(returnType="str", type="OpsiDepotserver", id=object_ids))
+
+		session = contextvar_client_session.get()
+		audit_logs = []
+		for pps in product_property_states:
+			if pps.objectId in client_ids:
+				scope = "client"
+			elif pps.objectId in depot_ids:
+				scope = "depot"
+			else:
+				continue
+			audit_logs.append(
+				product_property_state_audit_log(
+					event_type=event_type,
+					scope=scope,
+					product_id=pps.productId,
+					property_id=pps.propertyId,
+					object_id=pps.objectId,
+					new_value=pps.values if event_type != AuditLogEventType.PRODUCT_PROPERTY_STATE_DELETED else None,
+					session=session,
+				)
+			)
+		if not audit_logs:
+			return
+		try:
+			self.auditLog_bulkInsertObjects(audit_logs)
+		except Exception as err:
+			logger.error("Failed to write ProductPropertyState audit log: %s", err, exc_info=True)
+
 	def _get_product_property_state_values_with_defaults(
 		self: BackendProtocol, product_property_ids: list[str], object_id: str
 	) -> dict[str, list[Any]]:
@@ -139,6 +182,7 @@ class RPCProductPropertyStateMixin(Protocol):
 				self._mysql.insert_object(
 					table="PRODUCT_PROPERTY_STATE", obj=product_property_state, ace=ace, create=True, set_null=True, session=session
 				)
+		self._productPropertyState_audit(AuditLogEventType.PRODUCT_PROPERTY_STATE_SET, productPropertyStates)
 
 	@rpc_method(check_acl=False)
 	def productPropertyState_updateObjects(
@@ -164,6 +208,7 @@ class RPCProductPropertyStateMixin(Protocol):
 				self._mysql.insert_object(
 					table="PRODUCT_PROPERTY_STATE", obj=product_property_state, ace=ace, create=True, set_null=False, session=session
 				)
+		self._productPropertyState_audit(AuditLogEventType.PRODUCT_PROPERTY_STATE_SET, productPropertyStates)
 
 	def _productPropertyState_getObjects(
 		self: BackendProtocol,
@@ -217,7 +262,9 @@ class RPCProductPropertyStateMixin(Protocol):
 		if not productPropertyStates:
 			return
 		ace = self._get_ace("productPropertyState_deleteObjects")
+		productPropertyStates = to_object_class_list(productPropertyStates, ProductPropertyState)
 		self._mysql.delete_objects(table="PRODUCT_PROPERTY_STATE", object_type=ProductPropertyState, obj=productPropertyStates, ace=ace)
+		self._productPropertyState_audit(AuditLogEventType.PRODUCT_PROPERTY_STATE_DELETED, productPropertyStates)
 
 	@rpc_method(check_acl=False)
 	def productPropertyState_create(

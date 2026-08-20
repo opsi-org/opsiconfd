@@ -15,7 +15,7 @@ from opsiconfd.backend import get_unprotected_backend
 try:
 	import yappi
 except ImportError:
-	yappi = None  # ty: ignore[invalid-assignment]
+	yappi = None
 from fastapi import FastAPI
 from redis import ResponseError as RedisResponseError
 from starlette.datastructures import MutableHeaders
@@ -176,6 +176,8 @@ class StatisticsMiddleware:
 
 	def yappi(self, scope: Scope) -> None:
 		# https://github.com/sumerc/yappi/blob/master/doc/api.md
+		if not yappi:
+			return
 
 		tag = get_yappi_tag()
 		if tag <= 0:

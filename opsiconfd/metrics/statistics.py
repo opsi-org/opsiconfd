@@ -9,6 +9,8 @@ statistics
 
 import re
 import time
+from collections.abc import Iterator
+from typing import Any
 
 from opsiconfd.backend import get_unprotected_backend
 
@@ -17,6 +19,7 @@ try:
 except ImportError:
 	yappi = None
 from fastapi import FastAPI
+from redis import Redis
 from redis import ResponseError as RedisResponseError
 from starlette.datastructures import MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
@@ -24,9 +27,9 @@ from starlette.types import Message, Receive, Scope, Send
 from opsiconfd import contextvar_request_id, contextvar_server_timing
 from opsiconfd.config import config, get_server_role
 from opsiconfd.logging import logger
-from opsiconfd.metrics.metric import DepotMetric, NodeMetric, WorkerMetric
+from opsiconfd.metrics.metric import DepotMetric, Metric, NodeMetric, WorkerMetric
 from opsiconfd.metrics.registry import MetricsRegistry
-from opsiconfd.redis import redis_client
+from opsiconfd.redis import decode_redis_result, redis_client
 from opsiconfd.worker import Worker
 
 
@@ -36,7 +39,51 @@ def get_yappi_tag() -> int:
 	return contextvar_request_id.get() or 0
 
 
+def _time_series_info(client: Redis, key: str) -> dict[str, Any]:
+	"""Return normalized RedisTimeSeries information for a key."""
+	result = decode_redis_result(client.execute_command("TS.INFO", key))
+	return dict(zip(result[::2], result[1::2], strict=True))
+
+
+def _ensure_time_series(client: Redis, key: str, retention: int, labels: dict[str, str | int]) -> dict[str, Any]:
+	"""Create a time series or update its retention and return existing information."""
+	command: list[Any] = ["TS.CREATE", key, "RETENTION", retention]
+	if labels:
+		command.append("LABELS")
+		for name, value in labels.items():
+			command.extend((name, value))
+
+	try:
+		client.execute_command(*command)
+		return {}
+	except RedisResponseError as err:
+		if str(err) != "TSDB: key already exists":
+			raise
+
+	info = _time_series_info(client, key)
+	if info.get("retentionTime") != retention:
+		client.execute_command("TS.ALTER", key, "RETENTION", retention)
+	return info
+
+
+def _metric_label_sets(metric: Metric, node_name: str, depot_ids: list[str]) -> Iterator[dict[str, str | int]]:
+	"""Yield label sets for every time series represented by a metric."""
+	if isinstance(metric, WorkerMetric):
+		for worker_num in range(1, config.workers + 1):
+			yield {"node_name": node_name, "worker_num": worker_num}
+		return
+	if isinstance(metric, NodeMetric):
+		yield {"node_name": node_name}
+		return
+	if isinstance(metric, DepotMetric):
+		for depot_id in depot_ids:
+			yield {"depot_id": depot_id}
+		return
+	yield {}
+
+
 def setup_metric_downsampling() -> None:
+	"""Reconcile configured metric time series and downsampling rules."""
 	if get_server_role() != "configserver":
 		return
 
@@ -52,91 +99,28 @@ def setup_metric_downsampling() -> None:
 		if not metric.downsampling:
 			continue
 
-		is_worker_metric = isinstance(metric, WorkerMetric)
-		is_node_metric = isinstance(metric, NodeMetric)
-		is_depot_metric = isinstance(metric, DepotMetric)
+		for labels in _metric_label_sets(metric, node_name, depot_ids):
+			orig_key = metric.get_redis_key(**labels)
+			info = _ensure_time_series(client, orig_key, metric.retention, labels)
+			existing_rules = {rule[0]: (rule[1], rule[2].lower()) for rule in info.get("rules", [])}
+			desired_keys: set[str] = set()
 
-		iterations = 1
-		if is_worker_metric:
-			iterations = config.workers
-		elif is_depot_metric:
-			iterations = len(depot_ids)
+			for name, retention, aggregation in metric.downsampling:
+				key = f"{orig_key}:{name}"
+				desired_keys.add(key)
+				_ensure_time_series(client, key, retention, labels)
 
-		for iteration in range(iterations):
-			worker_num: int | None = None
-			depot_id: str | None = None
-			if is_worker_metric:
-				worker_num = iteration + 1
-			elif is_depot_metric:
-				depot_id = depot_ids[iteration]
+				desired_rule = (get_time_bucket_duration(name), aggregation.value.lower())
+				if existing_rules.get(key) == desired_rule:
+					continue
+				if key in existing_rules:
+					client.execute_command("TS.DELETERULE", orig_key, key)
+				client.execute_command("TS.CREATERULE", orig_key, key, "AGGREGATION", desired_rule[1], desired_rule[0])
 
-			logger.debug("Iteration=%s, node_name=%s, worker_num=%s, depot_id=%s", iteration, node_name, worker_num, depot_id)
-
-			orig_key = None
-			cmd = None
-			if is_worker_metric:
-				orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
-				cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
-			elif is_node_metric:
-				orig_key = metric.redis_key.format(node_name=node_name)
-				cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name}"
-			elif is_depot_metric:
-				orig_key = metric.redis_key.format(depot_id=depot_id)
-				cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS depot_id {depot_id}"
-			else:
-				orig_key = metric.redis_key
-				cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention}"
-
-			logger.debug("redis command: %s", cmd)
-			try:
-				client.execute_command(cmd)
-			except RedisResponseError as err:
-				if str(err) != "TSDB: key already exists":
-					raise
-
-			cmd = f"TS.INFO {orig_key}"
-			info = client.execute_command(cmd)
-			existing_rules: dict[str, dict[str, str]] = {}
-			for idx, val in enumerate(info):
-				if isinstance(val, bytes) and "rules" in val.decode("utf8"):
-					rules = info[idx + 1]
-					for rule in rules:
-						key = rule[0].decode("utf8")
-						existing_rules[key] = {"time_bucket": rule[1], "aggregation": rule[2].decode("utf8")}
-
-			for rule in metric.downsampling:
-				retention, retention_time, aggregation = rule
-				aggregation_str = aggregation.value.lower()
-				time_bucket = get_time_bucket_duration(retention)
-				key = f"{orig_key}:{retention}"
-				if is_worker_metric:
-					cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
-				elif is_node_metric:
-					cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name}"
-				elif is_depot_metric:
-					cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS depot_id {depot_id}"
-				else:
-					cmd = f"TS.CREATE {key} RETENTION {retention_time}"
-
-				try:
-					client.execute_command(cmd)
-				except RedisResponseError as err:
-					if str(err) != "TSDB: key already exists":
-						raise
-
-				create = True
-				cur_rule = existing_rules.get(key)
-				if cur_rule:
-					if time_bucket == cur_rule.get("time_bucket") and aggregation_str == cur_rule["aggregation"].lower():
-						create = False
-					else:
-						cmd = f"TS.DELETERULE {orig_key} {key}"
-						client.execute_command(cmd)
-
-				if create:
-					cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {aggregation_str} {time_bucket}"
-					logger.debug("Redis cmd: %s", cmd)
-					client.execute_command(cmd)
+			for key in existing_rules.keys() - desired_keys:
+				if key.startswith(f"{orig_key}:"):
+					client.execute_command("TS.DELETERULE", orig_key, key)
+					client.unlink(key)
 
 
 TIME_BUCKET_DURATIONS_MS = {

@@ -14,9 +14,11 @@ from unittest.mock import patch
 
 import pytest
 from opsi.opsi.service.model.object import OpsiClient, OpsiDepotserver
+from redis import ResponseError as RedisResponseError
 
+from opsiconfd.config import config as server_config
 from opsiconfd.metrics.collector import DepotMetricsCollector, NodeMetricsCollector, WorkerMetricsCollector
-from opsiconfd.metrics.metric import ALL_METRICS, AggregationType, DepotMetric, WorkerMetric, ZeroIfMissingType
+from opsiconfd.metrics.metric import ALL_METRICS, AggregationType, DepotMetric, NodeMetric, WorkerMetric, ZeroIfMissingType
 from opsiconfd.metrics.registry import MetricsRegistry
 from opsiconfd.metrics.statistics import TIME_BUCKET_DURATIONS_MS, setup_metric_downsampling
 from opsiconfd.worker import Worker
@@ -373,42 +375,129 @@ def test_disable_metrics() -> None:
 
 
 def test_setup_metric_downsampling() -> None:
+	"""Metric setup creates the expected series, labels, and rules."""
 	MetricsRegistry.reset_singleton()
-	metric_rgistry = MetricsRegistry()
+	metrics_registry = MetricsRegistry()
+	metrics_registry._metrics_by_id = {}
+	metrics_registry.register(
+		NodeMetric(id="node:test", name="Node test {node_name}"),
+		WorkerMetric(id="worker:test", name="Worker test {worker_num} on {node_name}"),
+		DepotMetric(id="depot:test", name="Depot test {depot_id}"),
+	)
 
 	class MockRedisClient:
-		cmds = []  # noqa: RUF012
+		"""Record Redis commands issued by metric setup."""
 
-		def execute_command(self, cmd: str) -> Any:
-			self.cmds.append(cmd)
-			if cmd.startswith("TS.INFO"):
-				return []
+		def __init__(self) -> None:
+			self.commands: list[tuple[Any, ...]] = []
+
+		def execute_command(self, *command: Any) -> None:
+			"""Record a Redis command."""
+			self.commands.append(command)
 
 	mock_redis_client = MockRedisClient()
 
-	with patch("opsiconfd.metrics.statistics.redis_client", return_value=mock_redis_client):
+	with (
+		patch("opsiconfd.metrics.statistics.redis_client", return_value=mock_redis_client),
+		patch("opsiconfd.metrics.statistics.get_unprotected_backend") as get_backend,
+	):
+		get_backend.return_value.host_getIdents.return_value = ["depot.example.test"]
 		setup_metric_downsampling()
 
-	assert len(mock_redis_client.cmds) > 100
-	for cmd_ in mock_redis_client.cmds:
-		cmd = cmd_.split(" ")
-		key = cmd[1]
-		metric_id = ":".join(key.split(":")[2:4])
-		# print("-----------------------------------------------------")
-		# print(cmd)
-		# print(metric_id)
-		metric = metric_rgistry.get_metric_by_id(metric_id)
-		assert metric
-		if cmd[0] == "TS.CREATE":
-			assert cmd[2] == "RETENTION"
-			assert cmd[4] == "LABELS"
-			labels_ = cmd[5:]
-			labels = {labels_[i]: labels_[i + 1] for i in range(0, len(labels_), 2)}
-			assert list(labels) == metric.vars
+	create_commands = [command for command in mock_redis_client.commands if command[0] == "TS.CREATE"]
+	rule_commands = [command for command in mock_redis_client.commands if command[0] == "TS.CREATERULE"]
+	assert len(create_commands) == (1 + 3) * (1 + 1 + server_config.workers)
+	assert len(rule_commands) == 3 * (1 + 1 + server_config.workers)
+	assert any(command[5:] == ("node_name", server_config.node_name) for command in create_commands)
+	assert any(command[5:] == ("node_name", server_config.node_name, "worker_num", 1) for command in create_commands)
+	assert any(command[5:] == ("depot_id", "depot.example.test") for command in create_commands)
+	for command in rule_commands:
+		name = command[2].rsplit(":", 1)[1]
+		assert command[3:] == ("AGGREGATION", "avg", TIME_BUCKET_DURATIONS_MS[name])
 
-		elif cmd[0] == "TS.CREATERULE":
-			_orig_key, agg = cmd[2].rsplit(":", 1)
-			downsampling = next(d for d in metric.downsampling if d[0] == agg)
-			assert cmd[3] == "AGGREGATION"
-			assert cmd[4] == downsampling[2].value.lower()
-			assert int(cmd[5]) == TIME_BUCKET_DURATIONS_MS[agg]
+
+def test_setup_metric_downsampling_reconciles_existing_series() -> None:
+	"""Metric setup updates changed state and is idempotent afterward."""
+	metric = NodeMetric(
+		id="node:reconcile-test",
+		name="Reconcile test {node_name}",
+		retention=2_000,
+		downsampling=(("minute", 4_000, AggregationType.AVG), ("hour", 8_000, AggregationType.SUM)),
+	)
+	metrics_registry = MetricsRegistry()
+	metrics_registry._metrics_by_id = {}
+	metrics_registry.register(metric)
+	orig_key = metric.get_redis_key(node_name=server_config.node_name)
+	minute_key = f"{orig_key}:minute"
+	hour_key = f"{orig_key}:hour"
+	obsolete_key = f"{orig_key}:day"
+
+	class MockRedisClient:
+		"""Emulate the RedisTimeSeries commands needed by metric setup."""
+
+		def __init__(self) -> None:
+			self.commands: list[tuple[Any, ...]] = []
+			self.series: dict[str, dict[str, Any]] = {
+				orig_key: {
+					"retentionTime": 1_000,
+					"rules": [[minute_key, 30_000, "sum"], [obsolete_key, TIME_BUCKET_DURATIONS_MS["day"], "avg"]],
+				},
+				minute_key: {"retentionTime": 2_000, "rules": []},
+				hour_key: {"retentionTime": 8_000, "rules": []},
+				obsolete_key: {"retentionTime": 16_000, "rules": []},
+			}
+
+		def execute_command(self, *command: Any) -> Any:
+			"""Execute a minimal RedisTimeSeries command against local state."""
+			self.commands.append(command)
+			name, key = command[:2]
+			if name == "TS.CREATE":
+				if key in self.series:
+					raise RedisResponseError("TSDB: key already exists")
+				self.series[key] = {"retentionTime": command[3], "rules": []}
+				return "OK"
+			if name == "TS.INFO":
+				info = self.series[key]
+				rules = [[rule_key.encode(), bucket, aggregation.encode()] for rule_key, bucket, aggregation in info["rules"]]
+				return [b"retentionTime", info["retentionTime"], b"rules", rules]
+			if name == "TS.ALTER":
+				self.series[key]["retentionTime"] = command[3]
+				return "OK"
+			if name == "TS.DELETERULE":
+				destination = command[2]
+				self.series[key]["rules"] = [rule for rule in self.series[key]["rules"] if rule[0] != destination]
+				return "OK"
+			if name == "TS.CREATERULE":
+				self.series[key]["rules"].append([command[2], command[5], command[4]])
+				return "OK"
+			raise AssertionError(f"Unexpected command: {command}")
+
+		def unlink(self, key: str) -> None:
+			"""Delete a time series destination."""
+			self.series.pop(key)
+
+	mock_redis_client = MockRedisClient()
+	with (
+		patch("opsiconfd.metrics.statistics.redis_client", return_value=mock_redis_client),
+		patch("opsiconfd.metrics.statistics.get_unprotected_backend") as get_backend,
+	):
+		get_backend.return_value.host_getIdents.return_value = []
+		setup_metric_downsampling()
+
+	assert mock_redis_client.series[orig_key]["retentionTime"] == 2_000
+	assert mock_redis_client.series[minute_key]["retentionTime"] == 4_000
+	assert mock_redis_client.series[hour_key]["retentionTime"] == 8_000
+	assert obsolete_key not in mock_redis_client.series
+	assert mock_redis_client.series[orig_key]["rules"] == [
+		[minute_key, TIME_BUCKET_DURATIONS_MS["minute"], "avg"],
+		[hour_key, TIME_BUCKET_DURATIONS_MS["hour"], "sum"],
+	]
+
+	mock_redis_client.commands.clear()
+	with (
+		patch("opsiconfd.metrics.statistics.redis_client", return_value=mock_redis_client),
+		patch("opsiconfd.metrics.statistics.get_unprotected_backend") as get_backend,
+	):
+		get_backend.return_value.host_getIdents.return_value = []
+		setup_metric_downsampling()
+	assert not any(command[0] in ("TS.ALTER", "TS.DELETERULE", "TS.CREATERULE") for command in mock_redis_client.commands)

@@ -80,6 +80,7 @@ async def test_create_grafana_datasource_updates_by_uid(uid: str) -> None:
 		expected_get_calls.append(call("http://grafana/api/datasources"))
 	assert session.get.await_args_list == expected_get_calls
 	session.put.assert_awaited_once()
+	assert session.put.await_args
 	assert session.put.await_args.args[0] == f"http://grafana/api/datasources/uid/{uid}"
 	assert session.put.await_args.kwargs["json"]["uid"] == uid
 	session.post.assert_awaited_once_with("http://grafana/api/dashboards/db", json={"folderId": 0, "overwrite": True, "dashboard": {}})
@@ -116,6 +117,7 @@ async def test_create_grafana_datasource_handles_create_conflict() -> None:
 	await _create_grafana_datasource_with_session(session)
 
 	session.put.assert_awaited_once()
+	assert session.put.await_args
 	assert session.put.await_args.args[0] == f"http://grafana/api/datasources/uid/{GRAFANA_DATASOURCE_UID}"
 	assert session.post.await_args_list[1].args[0] == "http://grafana/api/dashboards/db"
 

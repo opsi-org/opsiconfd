@@ -57,11 +57,11 @@ services:
       - mysql-dev_data:/var/lib/mysql
 
   redis-dev:
-    image: redislabs/redistimeseries:latest
+    image: redis:8.10
     restart: ${RESTART_POLICY}
     hostname: redis-dev
     #command: sh -c "redis-server --requirepass $$REDIS_PASSWORD --loadmodule /usr/lib/redis/modules/redistimeseries.so"
-    command: sh -c "redis-server --loadmodule /usr/lib/redis/modules/redistimeseries.so"
+    command: sh -c "redis-server --loadmodule /usr/local/lib/redis/modules/redistimeseries.so"
     env_file:
       - .env
     volumes:
@@ -119,11 +119,11 @@ services:
       - mysql-cs_data:/var/lib/mysql
 
   redis-cs:
-    image: redislabs/redistimeseries:latest
+    image: redis:8.10
     restart: ${RESTART_POLICY}
     hostname: redis-configserver
     #command: sh -c "redis-server --requirepass $$REDIS_PASSWORD --loadmodule /usr/lib/redis/modules/redistimeseries.so"
-    command: sh -c "redis-server --loadmodule /usr/lib/redis/modules/redistimeseries.so"
+    command: sh -c "redis-server --loadmodule /usr/local/lib/redis/modules/redistimeseries.so"
     env_file:
       - .env
     volumes:

@@ -42,6 +42,8 @@ def get_yappi_tag() -> int:
 def _time_series_info(client: Redis, key: str) -> dict[str, Any]:
 	"""Return normalized RedisTimeSeries information for a key."""
 	result = decode_redis_result(client.execute_command("TS.INFO", key))
+	if isinstance(result, dict):
+		return result
 	return dict(zip(result[::2], result[1::2], strict=True))
 
 

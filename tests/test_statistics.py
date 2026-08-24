@@ -10,7 +10,7 @@ statistic tests
 import asyncio
 from asyncio import sleep
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from opsi.opsi.service.model.object import OpsiClient, OpsiDepotserver
@@ -20,7 +20,7 @@ from opsiconfd.config import config as server_config
 from opsiconfd.metrics.collector import DepotMetricsCollector, NodeMetricsCollector, WorkerMetricsCollector
 from opsiconfd.metrics.metric import ALL_METRICS, AggregationType, DepotMetric, NodeMetric, WorkerMetric, ZeroIfMissingType
 from opsiconfd.metrics.registry import MetricsRegistry
-from opsiconfd.metrics.statistics import TIME_BUCKET_DURATIONS_MS, setup_metric_downsampling
+from opsiconfd.metrics.statistics import TIME_BUCKET_DURATIONS_MS, _time_series_info, setup_metric_downsampling
 from opsiconfd.worker import Worker
 
 from .utils import (  # noqa: F401
@@ -372,6 +372,22 @@ def test_disable_metrics() -> None:
 		assert sorted(metrics_registry._metrics_by_id) == sorted(m.id for m in ALL_METRICS[1:])
 
 	MetricsRegistry.reset_singleton()
+
+
+@pytest.mark.parametrize(
+	("response", "expected"),
+	(
+		([b"retentionTime", 1_000, b"rules", []], {"retentionTime": 1_000, "rules": []}),
+		({b"retentionTime": 1_000, b"rules": []}, {"retentionTime": 1_000, "rules": []}),
+	),
+)
+def test_time_series_info(response: list[Any] | dict[bytes, Any], expected: dict[str, Any]) -> None:
+	"""RedisTimeSeries information supports legacy and parsed response formats."""
+	client = MagicMock()
+	client.execute_command.return_value = response
+
+	assert _time_series_info(client, "test:key") == expected
+	client.execute_command.assert_called_once_with("TS.INFO", "test:key")
 
 
 def test_setup_metric_downsampling() -> None:

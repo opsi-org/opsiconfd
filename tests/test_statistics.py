@@ -378,7 +378,10 @@ def test_disable_metrics() -> None:
 	("response", "expected"),
 	(
 		([b"retentionTime", 1_000, b"rules", []], {"retentionTime": 1_000, "rules": []}),
-		({b"retentionTime": 1_000, b"rules": []}, {"retentionTime": 1_000, "rules": []}),
+		(
+			{b"retentionTime": 1_000, b"rules": {b"test:key:minute": [60_000, b"AVG", 0]}},
+			{"retentionTime": 1_000, "rules": [["test:key:minute", 60_000, "AVG"]]},
+		),
 	),
 )
 def test_time_series_info(response: list[Any] | dict[bytes, Any], expected: dict[str, Any]) -> None:

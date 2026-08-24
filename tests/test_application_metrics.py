@@ -9,14 +9,22 @@ test application.metrics
 
 import asyncio
 import datetime
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, call, patch
+
+import pytest
 
 from opsiconfd.application.metrics import (
+	create_grafana_datasource,
 	get_nodes,
 	get_workers,
 	grafana_dashboard_config,
 	grafana_search,
 )
+from opsiconfd.grafana.grafana import GRAFANA_DATASOURCE_UID
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import async_delete_recursively, async_redis_client
 
@@ -29,6 +37,113 @@ from .utils import (  # noqa: F401
 	config,
 	test_client,
 )
+
+
+def _grafana_response(status: int, json_data: Any = None, text: str = "") -> MagicMock:
+	"""Create a mocked aiohttp response."""
+	response = MagicMock(status=status)
+	response.json = AsyncMock(return_value=json_data)
+	response.text = AsyncMock(return_value=text)
+	return response
+
+
+@asynccontextmanager
+async def _grafana_admin_session(session: MagicMock) -> AsyncIterator[tuple[str, MagicMock]]:
+	"""Yield a mocked Grafana administrator session."""
+	yield "http://grafana", session
+
+
+async def _create_grafana_datasource_with_session(session: MagicMock) -> None:
+	"""Create the Grafana datasource with a mocked session."""
+	with (
+		patch("opsiconfd.application.metrics.async_grafana_admin_session", return_value=_grafana_admin_session(session)),
+		patch("opsiconfd.application.metrics.grafana_dashboard_config", new=AsyncMock(return_value={})),
+	):
+		await create_grafana_datasource()
+
+
+@pytest.mark.parametrize("uid", (GRAFANA_DATASOURCE_UID, "legacy-generated-uid"))
+async def test_create_grafana_datasource_updates_by_uid(uid: str) -> None:
+	session = MagicMock()
+	datasource = {"name": "opsiconfd", "uid": uid}
+	if uid == GRAFANA_DATASOURCE_UID:
+		session.get = AsyncMock(return_value=_grafana_response(200, datasource))
+	else:
+		session.get = AsyncMock(side_effect=(_grafana_response(404), _grafana_response(200, [datasource])))
+	session.put = AsyncMock(return_value=_grafana_response(204))
+	session.post = AsyncMock(return_value=_grafana_response(200))
+
+	await _create_grafana_datasource_with_session(session)
+
+	expected_get_calls = [call(f"http://grafana/api/datasources/uid/{GRAFANA_DATASOURCE_UID}")]
+	if uid != GRAFANA_DATASOURCE_UID:
+		expected_get_calls.append(call("http://grafana/api/datasources"))
+	assert session.get.await_args_list == expected_get_calls
+	session.put.assert_awaited_once()
+	assert session.put.await_args.args[0] == f"http://grafana/api/datasources/uid/{uid}"
+	assert session.put.await_args.kwargs["json"]["uid"] == uid
+	session.post.assert_awaited_once_with("http://grafana/api/dashboards/db", json={"folderId": 0, "overwrite": True, "dashboard": {}})
+
+
+async def test_create_grafana_datasource_creates_with_stable_uid() -> None:
+	session = MagicMock()
+	session.get = AsyncMock(side_effect=(_grafana_response(404), _grafana_response(200, [])))
+	session.put = AsyncMock()
+	session.post = AsyncMock(side_effect=(_grafana_response(201), _grafana_response(200)))
+
+	await _create_grafana_datasource_with_session(session)
+
+	session.put.assert_not_awaited()
+	assert session.post.await_args_list[0].args[0] == "http://grafana/api/datasources"
+	assert session.post.await_args_list[0].kwargs["json"]["uid"] == GRAFANA_DATASOURCE_UID
+	assert session.post.await_args_list[1] == call(
+		"http://grafana/api/dashboards/db", json={"folderId": 0, "overwrite": True, "dashboard": {}}
+	)
+
+
+async def test_create_grafana_datasource_handles_create_conflict() -> None:
+	session = MagicMock()
+	session.get = AsyncMock(
+		side_effect=(
+			_grafana_response(404),
+			_grafana_response(200, []),
+			_grafana_response(200, {"name": "opsiconfd", "uid": GRAFANA_DATASOURCE_UID}),
+		)
+	)
+	session.put = AsyncMock(return_value=_grafana_response(200))
+	session.post = AsyncMock(side_effect=(_grafana_response(409), _grafana_response(200)))
+
+	await _create_grafana_datasource_with_session(session)
+
+	session.put.assert_awaited_once()
+	assert session.put.await_args.args[0] == f"http://grafana/api/datasources/uid/{GRAFANA_DATASOURCE_UID}"
+	assert session.post.await_args_list[1].args[0] == "http://grafana/api/dashboards/db"
+
+
+@pytest.mark.parametrize("responses", ((_grafana_response(200, []),), (_grafana_response(404), _grafana_response(200, {}))))
+async def test_create_grafana_datasource_stops_on_malformed_response(responses: tuple[MagicMock, ...]) -> None:
+	session = MagicMock()
+	session.get = AsyncMock(side_effect=responses)
+	session.put = AsyncMock()
+	session.post = AsyncMock()
+
+	await _create_grafana_datasource_with_session(session)
+
+	session.put.assert_not_awaited()
+	session.post.assert_not_awaited()
+
+
+@pytest.mark.parametrize("status", (401, 403, 500))
+async def test_create_grafana_datasource_stops_on_lookup_error(status: int) -> None:
+	session = MagicMock()
+	session.get = AsyncMock(return_value=_grafana_response(status, text="lookup failed"))
+	session.put = AsyncMock()
+	session.post = AsyncMock()
+
+	await _create_grafana_datasource_with_session(session)
+
+	session.put.assert_not_awaited()
+	session.post.assert_not_awaited()
 
 
 async def _register_workers(conf: Config) -> tuple[dict[str, str | int], ...]:

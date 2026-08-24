@@ -24,6 +24,7 @@ from opsiconfd.config import config
 from opsiconfd.grafana.grafana import (
 	GRAFANA_DASHBOARD_TEMPLATE,
 	GRAFANA_DATASOURCE_TEMPLATE,
+	GRAFANA_DATASOURCE_UID,
 	GRAFANA_HEATMAP_PANEL_TEMPLATE,
 	GRAFANA_TIMESERIES_PANEL_TEMPLATE,
 	async_grafana_admin_session,
@@ -161,26 +162,62 @@ async def grafana_dashboard_config() -> dict[str, Any]:
 
 async def create_grafana_datasource() -> None:
 	logger.debug("Creating grafana datasource")
-	json = GRAFANA_DATASOURCE_TEMPLATE
-	json["url"] = f"{config.grafana_data_source_url}/metrics/grafana/"
+	datasource_config = copy.deepcopy(GRAFANA_DATASOURCE_TEMPLATE)
+	datasource_config["url"] = f"{config.grafana_data_source_url}/metrics/grafana/"
 	async with async_grafana_admin_session() as (base_url, session):
-		operation = "create"
-		resp = await session.get(f"{base_url}/api/datasources/name/{json['name']}")
+		datasource = None
+		resp = await session.get(f"{base_url}/api/datasources/uid/{GRAFANA_DATASOURCE_UID}")
 		if resp.status == 200:
-			operation = "update"
-			_id = (await resp.json())["id"]
-			logger.debug("Updating grafana datasource: %s", _id)
-			resp = await session.put(f"{base_url}/api/datasources/{_id}", json=json)
+			datasource = await resp.json()
+			if not isinstance(datasource, dict):
+				logger.error("Failed to get grafana datasource: unexpected response %r", datasource)
+				return
+		elif resp.status == 404:
+			resp = await session.get(f"{base_url}/api/datasources")
+			if resp.status == 200:
+				datasources = await resp.json()
+				if not isinstance(datasources, list) or not all(isinstance(item, dict) for item in datasources):
+					logger.error("Failed to list grafana datasources: unexpected response %r", datasources)
+					return
+				datasource = next((item for item in datasources if item.get("name") == datasource_config["name"]), None)
+			else:
+				logger.error("Failed to list grafana datasources: %s - %s", resp.status, await resp.text())
+				return
+		else:
+			logger.error("Failed to get grafana datasource: %s - %s", resp.status, await resp.text())
+			return
+
+		operation = "update" if datasource else "create"
+		if datasource:
+			uid = datasource.get("uid")
+			if not uid:
+				logger.error("Failed to update grafana datasource: response does not contain a uid")
+				return
+			datasource_config["uid"] = uid
+			logger.debug("Updating grafana datasource: %s", uid)
+			resp = await session.put(f"{base_url}/api/datasources/uid/{uid}", json=datasource_config)
 		else:
 			logger.debug("Creating grafana datasource")
-			resp = await session.post(f"{base_url}/api/datasources", json=json)
+			resp = await session.post(f"{base_url}/api/datasources", json=datasource_config)
+			if resp.status == 409:
+				operation = "update"
+				resp = await session.get(f"{base_url}/api/datasources/uid/{GRAFANA_DATASOURCE_UID}")
+				if resp.status != 200:
+					logger.error("Failed to get concurrently created grafana datasource: %s - %s", resp.status, await resp.text())
+					return
+				datasource = await resp.json()
+				if not isinstance(datasource, dict) or not datasource.get("uid"):
+					logger.error("Failed to get concurrently created grafana datasource: unexpected response %r", datasource)
+					return
+				uid = datasource["uid"]
+				datasource_config["uid"] = uid
+				resp = await session.put(f"{base_url}/api/datasources/uid/{uid}", json=datasource_config)
 
-		if resp.status == 200:
+		if 200 <= resp.status < 300:
 			logger.debug("Grafana datasource %s: %s - %s", operation, resp.status, await resp.text())
 		else:
 			logger.error("Failed to %s grafana datasource: %s - %s", operation, resp.status, await resp.text())
-			if operation == "create":
-				return
+			return
 
 		logger.debug("Creating grafana dashboard")
 		resp = await session.post(

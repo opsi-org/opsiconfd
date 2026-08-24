@@ -41,9 +41,11 @@ PLUGIN_ID = "simpod-json-datasource"
 PLUGIN_MIN_VERSION = "0.6.3"
 
 GRAFANA_DASHBOARD_UID = "opsiconfd_main"
+GRAFANA_DATASOURCE_UID = "opsiconfd"
 
 GRAFANA_DATASOURCE_TEMPLATE = {
 	"orgId": 1,
+	"uid": GRAFANA_DATASOURCE_UID,
 	"name": "opsiconfd",
 	"type": PLUGIN_ID,
 	"access": "proxy",

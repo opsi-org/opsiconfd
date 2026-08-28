@@ -291,6 +291,19 @@ def setup_configs() -> None:
 			)
 		)
 
+	if "opsiclientd.control_server.interface" not in config_ids:
+		logger.info("Creating config 'opsiclientd.control_server.interface'")
+		add_configs.append(
+			UnicodeConfig(
+				id="opsiclientd.control_server.interface",
+				description="Interfaces to bind the OPSI client daemon control server to",
+				possibleValues=["::1", "127.0.0.1", "::", "0.0.0.0"],
+				defaultValues=["::1", "127.0.0.1"],
+				editable=True,
+				multiValue=True,
+			)
+		)
+
 	if "opsiclientd.global.verify_server_cert" not in config_ids:
 		logger.info("Creating config 'opsiclientd.global.verify_server_cert'")
 		add_configs.append(

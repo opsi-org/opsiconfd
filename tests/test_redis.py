@@ -111,16 +111,16 @@ async def test_async_redis_pool(config: Config) -> None:  # noqa: F811
 		coroutines.append(redis.get(base_key))
 
 	assert len(await asyncio.gather(*coroutines)) == num_connections
-	assert len(pool._in_use_connections) == 0  # ty: ignore[unresolved-attribute]
+	assert len(pool._in_use_connections) == 0
 
 	connections = []
 	for _ in range(num_connections):
-		connections.append(await pool.get_connection())  # ty: ignore[missing-argument]
+		connections.append(await pool.get_connection())
 	assert len(connections) == num_connections
-	assert len(pool._in_use_connections) == num_connections  # ty: ignore[unresolved-attribute]
+	assert len(pool._in_use_connections) == num_connections
 
 	await asyncio.gather(*[pool.release(con) for con in connections])
-	assert len(pool._in_use_connections) == 0  # ty: ignore[unresolved-attribute]
+	assert len(pool._in_use_connections) == 0
 
 
 def test_sync_redis_pool(config: Config) -> None:  # noqa: F811
@@ -133,17 +133,17 @@ def test_sync_redis_pool(config: Config) -> None:  # noqa: F811
 		assert redis.connection_pool is pool
 		redis.get(base_key)
 
-	assert len(pool._in_use_connections) == 0  # ty: ignore[unresolved-attribute]
+	assert len(pool._in_use_connections) == 0
 
 	connections = []
 	for _ in range(num_connections):
-		connections.append(pool.get_connection())  # ty: ignore[missing-argument]
+		connections.append(pool.get_connection())
 	assert len(connections) == num_connections
-	assert len(pool._in_use_connections) == num_connections  # ty: ignore[unresolved-attribute]
+	assert len(pool._in_use_connections) == num_connections
 
 	for con in connections:
 		pool.release(con)
-	assert len(pool._in_use_connections) == 0  # ty: ignore[unresolved-attribute]
+	assert len(pool._in_use_connections) == 0
 
 
 async def test_async_redis_client(config: Config) -> None:  # noqa: F811

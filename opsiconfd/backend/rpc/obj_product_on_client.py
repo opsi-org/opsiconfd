@@ -291,9 +291,13 @@ class RPCProductOnClientMixin(Protocol):
 			return self.productOnClient_getObjects(attributes, **filter)
 
 		ace = self._get_ace("productOnClient_getObjects")
-		product_on_clients = self._mysql.get_objects(
+		return_product_on_clients = self._mysql.get_objects(
 			table="PRODUCT_ON_CLIENT", ace=ace, object_type=ProductOnClient, attributes=attributes, filter=filter
 		)
+		product_on_clients = return_product_on_clients
+		if attributes:
+			product_on_clients = self._mysql.get_objects(table="PRODUCT_ON_CLIENT", ace=ace, object_type=ProductOnClient, filter=filter)
+		return_product_on_clients_by_ident = {(poc.clientId, poc.productId): poc for poc in return_product_on_clients}
 		action_requests = {(poc.clientId, poc.productId): poc.actionRequest for poc in product_on_clients}
 
 		ret_product_on_clients = []
@@ -301,15 +305,18 @@ class RPCProductOnClientMixin(Protocol):
 		for groups in self.get_product_action_groups(product_on_clients, debug_log=debug_log).values():
 			for idx, group in enumerate(groups):
 				for poc in group.product_on_clients:
-					if action_request := action_requests.get((poc.clientId, poc.productId)):
-						poc.actionGroup = idx + 1  # ty: ignore[unresolved-attribute]
-						poc.actionGroupPriority = group.priority  # ty: ignore[unresolved-attribute]
-						poc.actionPriority = group.priorities[poc.productId]  # ty: ignore[unresolved-attribute]
+					ident = (poc.clientId, poc.productId)
+					if action_request := action_requests.get(ident):
+						return_poc = return_product_on_clients_by_ident[ident]
+						return_poc.actionGroup = idx + 1  # ty: ignore[invalid-assignment]
+						return_poc.actionGroupPriority = group.priority  # ty: ignore[invalid-assignment]
+						return_poc.actionPriority = group.priorities[poc.productId]  # ty: ignore[invalid-assignment]
+						return_poc.actionSequence = poc.actionSequence
 						# Keep actionRequest from database
-						poc.actionRequest = action_request or "none"
-						if poc.actionRequest == "none":
-							poc.actionSequence = -1
-						ret_product_on_clients.append(poc)
+						return_poc.actionRequest = action_request or "none"
+						if return_poc.actionRequest == "none":
+							return_poc.actionSequence = -1
+						ret_product_on_clients.append(return_poc)
 
 		return ret_product_on_clients
 

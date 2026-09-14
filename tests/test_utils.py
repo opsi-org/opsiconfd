@@ -27,6 +27,7 @@ from opsiconfd.utils import (
 	get_passwd_services,
 	get_primary_ip_interface,
 	get_user_passwd_details,
+	is_manager,
 	running_in_docker,
 	timed_lru_cache,
 )
@@ -43,6 +44,26 @@ from opsiconfd.utils.user import migrate_opsi_passwd_file
 from tests.utils import cleanup_checks, get_opsi_config  # noqa: F401
 
 from .utils import UnprotectedBackend, backend, get_config  # noqa: F401
+
+
+@pytest.mark.parametrize(
+	("cmdline", "expected"),
+	(
+		(["opsiconfd", "start"], True),
+		(["opsiconfd", "--version"], False),
+		(["opsiconfd", "--python-info"], False),
+		(["opsiconfd", "-h"], False),
+		(["opsiconfd", "--help"], False),
+		(["opsiconfd", "--ex-help"], False),
+		(["opsiconfd", "health-check"], False),
+		(["opsiconfd", "--multiprocessing-fork"], False),
+	),
+)
+def test_is_manager(cmdline: list[str], expected: bool) -> None:
+	proc = mock.Mock()
+	proc.name.return_value = "opsiconfd"
+	proc.cmdline.return_value = cmdline
+	assert is_manager(proc) is expected
 
 
 def test_get_passwd_services(tmp_path: Path) -> None:

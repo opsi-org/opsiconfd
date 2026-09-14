@@ -456,9 +456,8 @@ class Worker(WorkerInfo, UvicornServer):
 					info = f"{info} - {val.decode('utf-8', errors='ignore')}"
 					break
 		scope = connection.scope
-		if connection.scope:
-			method = str(scope.get("method"))
-			info = f"{info} - {method + ' ' if method else ''}{scope.get('path', '')}"
+		method = str(scope.get("method"))
+		info = f"{info} - {method + ' ' if method else ''}{scope.get('path', '')}"
 		return f"{connection.__class__.__name__}({info})"
 
 	async def shutdown(self, sockets: list[socket.socket] | None = None) -> None:

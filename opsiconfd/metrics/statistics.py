@@ -34,8 +34,6 @@ from opsiconfd.worker import Worker
 
 
 def get_yappi_tag() -> int:
-	if not contextvar_request_id:
-		return 0
 	return contextvar_request_id.get() or 0
 
 

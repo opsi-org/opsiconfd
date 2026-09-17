@@ -341,12 +341,14 @@ def test_system_metrics_collector(test_client: OpsiconfdTestClient) -> None:  # 
 	test_client.jsonrpc20("host_createObjects", [[client]])
 	test_client.jsonrpc20(
 		"productOnClient_createObjects",
-		[[
-			ProductOnClient(productId="product-setup", productType="LocalbootProduct", clientId=client.id, actionRequest="setup"),
-			ProductOnClient(productId="product-update", productType="LocalbootProduct", clientId=client.id, actionRequest="update"),
-			ProductOnClient(productId="product-none", productType="LocalbootProduct", clientId=client.id, actionRequest="none"),
-			ProductOnClient(productId="product-empty", productType="LocalbootProduct", clientId=client.id, actionRequest="none"),
-		]],
+		[
+			[
+				ProductOnClient(productId="product-setup", productType="LocalbootProduct", clientId=client.id, actionRequest="setup"),
+				ProductOnClient(productId="product-update", productType="LocalbootProduct", clientId=client.id, actionRequest="update"),
+				ProductOnClient(productId="product-none", productType="LocalbootProduct", clientId=client.id, actionRequest="none"),
+				ProductOnClient(productId="product-empty", productType="LocalbootProduct", clientId=client.id, actionRequest="none"),
+			]
+		],
 	)
 
 	mysql = MySQLConnection()

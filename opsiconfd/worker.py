@@ -35,7 +35,6 @@ from opsi.network import ip_address_in_network
 from uvicorn.config import HTTP_PROTOCOLS, WS_PROTOCOLS, Config
 from uvicorn.protocols.http.h11_impl import H11Protocol
 from uvicorn.protocols.websockets.websockets_sansio_impl import WebSocketsSansIOProtocol
-from uvicorn.protocols.websockets.wsproto_impl import WSProtocol
 from uvicorn.server import Server as UvicornServer
 
 from opsiconfd.addon import AddonManager
@@ -50,9 +49,7 @@ from opsiconfd.utils import asyncio_create_task, patch_markupsafe
 from opsiconfd.websocket import WebSocketProtocolOpsiconfd, WSProtocolOpsiconfd
 
 if TYPE_CHECKING:
-	from uvicorn.protocols.http.httptools_impl import HttpToolsProtocol
-	from uvicorn.protocols.http.zttp_impl import ZttpProtocol
-	from uvicorn.protocols.websockets.websockets_impl import WebSocketProtocol
+	from uvicorn.server import Protocols
 
 
 multiprocessing.allow_connection_pickling()
@@ -387,7 +384,7 @@ class Worker(WorkerInfo, UvicornServer):
 			try:
 				skip = False
 				if address_exceptions:
-					client = connection.client
+					client = getattr(connection, "client", None)
 					if client:
 						client_ip = client[0]
 						for network in address_exceptions:
@@ -442,11 +439,9 @@ class Worker(WorkerInfo, UvicornServer):
 		else:
 			logger.info("All connections closed")
 
-	def get_connection_info(
-		self, connection: H11Protocol | HttpToolsProtocol | WSProtocol | WebSocketProtocol | WebSocketsSansIOProtocol | ZttpProtocol
-	) -> str:
+	def get_connection_info(self, connection: Protocols) -> str:
 		info = ""
-		client = connection.client
+		client = getattr(connection, "client", None)
 		if client:
 			info = f"{client[0]}:{client[1]}"
 		headers = getattr(connection, "headers", None)
@@ -455,7 +450,7 @@ class Worker(WorkerInfo, UvicornServer):
 				if name.lower() == b"user-agent":
 					info = f"{info} - {val.decode('utf-8', errors='ignore')}"
 					break
-		scope = connection.scope
+		scope = getattr(connection, "scope", {})
 		method = str(scope.get("method"))
 		info = f"{info} - {method + ' ' if method else ''}{scope.get('path', '')}"
 		return f"{connection.__class__.__name__}({info})"

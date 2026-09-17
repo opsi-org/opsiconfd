@@ -191,9 +191,7 @@ async def test_get_nodes(config: Config) -> None:  # noqa: F811
 async def test_grafana_dashboard_config() -> None:
 	conf = await grafana_dashboard_config()
 	assert len(conf["panels"]) == 24
-	assert conf["panels"][0]["targets"] == [
-		{"refId": "A", "target": "Number of pending product action requests", "type": "timeserie"}
-	]
+	assert conf["panels"][0]["targets"] == [{"refId": "A", "target": "Number of pending product action requests", "type": "timeserie"}]
 
 
 async def test_grafana_search(config: Config) -> None:  # noqa: F811

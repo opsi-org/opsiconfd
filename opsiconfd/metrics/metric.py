@@ -155,7 +155,21 @@ class DepotMetric(Metric):
 	vars = ["depot_id"]  # noqa: RUF012
 
 
+class SystemMetric(Metric):
+	"""A metric that applies to the complete opsi system."""
+
+	vars = []  # noqa: RUF012
+
+
 ALL_METRICS = [
+	SystemMetric(
+		id="system:avg_product_action_requests",
+		name="Number of pending product action requests",
+		retention=2 * 3600 * 1000,
+		aggregation=AggregationType.AVG,
+		zero_if_missing=ZeroIfMissingType.CONTINUOUS,
+		grafana_config=GrafanaPanelConfig(title="Pending product action requests", unit="short", decimals=0, stack=False, yaxis_min=0),
+	),
 	NodeMetric(
 		id="node:avg_load",
 		name="Average system load on {node_name}",

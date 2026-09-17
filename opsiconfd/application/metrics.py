@@ -30,7 +30,7 @@ from opsiconfd.grafana.grafana import (
 	async_grafana_admin_session,
 )
 from opsiconfd.logging import logger
-from opsiconfd.metrics.metric import AggregationType, DepotMetric, NodeMetric, WorkerMetric
+from opsiconfd.metrics.metric import AggregationType, DepotMetric, NodeMetric, SystemMetric, WorkerMetric
 from opsiconfd.metrics.registry import MetricsRegistry
 from opsiconfd.metrics.statistics import get_time_bucket_duration
 from opsiconfd.redis import async_redis_client, ip_address_from_redis_key
@@ -149,6 +149,14 @@ async def grafana_dashboard_config() -> dict[str, Any]:
 						"type": "timeserie",
 					}
 				)
+		elif isinstance(metric, SystemMetric):
+			panel["targets"].append(
+				{
+					"refId": "A",
+					"target": metric.get_name(),
+					"type": "timeserie",
+				}
+			)
 
 		panels.append(panel)
 		pos_x += panel["gridPos"]["w"]

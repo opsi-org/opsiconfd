@@ -13,12 +13,13 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-from opsi.opsi.service.model.object import OpsiClient, OpsiDepotserver
+from opsi.opsi.service.model.object import OpsiClient, OpsiDepotserver, ProductOnClient
 from redis import ResponseError as RedisResponseError
 
+from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.config import config as server_config
-from opsiconfd.metrics.collector import DepotMetricsCollector, NodeMetricsCollector, WorkerMetricsCollector
-from opsiconfd.metrics.metric import ALL_METRICS, AggregationType, DepotMetric, NodeMetric, WorkerMetric, ZeroIfMissingType
+from opsiconfd.metrics.collector import DepotMetricsCollector, NodeMetricsCollector, SystemMetricsCollector, WorkerMetricsCollector
+from opsiconfd.metrics.metric import ALL_METRICS, AggregationType, DepotMetric, NodeMetric, SystemMetric, WorkerMetric, ZeroIfMissingType
 from opsiconfd.metrics.registry import MetricsRegistry
 from opsiconfd.metrics.statistics import TIME_BUCKET_DURATIONS_MS, _time_series_info, setup_metric_downsampling
 from opsiconfd.worker import Worker
@@ -334,6 +335,33 @@ def test_depot_metrics_collector(config: Config, test_client: OpsiconfdTestClien
 	assert cmd[10] == "test-depot-1.opsi.org"
 
 
+def test_system_metrics_collector(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	test_client.auth = (ADMIN_PASS, ADMIN_USER)
+	client = OpsiClient(id="system-metric-client.opsi.test")
+	test_client.jsonrpc20("host_createObjects", [[client]])
+	test_client.jsonrpc20(
+		"productOnClient_createObjects",
+		[[
+			ProductOnClient(productId="product-setup", productType="LocalbootProduct", clientId=client.id, actionRequest="setup"),
+			ProductOnClient(productId="product-update", productType="LocalbootProduct", clientId=client.id, actionRequest="update"),
+			ProductOnClient(productId="product-none", productType="LocalbootProduct", clientId=client.id, actionRequest="none"),
+			ProductOnClient(productId="product-empty", productType="LocalbootProduct", clientId=client.id, actionRequest="none"),
+		]],
+	)
+
+	mysql = MySQLConnection()
+	with mysql.connection(), mysql.session() as session:
+		session.execute(
+			"UPDATE `PRODUCT_ON_CLIENT` SET `actionRequest` = '' WHERE `productId` = 'product-empty' AND `clientId` = :client_id",
+			params={"client_id": client.id},
+		)
+
+	metrics_collector = SystemMetricsCollector()
+	assert metrics_collector._interval == 60
+	assert metrics_collector._labels == {}
+	assert metrics_collector._get_product_action_request_count() == 2
+
+
 def test_node_metrics_collector() -> None:
 	metrics_collector = NodeMetricsCollector()
 
@@ -399,6 +427,7 @@ def test_setup_metric_downsampling() -> None:
 	metrics_registry = MetricsRegistry()
 	metrics_registry._metrics_by_id = {}
 	metrics_registry.register(
+		SystemMetric(id="system:test", name="System test"),
 		NodeMetric(id="node:test", name="Node test {node_name}"),
 		WorkerMetric(id="worker:test", name="Worker test {worker_num} on {node_name}"),
 		DepotMetric(id="depot:test", name="Depot test {depot_id}"),
@@ -425,8 +454,9 @@ def test_setup_metric_downsampling() -> None:
 
 	create_commands = [command for command in mock_redis_client.commands if command[0] == "TS.CREATE"]
 	rule_commands = [command for command in mock_redis_client.commands if command[0] == "TS.CREATERULE"]
-	assert len(create_commands) == (1 + 3) * (1 + 1 + server_config.workers)
-	assert len(rule_commands) == 3 * (1 + 1 + server_config.workers)
+	assert len(create_commands) == (1 + 3) * (1 + 1 + 1 + server_config.workers)
+	assert len(rule_commands) == 3 * (1 + 1 + 1 + server_config.workers)
+	assert any(len(command) == 4 and command[1].endswith(":system:test") for command in create_commands)
 	assert any(command[5:] == ("node_name", server_config.node_name) for command in create_commands)
 	assert any(command[5:] == ("node_name", server_config.node_name, "worker_num", 1) for command in create_commands)
 	assert any(command[5:] == ("depot_id", "depot.example.test") for command in create_commands)

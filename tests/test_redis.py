@@ -32,6 +32,7 @@ from opsiconfd.redis import (
 	async_delete_recursively,
 	async_redis_client,
 	async_redis_lock,
+	decode_redis_result,
 	delete_locks,
 	delete_recursively,
 	dump,
@@ -110,16 +111,16 @@ async def test_async_redis_pool(config: Config) -> None:  # noqa: F811
 		coroutines.append(redis.get(base_key))
 
 	assert len(await asyncio.gather(*coroutines)) == num_connections
-	assert len(pool._in_use_connections) == 0  # ty: ignore[unresolved-attribute]
+	assert len(pool._in_use_connections) == 0
 
 	connections = []
 	for _ in range(num_connections):
-		connections.append(await pool.get_connection())  # ty: ignore[missing-argument]
+		connections.append(await pool.get_connection())
 	assert len(connections) == num_connections
-	assert len(pool._in_use_connections) == num_connections  # ty: ignore[unresolved-attribute]
+	assert len(pool._in_use_connections) == num_connections
 
 	await asyncio.gather(*[pool.release(con) for con in connections])
-	assert len(pool._in_use_connections) == 0  # ty: ignore[unresolved-attribute]
+	assert len(pool._in_use_connections) == 0
 
 
 def test_sync_redis_pool(config: Config) -> None:  # noqa: F811
@@ -132,17 +133,17 @@ def test_sync_redis_pool(config: Config) -> None:  # noqa: F811
 		assert redis.connection_pool is pool
 		redis.get(base_key)
 
-	assert len(pool._in_use_connections) == 0  # ty: ignore[unresolved-attribute]
+	assert len(pool._in_use_connections) == 0
 
 	connections = []
 	for _ in range(num_connections):
-		connections.append(pool.get_connection())  # ty: ignore[missing-argument]
+		connections.append(pool.get_connection())
 	assert len(connections) == num_connections
-	assert len(pool._in_use_connections) == num_connections  # ty: ignore[unresolved-attribute]
+	assert len(pool._in_use_connections) == num_connections
 
 	for con in connections:
 		pool.release(con)
-	assert len(pool._in_use_connections) == 0  # ty: ignore[unresolved-attribute]
+	assert len(pool._in_use_connections) == 0
 
 
 async def test_async_redis_client(config: Config) -> None:  # noqa: F811
@@ -365,15 +366,15 @@ async def test_dump_restore(config: Config) -> None:  # noqa: F811
 			num_found += 1
 			assert isinstance(key_b, bytes)
 			key = key_b.decode("utf-8")
-			res = await client.execute_command("TS.INFO", key)
-			info = {k.decode("utf-8"): v for k, v in dict(zip(res[::2], res[1::2])).items()}
+			result = decode_redis_result(await client.execute_command("TS.INFO", key))
+			info = result if isinstance(result, dict) else dict(zip(result[::2], result[1::2], strict=True))
 			# print(key, info)
 
 			assert info["firstTimestamp"]
 			if not key.endswith((":minute", ":hour")):
 				assert len(info["rules"]) == 2
-				for rule in info["rules"]:
-					assert rule[0] in (f"{key}:minute".encode(), f"{key}:hour".encode())
+				destinations = info["rules"] if isinstance(info["rules"], dict) else [rule[0] for rule in info["rules"]]
+				assert set(destinations) == {f"{key}:minute", f"{key}:hour"}
 
 			cmd = ("TS.RANGE", key, start_ts, now_ts, "AGGREGATION", "avg", 1000)
 			# print(cmd)
@@ -385,8 +386,8 @@ async def test_dump_restore(config: Config) -> None:  # noqa: F811
 				assert len(vals) in (118, 119)
 			else:
 				assert len(vals) == 7200
-			assert vals[0][1] == b"10"
-			assert vals[-1][1] == b"10"
+			assert float(vals[0][1]) == 10.0
+			assert float(vals[-1][1]) == 10.0
 		assert num_found == 3
 
 	await check_time_series(client)

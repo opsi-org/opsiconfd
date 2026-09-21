@@ -7,13 +7,13 @@
 test opsiconfd.backend.rpc.obj_product_dependency
 """
 
-from itertools import permutations
+from itertools import pairwise, permutations
 from typing import cast
 
 import pytest
 from opsi.opsi.service.model.object import ConfigState, LocalbootProduct, ProductDependency, ProductOnClient, ProductOnDepot
 
-from opsiconfd.backend.rpc.obj_product_dependency import OpsiProductNotAvailableOnDepotError
+from opsiconfd.backend.rpc.obj_product_dependency import Action, ActionGroup, OpsiProductNotAvailableOnDepotError
 from opsiconfd.backend.rpc.protocol import BackendProtocol
 from opsiconfd.config import get_depotserver_id
 from tests.utils import (  # noqa: F401
@@ -2907,3 +2907,207 @@ def test_get_product_action_groups_circular_dependency_recursion(
 	product_ids = {poc.productId for poc in pocs}
 	assert "circular-prod-a" in product_ids
 	assert "circular-prod-b" in product_ids
+	assert any("Circular dependencies:" in entry for group in result[client_id] for entry in group.sort_log)
+
+
+def test_get_product_action_groups_shared_dependency_in_sibling_branches(
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	"""Ensure completed sibling branches do not suppress valid dependency edges."""
+	client_id = "test-client-shared-dependency.opsi.org"
+	depot_id = get_depotserver_id()
+	product_data = (
+		("root-product", 0),
+		("branch-b", 0),
+		("branch-c", 100),
+		("shared-product", -100),
+	)
+	products = [
+		LocalbootProduct(
+			id=product_id,
+			productVersion="1.0",
+			packageVersion="1",
+			priority=priority,
+			setupScript="setup.opsiscript",
+		)
+		for product_id, priority in product_data
+	]
+	products_on_depot = [
+		ProductOnDepot(
+			productId=product_id,
+			productType="localboot",
+			productVersion="1.0",
+			packageVersion="1",
+			depotId=depot_id,
+		)
+		for product_id, _priority in product_data
+	]
+	dependencies = [
+		ProductDependency(
+			productId=product_id,
+			productVersion="1.0",
+			packageVersion="1",
+			productAction="setup",
+			requiredProductId=required_product_id,
+			requiredAction="setup",
+			requirementType="before",
+		)
+		for product_id, required_product_id in (
+			("root-product", "branch-b"),
+			("root-product", "branch-c"),
+			("branch-b", "shared-product"),
+			("branch-c", "shared-product"),
+		)
+	]
+
+	backend.host_createOpsiClient(id=client_id)
+	backend.configState_createObjects([ConfigState(configId="clientconfig.depot.id", objectId=client_id, values=[depot_id])])
+	backend.product_createObjects(products)
+	backend.productOnDepot_createObjects(products_on_depot)
+	backend.productDependency_createObjects(dependencies)
+
+	root_product = ProductOnClient(
+		productId="root-product",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	groups = backend.get_product_action_groups([root_product])[client_id]  # ty: ignore[invalid-argument-type]
+	action_product_ids = [poc.productId for group in groups for poc in group.product_on_clients if poc.actionSequence != -1]
+	assert action_product_ids == ["shared-product", "branch-c", "branch-b", "root-product"]
+
+
+def test_action_group_topological_sort_long_chain() -> None:
+	"""Sort a long dependency chain without repeated list scans or recursion."""
+	actions = [Action(product_id=f"product-{idx:04}", product_type="localboot", action="setup") for idx in range(500)]
+	for action, dependent_action in pairwise(actions):
+		action.dependent_actions["before"].append(dependent_action)
+
+	group = ActionGroup(actions=actions)
+	group.sort()
+
+	assert group.actions == list(reversed(actions))
+
+
+def test_product_on_client_get_objects_with_sequence_rfc177806(
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	"""Test deterministic action ordering with dependencies resolved to an RFC product."""
+	client_id = "test-client-rfc177806.opsi.org"
+	depot_id = get_depotserver_id()
+	product_data = (
+		("dotnet-desktop-runtime-10-x64", "10.0.10", "1", 10),
+		("ms-office", "1.0", "1", 0),
+		("ms-ole-db-sql-x64", "19.4.1", "1", 0),
+		("resq-x64--rfc177806", "5.9.0", "1", 0),
+		("tower-watson-licensing-components", "3.2", "1", 10),
+		("tower-watson-licensing-components--rfc000001", "4.0.0", "1", 10),
+		("tower-watson-licensing-components--rfc177806", "4.1.0", "1", 10),
+		("towers-watson-licence-client-x64", "13.0.0.0", "2", 0),
+	)
+	products = [
+		LocalbootProduct(
+			id=product_id,
+			productVersion=product_version,
+			packageVersion=package_version,
+			priority=priority,
+			setupScript="setup.ins",
+		)
+		for product_id, product_version, package_version, priority in product_data
+	]
+	products_on_depot = [
+		ProductOnDepot(
+			productId=product_id,
+			productType="localboot",
+			productVersion=product_version,
+			packageVersion=package_version,
+			depotId=depot_id,
+		)
+		for product_id, product_version, package_version, _priority in product_data
+	]
+	required_product_ids = (
+		"dotnet-desktop-runtime-10-x64",
+		"ms-office",
+		"ms-ole-db-sql-x64",
+		"tower-watson-licensing-components",
+		"towers-watson-licence-client-x64",
+	)
+	dependencies = [
+		ProductDependency(
+			productId="resq-x64--rfc177806",
+			productVersion="5.9.0",
+			packageVersion="1",
+			productAction="setup",
+			requiredProductId=required_product_id,
+			requiredInstallationStatus="installed",
+			requirementType="before",
+		)
+		for required_product_id in required_product_ids
+	]
+
+	backend.host_createOpsiClient(id=client_id)
+	backend.configState_createObjects([ConfigState(configId="clientconfig.depot.id", objectId=client_id, values=[depot_id])])
+	backend.product_createObjects(products)
+	backend.productOnDepot_createObjects(products_on_depot)
+	backend.productDependency_createObjects(dependencies)
+	backend.productOnClient_createObjects(
+		[
+			ProductOnClient(
+				productId=product_id,
+				productType="localboot",
+				clientId=client_id,
+				installationStatus="installed",
+				actionRequest="setup",
+				productVersion=product_version,
+				packageVersion=package_version,
+			)
+			for product_id, product_version, package_version, _priority in product_data
+			if product_id
+			not in (
+				"ms-office",
+				"tower-watson-licensing-components",
+				"tower-watson-licensing-components--rfc000001",
+			)
+		]
+	)
+	backend.productOnClient_createObjects(
+		[
+			ProductOnClient(
+				productId="ms-office",
+				productType="localboot",
+				clientId=client_id,
+				installationStatus="installed",
+				actionRequest="none",
+				productVersion="1.0",
+				packageVersion="1",
+			),
+			ProductOnClient(
+				productId="tower-watson-licensing-components--rfc000001",
+				productType="localboot",
+				clientId=client_id,
+				installationStatus="not_installed",
+				actionRequest="none",
+				productVersion="4.0.0",
+				packageVersion="1",
+			),
+		]
+	)
+
+	expected_product_ids = [
+		"dotnet-desktop-runtime-10-x64",
+		"tower-watson-licensing-components--rfc177806",
+		"ms-ole-db-sql-x64",
+		"towers-watson-licence-client-x64",
+		"resq-x64--rfc177806",
+	]
+	for _run in range(10):
+		product_on_clients = backend.productOnClient_getObjectsWithSequence(clientId=client_id)
+		action_product_ids = [poc.productId for poc in product_on_clients if poc.actionRequest == "setup"]
+		assert action_product_ids == expected_product_ids
+
+	projected_product_on_clients = backend.productOnClient_getObjectsWithSequence(
+		attributes=["productId", "actionSequence"], clientId=client_id
+	)
+	projected_action_product_ids = [poc.productId for poc in projected_product_on_clients if poc.actionRequest == "setup"]
+	assert projected_action_product_ids == expected_product_ids

@@ -20,7 +20,7 @@ from starlette.concurrency import run_in_threadpool
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.config import config, get_server_role
 from opsiconfd.logging import get_logger
-from opsiconfd.metrics.metric import AggregationType, DepotMetric, Metric, NodeMetric, WorkerMetric, ZeroIfMissingType
+from opsiconfd.metrics.metric import AggregationType, DepotMetric, Metric, NodeMetric, SystemMetric, WorkerMetric, ZeroIfMissingType
 from opsiconfd.metrics.registry import MetricsRegistry
 from opsiconfd.redis import async_redis_client
 
@@ -311,6 +311,39 @@ class DepotMetricsCollector(MetricsCollector):
 				f"{slot_key}:{self._depot_id}:*",
 			)
 			await self.add_value("depot:avg_product_data_transfer_slots", used_slots)
+
+
+class SystemMetricsCollector(MetricsCollector):
+	"""Collect metrics that apply to the complete opsi system."""
+
+	_metric_type = SystemMetric
+
+	def __init__(self) -> None:
+		"""Initialize the system metrics collector."""
+		super().__init__()
+		self._interval = 60
+		self._mysql: MySQLConnection | None = None
+
+	def _get_mysql_connection(self) -> MySQLConnection:
+		"""Return a connected MySQL client."""
+		if not self._mysql:
+			self._mysql = MySQLConnection()
+			self._mysql.connect(read_tables=False)
+		return self._mysql
+
+	def _get_product_action_request_count(self) -> int:
+		"""Return the number of pending product action requests."""
+		with self._get_mysql_connection().session() as session:
+			result = session.execute(
+				"SELECT COUNT(*) FROM `PRODUCT_ON_CLIENT` WHERE `actionRequest` IS NOT NULL AND `actionRequest` NOT IN ('', 'none')"
+			).fetchone()
+		return max(int(result[0] if result else 0), 0)
+
+	async def _fetch_values(self) -> None:
+		"""Fetch enabled system metric values."""
+		if "system:avg_product_action_requests" in self._metrics:
+			count = await run_in_threadpool(self._get_product_action_request_count)
+			await self.add_value("system:avg_product_action_requests", count)
 
 
 statistics: MessagebusWebsocketStatistics | None = None

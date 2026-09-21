@@ -36,8 +36,8 @@ from opsiconfd.check.main import health_check
 from opsiconfd.config import MANAGER_THREAD_POOL_WORKERS, config, get_server_role
 from opsiconfd.logging import init_logging, logger
 from opsiconfd.messagebus.redis import messagebus_cleanup
-from opsiconfd.metrics.collector import DepotMetricsCollector, MetricsCollector, NodeMetricsCollector
-from opsiconfd.metrics.metric import DepotMetric
+from opsiconfd.metrics.collector import DepotMetricsCollector, MetricsCollector, NodeMetricsCollector, SystemMetricsCollector
+from opsiconfd.metrics.metric import DepotMetric, SystemMetric
 from opsiconfd.metrics.registry import MetricsRegistry
 from opsiconfd.redis import async_delete_locks, async_get_redis_info, async_redis_client, redis_client
 from opsiconfd.ssl import setup_ssl
@@ -341,6 +341,8 @@ class Manager:
 		self._async_loop_thread: Thread | None = None
 
 		self._metrics_collectors: list[MetricsCollector] = [NodeMetricsCollector()]
+		if self._is_config_server and next(MetricsRegistry().get_metrics(SystemMetric), None):
+			self._metrics_collectors.append(SystemMetricsCollector())
 		# Collect depot metrics only on config server
 		# Do not create DepotMetricsCollectors if all DepotMetrics are disabled
 		if self._is_config_server and MetricsRegistry().get_metrics(DepotMetric):

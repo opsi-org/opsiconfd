@@ -103,7 +103,7 @@ def test_websocket_open_timeout(websocket_protocol: str, websocket_open_timeout:
 
 
 @pytest.mark.parametrize("compression", ("", "lz4", "gzip"))
-def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: Literal["lz4", "gzip"]) -> None:  # noqa: F811
+def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: Literal["lz4", "gzip", ""]) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	# "with test_client" will run startup and shutdown event handler
 	# https://fastapi.tiangolo.com/advanced/testing-events/

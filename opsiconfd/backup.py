@@ -253,11 +253,10 @@ def create_backup(
 		encode = json.encode if file_encoding == "json" else msgpack.encode
 		bdata = encode(data)
 
-		if file_compression:
-			logger.notice("Compressing data with %s", file_compression)
-			if progress:
-				progress.console.print(f"Compressing data with {file_compression}")
-			bdata = compress(bdata, compression=file_compression)
+		logger.notice("Compressing data with %s", file_compression)
+		if progress:
+			progress.console.print(f"Compressing data with {file_compression}")
+		bdata = compress(bdata, compression=file_compression)
 
 		if password:
 			logger.notice("Encrypting data")

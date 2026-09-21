@@ -401,6 +401,11 @@ def test_update_database() -> None:
 				assert session.execute("SELECT DATABASE()").fetchone()[0] == database
 				res = session.execute(GET_CONSTRAINTS, params={"database": database}).fetchall()
 				assert len(res) == 86
+				indexes = session.execute(
+					"SHOW INDEX FROM `PRODUCT_ON_CLIENT` WHERE `Key_name` = 'index_product_on_client_actionRequest'"
+				).fetchall()
+				assert len(indexes) == 1
+				assert indexes[0][4] == "actionRequest"
 		finally:
 			with mysql.session() as session:
 				session.execute(f"DROP DATABASE IF EXISTS `{database}`")

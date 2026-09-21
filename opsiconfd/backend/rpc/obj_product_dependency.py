@@ -14,6 +14,7 @@ import re
 import tempfile
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
+from heapq import heappop, heappush
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
@@ -87,87 +88,56 @@ class ActionGroup:
 	sort_log: list[str] = field(default_factory=list)
 
 	def sort(self) -> None:
-		logger.debug("Sort actions by priority, productId and actionRequest")
-		self.actions.sort(key=lambda a: (a.priority * -1, a.product_id, ACTION_REQUEST_PRIO[a.action]))
-		prods = [f"{a.product_id}:{a.action}({a.priority})" for a in self.actions]
-		log = f"Ordered by priority, productId and actionRequest: {', '.join(prods)}"
+		"""Sort actions topologically, using product priority as a stable tie-breaker."""
+
+		def action_key(action: Action) -> tuple[int, str, int]:
+			return (-action.priority, action.product_id, ACTION_REQUEST_PRIO[action.action])
+
+		actions_by_key = {(action.product_id, action.action): action for action in self.actions}
+		successors: dict[tuple[str, str], set[tuple[str, str]]] = {key: set() for key in actions_by_key}
+		indegree = {key: 0 for key in actions_by_key}
+		for action in self.actions:
+			action_id = (action.product_id, action.action)
+			for requirement_type in ("before", "after"):
+				for dependent_action in action.dependent_actions[requirement_type]:
+					dependent_id = (dependent_action.product_id, dependent_action.action)
+					if not dependent_action.required or dependent_id not in actions_by_key:
+						continue
+					source, target = (dependent_id, action_id) if requirement_type == "before" else (action_id, dependent_id)
+					if target in successors[source]:
+						continue
+					successors[source].add(target)
+					indegree[target] += 1
+
+		available: list[tuple[tuple[int, str, int], tuple[str, str]]] = []
+		for key, degree in indegree.items():
+			if degree == 0:
+				heappush(available, (action_key(actions_by_key[key]), key))
+
+		sorted_actions: list[Action] = []
+		while available:
+			_sort_key, key = heappop(available)
+			sorted_actions.append(actions_by_key[key])
+			for successor in sorted(successors[key]):
+				indegree[successor] -= 1
+				if indegree[successor] == 0:
+					heappush(available, (action_key(actions_by_key[successor]), successor))
+
+		if len(sorted_actions) != len(self.actions):
+			cyclic_actions = sorted(
+				(actions_by_key[key] for key, degree in indegree.items() if degree),
+				key=action_key,
+			)
+			cycle = ", ".join(f"{action.product_id}:{action.action}" for action in cyclic_actions)
+			logger.warning("Circular product action dependencies detected: %s", cycle)
+			self.sort_log.append(f"Circular dependencies: {cycle}")
+			sorted_actions.extend(cyclic_actions)
+
+		self.actions = sorted_actions
+		products = ", ".join(f"{action.product_id}:{action.action}({action.priority})" for action in self.actions)
+		log = f"Topologically sorted by dependencies, priority, productId and actionRequest: {products}"
 		logger.debug(log)
 		self.sort_log.append(log)
-
-		dependent_actions: dict[str, list[Action]] = {
-			"before": [],
-			"after": [],
-		}
-		for action in self.actions:
-			for requirement_type, dep_actions in action.dependent_actions.items():
-				if requirement_type not in ("before", "after"):
-					continue
-				for dep_action in dep_actions:
-					if dep_action.required and dep_action not in dependent_actions[requirement_type]:
-						dependent_actions[requirement_type].append(dep_action)
-
-		dependent_actions["before"].sort(key=lambda a: (a.priority * -1, a.product_id, ACTION_REQUEST_PRIO[a.action]))
-		dependent_actions["after"].sort(key=lambda a: (a.priority, a.product_id, ACTION_REQUEST_PRIO[a.action]))
-
-		logger.trace(dependent_actions)
-		run_number = 0
-		while run_number < len(self.actions):
-			run_number += 1
-			changes = 0
-			logger.debug("Dependency sort run #%d", run_number)
-			for requirement_type in ("before", "after"):
-				for dep_action in dependent_actions[requirement_type]:
-					for action in dep_action.from_actions[requirement_type]:
-						logger.trace(
-							"Processing %s:%s requires %s:%s (%s)",
-							action.product_id,
-							action.action,
-							dep_action.product_id,
-							dep_action.action,
-							requirement_type,
-						)
-						pos_prd = -1
-						pos_dep = -1
-
-						for idx, act in enumerate(self.actions):
-							if act.product_id == action.product_id:
-								pos_prd = idx
-							elif act.product_id == dep_action.product_id:
-								pos_dep = idx
-							if pos_prd > -1 and pos_dep > -1:
-								break
-
-						# Always move in one direction only!
-						if requirement_type == "before":
-							if pos_dep > pos_prd:
-								log = (
-									f"Sort run #{run_number}: Moving {dep_action.product_id}:{dep_action.action} (#{pos_dep}) "
-									f"before {action.product_id}:{action.action} (#{pos_prd})"
-								)
-								self.actions.insert(pos_prd, self.actions.pop(pos_dep))
-							else:
-								continue
-						else:
-							if pos_prd > pos_dep:
-								log = (
-									f"Sort run #{run_number}: Moving {action.product_id}:{action.action} (#{pos_prd}) "
-									f"before {dep_action.product_id}:{dep_action.action} (#{pos_dep})"
-								)
-								self.actions.insert(pos_dep, self.actions.pop(pos_prd))
-							else:
-								continue
-
-						logger.debug(log)
-						self.sort_log.append(log)
-						changes += 1
-
-			prods = [f"{a.product_id}:{a.action}({a.priority})" for a in self.actions]
-			log = f"Order after sort run #{run_number}: {', '.join(prods)}"
-			logger.debug(log)
-			self.sort_log.append(log)
-			if not changes:
-				logger.debug("Sort run finished after %d iterations", run_number)
-				break
 
 	def add_action(self, action: Action) -> None:
 		self.actions.append(action)
@@ -224,17 +194,33 @@ class RPCProductDependencyMixin(Protocol):
 		product_dependency_cache: dict[tuple[str, str, str], list[ProductDependency]] = {}
 		product_on_clients_by_client_id: dict[str, list[ProductOnClient]] = defaultdict(list)
 		rfc_products_by_client_id: dict[str, dict[str, str]] = defaultdict(dict)
+		rfc_candidates_by_client_id: dict[str, dict[str, list[ProductOnClient]]] = defaultdict(lambda: defaultdict(list))
 		product_ids = set()
-		for poc in product_on_clients:
+		for poc in sorted(product_on_clients, key=lambda product_on_client: (product_on_client.clientId, product_on_client.productId)):
 			product_on_clients_by_client_id[poc.clientId].append(poc)
 			product_ids.add(poc.productId)
 			if "--" in poc.productId:
 				base_product_id, _ = poc.productId.split("--", 1)
-				rfc_products_by_client_id[poc.clientId][base_product_id] = poc.productId
+				rfc_candidates_by_client_id[poc.clientId][base_product_id].append(poc)
+		for client_id, candidates_by_product_id in rfc_candidates_by_client_id.items():
+			for base_product_id, candidates in candidates_by_product_id.items():
+				candidates.sort(key=lambda poc: (poc.actionRequest in (None, "", "none"), poc.productId))
+				rfc_products_by_client_id[client_id][base_product_id] = candidates[0].productId
+				if len(candidates) > 1:
+					logger.warning(
+						"Multiple product variants found for %s on client %s, using %s",
+						base_product_id,
+						client_id,
+						candidates[0].productId,
+					)
 		client_ids = list(product_on_clients_by_client_id)
 		client_to_depot = {c2d["clientId"]: c2d["depotId"] for c2d in self.configState_getClientToDepotserver(clientIds=client_ids)}
 		depot_ids = list(set(client_to_depot.values()))
 		product_action_groups: dict[str, list[ProductActionGroup]] = {c: [] for c in client_ids}
+		for product_on_client in self.productOnClient_getObjects(clientId=client_ids):
+			product_on_client_cache[(product_on_client.clientId, product_on_client.productId)] = product_on_client
+		for product_on_client in product_on_clients:
+			product_on_client_cache[(product_on_client.clientId, product_on_client.productId)] = product_on_client
 
 		if product_ids:
 			# Prefill caches
@@ -311,21 +297,13 @@ class RPCProductDependencyMixin(Protocol):
 		def get_product_on_client(product_id: str, product_type: str, client_id: str) -> ProductOnClient:
 			pkey = (client_id, product_id)
 			if pkey not in product_on_client_cache:
-				for poc in product_on_clients_by_client_id.get(client_id, []):
-					if poc.productId == product_id:
-						product_on_client_cache[pkey] = poc
-						break
-			if pkey not in product_on_client_cache:
-				objs = self.productOnClient_getObjects(productId=product_id, clientId=client_id)
-				if not objs:
-					poc = ProductOnClient(
-						productId=product_id,
-						productType=product_type,
-						clientId=client_id,
-					)
-					poc.setDefaults()
-					objs = [poc]
-				product_on_client_cache[pkey] = objs[0]
+				product_on_client = ProductOnClient(
+					productId=product_id,
+					productType=product_type,
+					clientId=client_id,
+				)
+				product_on_client.setDefaults()
+				product_on_client_cache[pkey] = product_on_client
 			return product_on_client_cache[pkey]
 
 		@dataclass
@@ -335,14 +313,15 @@ class RPCProductDependencyMixin(Protocol):
 			groups: list[ActionGroup] = field(default_factory=list)
 			unsorted_actions: dict[str, dict[str, Action]] = field(default_factory=lambda: defaultdict(dict))
 			dependencies: dict[str, list[ProductDependency]] = field(default_factory=lambda: defaultdict(list))
+			pending_actions: list[Action] = field(default_factory=list)
+			processed_action_ids: set[tuple[str, str]] = field(default_factory=set)
 
-			def process_dependencies(
-				self,
-				action: Action,
-				dependency_path: list[str] | None = None,
-			) -> None:
-				dependency_path = dependency_path or []
-				dependency_path.append(action.product_id)
+			def process_dependencies(self, action: Action) -> None:
+				"""Expand the direct dependencies of one product action."""
+				action_id = (action.product_id, action.action)
+				if action_id in self.processed_action_ids:
+					return
+				self.processed_action_ids.add(action_id)
 				try:
 					product_on_depot = get_product_on_depot(depot_id=self.depot_id, product_id=action.product_id)
 					product = get_product(
@@ -370,10 +349,6 @@ class RPCProductDependencyMixin(Protocol):
 					if dependency not in self.dependencies[product.id]:
 						logger.debug("New dependency found: %r", dependency)
 						self.dependencies[product.id].append(dependency)
-
-					if dependency.requiredProductId in dependency_path:
-						logger.trace("Already in dependency path: %r", dependency)
-						continue
 
 					try:
 						dep_product_on_depot = get_product_on_depot(
@@ -422,7 +397,7 @@ class RPCProductDependencyMixin(Protocol):
 									product_id=dep_product.id,
 									product_type=dep_product.getType(),
 									client_id=client_id,
-								)
+								).clone()
 								if dep_poc.installationStatus == "installed":
 									dep_poc_rfc.installationStatus = "installed"
 								dep_poc = dep_poc_rfc
@@ -503,10 +478,7 @@ class RPCProductDependencyMixin(Protocol):
 						)
 						action.dependent_actions[req_type].append(dep_action)
 
-					self.process_dependencies(
-						action=dep_action,
-						dependency_path=dependency_path,
-					)
+					self.pending_actions.append(dep_action)
 
 			def process_product_on_clients(self, product_on_clients: list[ProductOnClient]) -> None:
 				logger.debug("Add ProductOnClients to unsorted actions")
@@ -516,7 +488,9 @@ class RPCProductDependencyMixin(Protocol):
 				logger.debug("Add dependent actions to unsorted actions")
 				for act_actions in list(self.unsorted_actions.values()):
 					for act_action in act_actions.values():
-						self.process_dependencies(act_action)
+						self.pending_actions.append(act_action)
+				while self.pending_actions:
+					self.process_dependencies(self.pending_actions.pop())
 
 				logger.trace("Dependencies: %r", self.dependencies)
 
@@ -532,7 +506,13 @@ class RPCProductDependencyMixin(Protocol):
 
 					actions = sorted(
 						ar_actions.values(),
-						key=lambda a: (not a.required, ACTION_REQUEST_PRIO[a.action], len(a.from_actions.values())),
+						key=lambda a: (
+							not a.required,
+							ACTION_REQUEST_PRIO[a.action],
+							-sum(len(actions) for actions in a.from_actions.values()),
+							a.product_id,
+							a.action,
+						),
 					)
 
 					actions[0].product_on_client = product_on_client
@@ -563,33 +543,36 @@ class RPCProductDependencyMixin(Protocol):
 					logger.trace("Actions %r: %s", product_id, ar_actions)
 
 				logger.debug("Build and sort action groups")
-				p_groups: list[set[str]] = []
+				connected_products: dict[str, set[str]] = {product_id: set() for product_id in self.unsorted_actions}
 				for product_id, ar_actions in self.unsorted_actions.items():
-					product_ids = {product_id}
 					for action in ar_actions.values():
 						if not action.required:
 							continue
-						for (
-							requirement_type,
-							dep_actions,
-						) in action.dependent_actions.items():
-							if requirement_type:
-								for dep_action in dep_actions:
-									product_ids.add(dep_action.product_id)
+						for requirement_type in ("before", "after"):
+							for dependent_action in action.dependent_actions[requirement_type]:
+								if dependent_action.product_id not in connected_products:
+									continue
+								connected_products[product_id].add(dependent_action.product_id)
+								connected_products[dependent_action.product_id].add(product_id)
 
-					group_idx: set[int] = set()
-					for pid in product_ids.copy():
-						for idx, pids in enumerate(p_groups):
-							if pid in pids:
-								product_ids.update(pids)
-								group_idx.add(idx)
+				product_groups: list[set[str]] = []
+				unvisited_product_ids = set(connected_products)
+				while unvisited_product_ids:
+					start_product_id = min(unvisited_product_ids)
+					product_ids: set[str] = set()
+					pending_product_ids = [start_product_id]
+					while pending_product_ids:
+						current_product_id = pending_product_ids.pop()
+						if current_product_id not in unvisited_product_ids:
+							continue
+						unvisited_product_ids.remove(current_product_id)
+						product_ids.add(current_product_id)
+						pending_product_ids.extend(sorted(connected_products[current_product_id], reverse=True))
+					product_groups.append(product_ids)
 
-					p_groups = [pids for idx, pids in enumerate(p_groups) if idx not in group_idx]
-					p_groups.append(product_ids)
-
-				for product_ids in p_groups:
+				for product_ids in product_groups:
 					group = ActionGroup(dependencies={pid: dep for pid, dep in self.dependencies.items() if pid in product_ids})
-					for product_id in product_ids:
+					for product_id in sorted(product_ids):
 						if ar_actions := self.unsorted_actions.pop(product_id, {}):
 							added = False
 							action_with_poc: Action | None = None
@@ -607,7 +590,12 @@ class RPCProductDependencyMixin(Protocol):
 						self.groups.append(group)
 
 				logger.debug("Sort action groups by priority")
-				self.groups.sort(key=lambda g: g.priority, reverse=True)
+				self.groups.sort(
+					key=lambda group: (
+						-group.priority,
+						tuple((action.product_id, ACTION_REQUEST_PRIO[action.action]) for action in group.actions),
+					)
+				)
 
 			def add_product_on_client(self, product_on_client: ProductOnClient) -> None:
 				try:

@@ -288,21 +288,20 @@ def setup_users_and_groups(interactive: bool = False, backend_available: bool = 
 		)
 		user = pwd.getpwnam(config.run_as_user)
 
-	if user:
-		# Follow symlinks
-		expected_home = Path(OPSICONFD_HOME).resolve()
-		user_home = Path(user.pw_dir).resolve()
-		if user_home != expected_home:
-			try:
-				modify_user(username=config.run_as_user, home=OPSICONFD_HOME)
-			except Exception as err:
-				logger.warning(
-					"Failed to change home directory of user %r (%s). Should be %r but is %r, please change manually.",
-					config.run_as_user,
-					err,
-					OPSICONFD_HOME,
-					user.pw_dir,
-				)
+	# Follow symlinks
+	expected_home = Path(OPSICONFD_HOME).resolve()
+	user_home = Path(user.pw_dir).resolve()
+	if user_home != expected_home:
+		try:
+			modify_user(username=config.run_as_user, home=OPSICONFD_HOME)
+		except Exception as err:
+			logger.warning(
+				"Failed to change home directory of user %r (%s). Should be %r but is %r, please change manually.",
+				config.run_as_user,
+				err,
+				OPSICONFD_HOME,
+				user.pw_dir,
+			)
 
 	try:
 		grp.getgrnam("shadow")

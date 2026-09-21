@@ -204,6 +204,7 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_ON_CLIENT` (
 	`modificationTime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY (`productId`,`productType`,`clientId`),
 	UNIQUE KEY `index_product_on_client_pcid` (`productId`,`clientId`),
+	KEY `index_product_on_client_actionRequest` (`actionRequest`),
 	FOREIGN KEY (`clientId`)
 		REFERENCES `HOST` (`hostId`)
 		ON DELETE CASCADE ON UPDATE CASCADE
@@ -1510,9 +1511,16 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 		# AUDIT_PRODUCT_ACTION_REQUEST added
 
 		# schema_version 24
-		# AUDIT_CONFIG added
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="PRODUCT_ON_CLIENT",
+			index="index_product_on_client_actionRequest",
+			columns=["actionRequest"],
+		)
 
 		# schema_version 25
+		# AUDIT_CONFIG added
 		# AUDIT_PRODUCT_PROPERTY_STATE added
 
 		# Be sure to update MySQLConnection.schema_version as well when changing this function.

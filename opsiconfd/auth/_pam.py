@@ -34,8 +34,9 @@ class PAMAuthentication(AuthenticationModule):
 	def __init__(self, pam_service: str | None = None):
 		super().__init__()
 
-		self._pam_service = pam_service
-		if not self._pam_service:
+		if pam_service:
+			self._pam_service = pam_service
+		else:
 			if os.path.exists("/etc/pam.d/opsi-auth"):
 				# Prefering our own - if present.
 				self._pam_service = "opsi-auth"

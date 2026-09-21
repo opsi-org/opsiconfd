@@ -505,7 +505,6 @@ async def process_request(request: Request, response: Response) -> Response:
 		if request_data:
 			if request_compression:
 				with server_timing("decompression"):
-					assert request_compression
 					request_data = await run_in_threadpool(decompress, request_data, request_compression)
 		else:
 			request_data = urllib.parse.unquote(request.url.query).encode("utf-8")

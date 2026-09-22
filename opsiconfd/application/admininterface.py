@@ -527,6 +527,8 @@ async def get_audit_log_list(
 	for audit_log in audit_logs:
 		authentication = audit_log.authentication
 		product_action_request = audit_log.productActionRequest
+		audit_config = audit_log.config
+		audit_pps = audit_log.productPropertyState
 		audit_log_list.append(
 			{
 				"id": int(audit_log.id or "0"),
@@ -541,8 +543,14 @@ async def get_audit_log_list(
 				"authMethods": _audit_log_value(authentication.authMethods if authentication else None),
 				"failureReason": _audit_log_value(authentication.failureReason if authentication else None),
 				"logoutReason": _audit_log_value(authentication.logoutReason if authentication else None),
-				"productId": _audit_log_value(product_action_request.productId if product_action_request else None),
+				"productId": _audit_log_value(
+					product_action_request.productId if product_action_request else (audit_pps.productId if audit_pps else None)
+				),
+				"propertyId": _audit_log_value(audit_pps.propertyId if audit_pps else None),
 				"actionRequest": _audit_log_value(product_action_request.actionRequest if product_action_request else None),
+				"configId": _audit_log_value(audit_config.configId if audit_config else None),
+				"scope": _audit_log_value(audit_config.scope if audit_config else (audit_pps.scope if audit_pps else None)),
+				"newValue": _audit_log_value(audit_config.newValue if audit_config else (audit_pps.newValue if audit_pps else None)),
 				"message": _audit_log_value(audit_log.message),
 			}
 		)

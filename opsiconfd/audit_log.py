@@ -37,13 +37,90 @@ def audit_log_event_enabled(event_type: AuditLogEventType) -> bool:
 		return False
 	if not module_available("audit_log"):
 		return False
-	return event_type.value in config.audit_log_events
+	configured_events = set()
+	for configured_event in config.audit_log_events:
+		try:
+			configured_events.add(AuditLogEventType(configured_event).value)
+		except Exception:
+			configured_events.add(str(configured_event))
+	return event_type.value in configured_events
 
 
 def _audit_auth_methods(session: OPSISession) -> list[str] | None:
 	if not session.auth_methods:
 		return None
 	return sorted(str(method) for method in session.auth_methods)
+
+
+def config_audit_log(
+	event_type: AuditLogEventType,
+	scope: str,
+	config_id: str,
+	new_value: list[object] | None,
+	session: OPSISession | None,
+	host_id: str | None = None,
+) -> AuditLog:
+	username = session.username if session and session.username else None
+	actor_type = session.user_type if session else None
+	actor_id = session.username if session and session.username else "opsiconfd"
+	target = host_id if host_id else "server default"
+	if event_type == AuditLogEventType.CONFIG_VALUE_DELETED:
+		message = f"{config_id} was deleted by {actor_id} for {target}."
+	else:
+		value_text = "none" if new_value is None else ", ".join(str(value) for value in new_value)
+		message = f"{config_id} was changed to '{value_text}' by {actor_id} for {target}."
+
+	return AuditLog(
+		eventType=event_type,
+		username=username,
+		actorType=actor_type,
+		actorId=actor_id,
+		clientAddress=session.client_addr if session else None,
+		userAgent=session.user_agent if session and session.user_agent else None,
+		hostId=host_id,
+		message=message,
+		config={
+			"configId": config_id,
+			"scope": scope,
+			"newValue": new_value,
+		},
+	)
+
+
+def product_property_state_audit_log(
+	event_type: AuditLogEventType,
+	scope: str,
+	product_id: str,
+	property_id: str,
+	object_id: str,
+	new_value: list[object] | None,
+	session: OPSISession | None,
+) -> AuditLog:
+	username = session.username if session and session.username else None
+	actor_type = session.user_type if session else None
+	actor_id = session.username if session and session.username else "opsiconfd"
+	if event_type == AuditLogEventType.PRODUCT_PROPERTY_STATE_DELETED:
+		message = f"{product_id}/{property_id} was deleted by {actor_id} for {object_id}."
+	else:
+		value_text = "none" if new_value is None else ", ".join(str(value) for value in new_value)
+		message = f"{product_id}/{property_id} was changed to '{value_text}' by {actor_id} for {object_id}."
+
+	return AuditLog(
+		eventType=event_type,
+		username=username,
+		actorType=actor_type,
+		actorId=actor_id,
+		clientAddress=session.client_addr if session else None,
+		userAgent=session.user_agent if session and session.user_agent else None,
+		hostId=object_id,
+		message=message,
+		productPropertyState={
+			"productId": product_id,
+			"propertyId": property_id,
+			"scope": scope,
+			"newValue": new_value,
+		},
+	)
 
 
 async def audit_authentication_event(

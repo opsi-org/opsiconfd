@@ -386,6 +386,29 @@ CREATE TABLE IF NOT EXISTS `AUDIT_PRODUCT_ACTION_REQUEST` (
 		ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+CREATE TABLE IF NOT EXISTS `AUDIT_CONFIG` (
+	`auditLogId` bigint unsigned NOT NULL,
+	`configId` varchar(200) NOT NULL,
+	`scope` varchar(16) NOT NULL,
+	`newValue` json DEFAULT NULL,
+	PRIMARY KEY (`auditLogId`),
+	FOREIGN KEY (`auditLogId`)
+		REFERENCES `AUDIT_LOG` (`auditLogId`)
+		ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `AUDIT_PRODUCT_PROPERTY_STATE` (
+	`auditLogId` bigint unsigned NOT NULL,
+	`productId` varchar(255) NOT NULL,
+	`propertyId` varchar(200) NOT NULL,
+	`scope` varchar(16) NOT NULL,
+	`newValue` json DEFAULT NULL,
+	PRIMARY KEY (`auditLogId`),
+	FOREIGN KEY (`auditLogId`)
+		REFERENCES `AUDIT_LOG` (`auditLogId`)
+		ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 CREATE TABLE IF NOT EXISTS `WINDOWS_SOFTWARE_ID_TO_PRODUCT` (
 	`windowsSoftwareId` varchar(100) NOT NULL,
 	`productId` varchar(255) NOT NULL,
@@ -1495,5 +1518,9 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 			index="index_product_on_client_actionRequest",
 			columns=["actionRequest"],
 		)
+
+		# schema_version 25
+		# AUDIT_CONFIG added
+		# AUDIT_PRODUCT_PROPERTY_STATE added
 
 		# Be sure to update MySQLConnection.schema_version as well when changing this function.

@@ -213,7 +213,7 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	rpc = {
 		"id": 1,
 		"method": "configState_updateObjects",
-		"params": [[downtime.to_json()]],
+		"params": [[downtime.to_hash()]],
 	}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 
@@ -226,7 +226,7 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	rpc = {
 		"id": 1,
 		"method": "configState_updateObjects",
-		"params": [[downtime.to_json()]],
+		"params": [[downtime.to_hash()]],
 	}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 
@@ -235,17 +235,12 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 
 	# set downtime for client 1 from tomorrow to 2 days from now and check if it is enabled
 	two_days = datetime.now(UTC) + timedelta(days=2)
-	downtime = ConfigState(configId="opsi.check.downtime.end", objectId=client.id, values=[two_days.isoformat()])
+	downtime_end = ConfigState(configId="opsi.check.downtime.end", objectId=client.id, values=[two_days.isoformat()])
+	downtime_start = ConfigState(configId="opsi.check.downtime.start", objectId=client.id, values=[tomorrow.isoformat()])
 	rpc = {
 		"id": 1,
 		"method": "configState_updateObjects",
-		"params": [[downtime.to_json()]],
-	}
-	downtime = ConfigState(configId="opsi.check.downtime.start", objectId=client.id, values=[tomorrow.isoformat()])
-	rpc = {
-		"id": 1,
-		"method": "configState_updateObjects",
-		"params": [[downtime.to_json()]],
+		"params": [[downtime_end.to_hash(), downtime_start.to_hash()]],
 	}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 
@@ -264,7 +259,7 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	rpc = {
 		"id": 1,
 		"method": "configState_updateObjects",
-		"params": [[downtime.to_json()]],
+		"params": [[downtime.to_hash()]],
 	}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 
@@ -276,7 +271,7 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	rpc = {
 		"id": 1,
 		"method": "configState_updateObjects",
-		"params": [[disable.to_json()]],
+		"params": [[disable.to_hash()]],
 	}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 
@@ -288,7 +283,7 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	rpc = {
 		"id": 1,
 		"method": "configState_updateObjects",
-		"params": [[enable.to_json()]],
+		"params": [[enable.to_hash()]],
 	}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 
@@ -302,7 +297,7 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	rpc = {
 		"id": 1,
 		"method": "configState_updateObjects",
-		"params": [[disable_server.to_json()]],
+		"params": [[disable_server.to_hash()]],
 	}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	rpc = {

@@ -1507,7 +1507,7 @@ requires-dist = [
     { name = "pyotp", specifier = ">=2.8" },
     { name = "python-magic", specifier = ">=0.4" },
     { name = "python-multipart", specifier = ">=0.0" },
-    { name = "python-opsi", specifier = ">=4.3.22" },
+    { name = "python-opsi", specifier = ">=4.3.30" },
     { name = "python3-saml", specifier = "==1.16.0" },
     { name = "qrcode", specifier = ">=8.0" },
     { name = "redis", specifier = ">=8.1" },

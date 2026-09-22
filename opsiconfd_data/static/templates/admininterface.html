@@ -33,6 +33,7 @@
 			initConfirmOverlay();
 			initAuditLogEventTypeFilter();
 			initAuditLogActorTypeFilter();
+			initAuditLogScopeFilter();
 
 			let input = document.getElementById("redis-cmd");
 
@@ -405,7 +406,17 @@
 						<input type="text" id="audit-log-host-id-filter" placeholder="Filter host ID..."
 							oninput="onAuditLogHostIdFilterInput();" />
 					</label>
-					<div class="audit-log-filter-field">
+					<label id="audit-log-config-id-filter-label" style="display:none;">
+						Config ID
+						<input type="text" id="audit-log-config-id-filter" placeholder="Filter config ID..."
+							oninput="onAuditLogConfigIdFilterInput();" />
+					</label>
+					<label id="audit-log-property-id-filter-label" style="display:none;">
+						Property ID
+						<input type="text" id="audit-log-property-id-filter" placeholder="Filter property ID..."
+							oninput="onAuditLogPropertyIdFilterInput();" />
+					</label>
+					<div class="audit-log-filter-field" id="audit-log-actor-type-filter-field">
 						<span>Actor type</span>
 						<div class="multi-select-dropdown" id="audit-log-actor-type-filter">
 							<button type="button" id="audit-log-actor-type-filter-button"
@@ -422,6 +433,26 @@
 								<label class="multi-select-dropdown-item"><input class="audit-log-actor-type-checkbox"
 										type="checkbox" value="client"
 										onchange="onAuditLogActorTypeFilterChanged();">client</label>
+							</div>
+						</div>
+					</div>
+					<div class="audit-log-filter-field" id="audit-log-scope-filter-field" style="display:none;">
+						<span>Scope</span>
+						<div class="multi-select-dropdown" id="audit-log-scope-filter">
+							<button type="button" id="audit-log-scope-filter-button"
+								class="multi-select-dropdown-button" aria-haspopup="listbox" aria-expanded="false"
+								onclick="toggleAuditLogScopeFilter(event);">All scopes</button>
+							<div id="audit-log-scope-filter-menu" class="multi-select-dropdown-menu" role="listbox"
+								aria-multiselectable="true">
+								<label class="multi-select-dropdown-item"><input class="audit-log-scope-checkbox"
+										type="checkbox" value="default"
+										onchange="onAuditLogScopeFilterChanged();">default</label>
+								<label class="multi-select-dropdown-item"><input class="audit-log-scope-checkbox"
+										type="checkbox" value="client"
+										onchange="onAuditLogScopeFilterChanged();">client</label>
+								<label class="multi-select-dropdown-item"><input class="audit-log-scope-checkbox"
+										type="checkbox" value="depot"
+										onchange="onAuditLogScopeFilterChanged();">depot</label>
 							</div>
 						</div>
 					</div>

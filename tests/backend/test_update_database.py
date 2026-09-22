@@ -400,7 +400,7 @@ def test_update_database() -> None:
 			with mysql.session() as session:
 				assert session.execute("SELECT DATABASE()").fetchone()[0] == database
 				res = session.execute(GET_CONSTRAINTS, params={"database": database}).fetchall()
-				assert len(res) == 84
+				assert len(res) == 86
 				indexes = session.execute(
 					"SHOW INDEX FROM `PRODUCT_ON_CLIENT` WHERE `Key_name` = 'index_product_on_client_actionRequest'"
 				).fetchall()

@@ -273,6 +273,32 @@ def test_get_audit_log_list(test_client: OpsiconfdTestClient, backend: Unprotect
 		assert audit_log_list[0]["failureReason"] == AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS
 
 
+def test_get_audit_log_list_includes_config_scope(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # noqa: F811
+	with patch("opsiconfd.audit_log.audit_log_event_enabled", return_value=False), test_client:
+		backend.auditLog_createObjects(  # ty: ignore[invalid-argument-type]
+			AuditLog(
+				eventType=AuditLogEventType.CONFIG_VALUE_SET,
+				hostId="client-one.example.test",
+				message="clientconfig.depot.id was changed to 'depot1.example.test' by opsiconfd for client-one.example.test.",
+				config={
+					"configId": "clientconfig.depot.id",
+					"scope": "client",
+					"newValue": ["depot1.example.test"],
+				},
+			)
+		)
+
+		response = test_client.post("/admin/audit-log", auth=(ADMIN_USER, ADMIN_PASS))
+		assert response.status_code == 200
+		audit_log_list = response.json()
+
+		assert len(audit_log_list) == 1
+		assert audit_log_list[0]["eventType"] == AuditLogEventType.CONFIG_VALUE_SET
+		assert audit_log_list[0]["configId"] == "clientconfig.depot.id"
+		assert audit_log_list[0]["scope"] == "client"
+		assert audit_log_list[0]["newValue"] == "depot1.example.test"
+
+
 def test_get_audit_log_list_filtering(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # noqa: F811
 	with patch("opsiconfd.audit_log.audit_log_event_enabled", return_value=False), test_client:
 		backend.auditLog_createObjects(  # ty: ignore[invalid-argument-type]

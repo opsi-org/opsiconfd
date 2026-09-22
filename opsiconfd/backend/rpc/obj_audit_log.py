@@ -10,7 +10,7 @@ RPC methods for reading and writing audit log entries.
 
 Audit log entries are stored in the `AUDIT_LOG` table.
 Event type specific details are stored in separate detail tables
-(`AUDIT_AUTHENTICATION`, `AUDIT_PRODUCT_ACTION_REQUEST`, `AUDIT_CONFIG`) keyed by `auditLogId`.
+(`AUDIT_AUTHENTICATION`, `AUDIT_PRODUCT_ACTION_REQUEST`, `AUDIT_CONFIG`, `AUDIT_PRODUCT_PROPERTY_STATE`) keyed by `auditLogId`.
 """
 
 from __future__ import annotations

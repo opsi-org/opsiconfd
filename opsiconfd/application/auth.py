@@ -15,15 +15,18 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, FastAPI, Request, Response, status
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
-from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from opsi.logging import TRACE
 from opsi.opsi.service.model.object import AuditLogAuthenticationLogoutReason, AuditLogEventType
 from opsi.time import unix_timestamp
 from pydantic import BaseModel
+from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
+from saml2.saml import NAMEID_FORMAT_ENTITY, NameID
+from saml2.sigver import RSACrypto, verify_redirect_signature
+from saml2.xmldsig import SIG_RSA_SHA1
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.auth.const import AuthenticationMethod
-from opsiconfd.auth.saml import get_saml_settings, get_sp_metadata_xml, saml_auth_request_data
+from opsiconfd.auth.saml import get_sp_metadata_xml, get_sp_url, saml_client
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import get_logger
 from opsiconfd.redis import async_redis_client
@@ -141,19 +144,18 @@ async def saml_login(request: Request) -> RedirectResponse:
 	if saml_logger.isEnabledFor(TRACE):
 		saml_logger.trace("SAML Login RelayState data: %s", relay_state_data)
 
-	request_data = await saml_auth_request_data(request)
+	with saml_client() as client:
+		# The relay_state will be send as RelayState in the SAML request
+		request_id, http_info = await run_in_threadpool(
+			client.prepare_for_authenticate,
+			relay_state=json.dumps(relay_state_data),
+			binding=BINDING_HTTP_REDIRECT,
+			response_binding=BINDING_HTTP_POST,
+			sign=config.saml_sp_client_signature,
+		)
 	if saml_logger.isEnabledFor(TRACE):
-		saml_logger.trace("SAML Login Request data: %s", request_data)
-
-	auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
-	# The value passed as return_to will be send as RelayState in the SAML request
-	try:
-		redirect_url = await run_in_threadpool(auth.login, return_to=json.dumps(relay_state_data))
-	finally:
-		if saml_logger.isEnabledFor(TRACE):
-			saml_logger.trace("Last request XML: %s", auth.get_last_request_xml())
-			saml_logger.trace("Last response XML: %s", auth.get_last_response_xml())
-	return RedirectResponse(url=redirect_url)
+		saml_logger.trace("SAML Login Request ID: %s, HTTP info: %s", request_id, http_info)
+	return RedirectResponse(url=dict(http_info["headers"])["Location"])
 
 
 @auth_router.get("/saml/logout")
@@ -170,12 +172,27 @@ async def saml_logout(request: Request) -> RedirectResponse:
 			)
 		)
 
-		request_data = await saml_auth_request_data(request)
-		if saml_logger.isEnabledFor(TRACE):
-			saml_logger.trace("SAML Logout Request data: %s", request_data)
+		if not config.saml_idp_slo_url:
+			raise RuntimeError("The IdP does not support Single Log Out")
 
-		auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
-		redirect_url = auth.logout()
+		with saml_client() as client:
+			# Like python3-saml: The IdP entity ID is used as NameID
+			request_id, logout_request = client.create_logout_request(
+				destination=config.saml_idp_slo_url,
+				issuer_entity_id=config.saml_idp_entity_id,
+				name_id=NameID(text=config.saml_idp_entity_id, format=NAMEID_FORMAT_ENTITY),
+				sign=False,
+			)
+			http_info = client.apply_binding(
+				BINDING_HTTP_REDIRECT,
+				str(logout_request),
+				destination=config.saml_idp_slo_url,
+				relay_state=get_sp_url(request.url.path),
+				sign=config.saml_sp_client_signature,
+			)
+		if saml_logger.isEnabledFor(TRACE):
+			saml_logger.trace("SAML Logout Request ID: %s, XML: %s", request_id, logout_request)
+		redirect_url = dict(http_info["headers"])["Location"]
 
 	return RedirectResponse(url=redirect_url)
 
@@ -184,15 +201,16 @@ async def saml_logout(request: Request) -> RedirectResponse:
 @auth_router.post("/saml/callback/login")
 async def saml_callback_login(request: Request) -> Response:
 	try:
-		request_data = await saml_auth_request_data(request)
+		form_data = await request.form()
+		saml_response = form_data.get("SAMLResponse")
 		if saml_logger.isEnabledFor(TRACE):
-			saml_logger.trace("SAML Login Callback Request data: %s", request_data)
+			saml_logger.trace("SAML Login Callback form data: %s", dict(form_data))
 			saml_logger.trace(
-				"SAML Login Callback Request SAMLResponse: %s", b64decode(request_data.get("post_data", {}).get("SAMLResponse") or "")
+				"SAML Login Callback Request SAMLResponse: %s", b64decode(saml_response if isinstance(saml_response, str) else "")
 			)
 
-		relay_state = request_data.get("post_data", {}).get("RelayState")
-		if not relay_state:
+		relay_state = form_data.get("RelayState")
+		if not relay_state or not isinstance(relay_state, str):
 			raise RuntimeError("No RelayState in SAML login callback")
 
 		try:
@@ -209,32 +227,34 @@ async def saml_callback_login(request: Request) -> Response:
 		await pre_authenticate(request.scope, session_id=session_id)
 		session: OPSISession = request.scope["session"]
 
-		auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
-		try:
-			await run_in_threadpool(auth.process_response)
-		finally:
-			if saml_logger.isEnabledFor(TRACE):
-				saml_logger.trace("Last request XML: %s", auth.get_last_request_xml())
-				saml_logger.trace("Last response XML: %s", auth.get_last_response_xml())
+		if not saml_response or not isinstance(saml_response, str):
+			raise RuntimeError("No SAMLResponse in SAML login callback")
 
-		errors = auth.get_errors()
-		if errors:
-			raise RuntimeError(f"Failed to process SAML SSO response: {errors} {auth.get_last_error_reason()}")
+		with saml_client() as client:
+			try:
+				authn_response = await run_in_threadpool(client.parse_authn_request_response, saml_response, BINDING_HTTP_POST)
+			except Exception as err:
+				raise RuntimeError(f"Failed to process SAML SSO response: {err}") from err
+
+		if saml_logger.isEnabledFor(TRACE) and authn_response:
+			saml_logger.trace("SAML Login Callback Response XML: %s", authn_response)
+
+		# PySAML2 returns a response without assertion if the response could not be verified
+		if not authn_response or not authn_response.assertion:
+			raise RuntimeError("SAML SSO not authenticated")
 
 		# Entra ID does not support SessionNotOnOrAfter attribute
 		expiration_seconds = 3600
-		expiration_ts = auth.get_session_expiration()
-		if expiration_ts is not None:
+		# 0 if SessionNotOnOrAfter is not set
+		expiration_ts = authn_response.session_not_on_or_after
+		if expiration_ts:
 			expiration_time = datetime.fromtimestamp(expiration_ts, tz=UTC)
 			expiration_seconds = expiration_ts - unix_timestamp()
 			if expiration_seconds <= 0:
 				raise RuntimeError(f"SAML SSO response session expired at {expiration_time}")
 
-		if not auth.is_authenticated():
-			raise RuntimeError("SAML SSO not authenticated")
-
-		# https://github.com/SAML-Toolkits/python3-saml#avoiding-replay-attacks
-		last_assertion_id = auth.get_last_assertion_id()
+		# Avoiding replay attacks
+		last_assertion_id = authn_response.assertion.id
 		assert last_assertion_id
 		redis_key = f"{config.redis_key('saml_processed_assertion_ids')}:{last_assertion_id}"
 		redis = await async_redis_client()
@@ -242,15 +262,20 @@ async def saml_callback_login(request: Request) -> Response:
 			raise RuntimeError(f"SAML SSO response already processed: {last_assertion_id!r}")
 		await redis.set(redis_key, "1", ex=int(expiration_seconds) + 60)
 
-		username = auth.get_nameid()
+		username = authn_response.name_id.text if authn_response.name_id else None
 		if not username:
 			raise RuntimeError("SAML SSO response has no NameID")
 
+		attributes: dict[str, list[str]] = {}
+		for attribute_statement in authn_response.assertion.attribute_statement:
+			for attribute in attribute_statement.attribute:
+				attributes.setdefault(attribute.name, []).extend(value.text for value in attribute.attribute_value if value.text)
+
 		roles = [
 			g.lower()
-			for g in auth.get_attribute("Role")
-			or auth.get_attribute("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
-			or auth.get_attribute("groupMembership")
+			for g in attributes.get("Role")
+			or attributes.get("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
+			or attributes.get("groupMembership")
 			or []
 		]
 		saml_logger.info("SAML SSO successful for user %s with roles %s", username, roles)
@@ -296,20 +321,45 @@ async def saml_callback_login(request: Request) -> Response:
 @auth_router.post("/saml/callback/logout")
 async def saml_callback_logout(request: Request) -> RedirectResponse:
 	try:
-		request_data = await saml_auth_request_data(request)
+		params = dict(request.query_params)
 		if saml_logger.isEnabledFor(TRACE):
-			saml_logger.trace("SAML Logout Callback Request data: %s", request_data)
+			saml_logger.trace("SAML Logout Callback Request query params: %s", params)
 
-		auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
-		try:
-			await run_in_threadpool(auth.process_slo)
-		finally:
-			if saml_logger.isEnabledFor(TRACE):
-				saml_logger.trace("Last request XML: %s", auth.get_last_request_xml())
-				saml_logger.trace("Last response XML: %s", auth.get_last_response_xml())
-		errors = auth.get_errors()
-		if errors:
-			saml_logger.error("Failed to process SAML SLO response: %s %s", errors, auth.get_last_error_reason())
+		if "SAMLResponse" in params:
+			message_type = "SAMLResponse"
+		elif "SAMLRequest" in params:
+			message_type = "SAMLRequest"
+		else:
+			raise RuntimeError("SAML LogoutRequest/LogoutResponse not found. Only supported HTTP_REDIRECT Binding")
+
+		error = None
+		with saml_client() as client:
+			# Like python3-saml: The signature is only checked if present
+			if "Signature" in params:
+				saml_msg = {
+					message_type: params[message_type],
+					"Signature": params["Signature"],
+					"SigAlg": params.get("SigAlg", SIG_RSA_SHA1),
+				}
+				if "RelayState" in params:
+					saml_msg["RelayState"] = params["RelayState"]
+				assert client.metadata is not None
+				certs = client.metadata.certs(config.saml_idp_entity_id, "any", "signing")
+				if not any(verify_redirect_signature(saml_msg, RSACrypto(None), cert) for _cert_name, cert in certs):
+					error = f"Invalid signature of {message_type}"
+
+			if not error:
+				if message_type == "SAMLResponse":
+					message = await run_in_threadpool(client.parse_logout_request_response, params[message_type], BINDING_HTTP_REDIRECT)
+				else:
+					message = await run_in_threadpool(client.parse_logout_request, params[message_type], BINDING_HTTP_REDIRECT)
+				if saml_logger.isEnabledFor(TRACE) and message:
+					saml_logger.trace("SAML Logout Callback %s XML: %s", message_type, message.xmlstr)
+				if not message or not message.verify():
+					error = f"Invalid {message_type}"
+
+		if error:
+			saml_logger.error("Failed to process SAML SLO response: %s", error)
 		else:
 			saml_logger.info("SAML SLO successful")
 	except Exception as err:

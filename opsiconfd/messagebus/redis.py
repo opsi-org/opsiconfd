@@ -431,13 +431,17 @@ class MessageReader:
 			if logger.isEnabledFor(TRACE):
 				logger.trace("Streams: %s", list(self._streams))
 
-		self._get_stream_entries_task = create_task(
-			redis.xread(
+		# redis-py wraps the execute_command coroutine in another coroutine.
+		# Create the redis coroutine inside the task, otherwise it is never awaited
+		# if the task is cancelled before it has been started.
+		async def xread() -> Any:
+			return await redis.xread(
 				streams=self._streams,
 				block=int(timeout * 1000),
 				count=self._xread_count,
 			)
-		)
+
+		self._get_stream_entries_task = create_task(xread())
 		try:
 			await self._get_stream_entries_task
 			return self._get_stream_entries_task.result()
@@ -628,15 +632,17 @@ class ConsumerGroupMessageReader(MessageReader):
 			if logger.isEnabledFor(TRACE):
 				logger.trace("Streams: %s", list(self._streams))
 
-		self._get_stream_entries_task = create_task(
-			redis.xreadgroup(
+		# See MessageReader._get_stream_entries
+		async def xreadgroup() -> Any:
+			return await redis.xreadgroup(
 				self._consumer_group,
 				self._consumer_name,
 				streams=self._streams,
 				block=int(timeout * 1000),
 				count=self._xread_count,
 			)
-		)
+
+		self._get_stream_entries_task = create_task(xreadgroup())
 		try:
 			await self._get_stream_entries_task
 			return self._get_stream_entries_task.result()

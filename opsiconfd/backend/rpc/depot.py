@@ -132,11 +132,10 @@ class TransferSlot:
 
 	def __post_init__(self) -> None:
 		if isinstance(self.slot_id, str):
-			self.slot_id = uuid.UUID("urn:uuid:" + self.slot_id)
+			self.slot_id = uuid.UUID(self.slot_id)
 		if not self.slot_id and not self.retry_after:
+			# retry_after is not set, generate a new slot_id
 			self.slot_id = uuid.uuid4()
-		if not self.slot_id and not self.retry_after:
-			self.retry_after = TRANSFER_SLOT_RETENTION_TIME
 		if self.slot_id:
 			self.depot_id = to_host_id(self.depot_id)
 			self.host_id = to_host_id(self.host_id)
@@ -307,10 +306,17 @@ class RPCDepotserverMixin(Protocol):
 			os.chmod(zsyncFilename, 0o660)
 
 	def get_max_transfer_slots(self: BackendProtocol, slot_type: TransferSlotType, depot_ids: list[str] | None) -> dict[str, int]:
-		depot_ids = depot_ids or self.host_getIdents(type="OpsiDepotserver")
+		be_depot_ids = self.host_getIdents(type="OpsiDepotserver", id=depot_ids or None)
+		if depot_ids and set(depot_ids) != set(be_depot_ids):
+			raise ValueError(f"Invalid depot IDs: {set(depot_ids) - set(be_depot_ids)}")
+
+		depot_ids = be_depot_ids
+		if not depot_ids:
+			raise ValueError("No valid depot IDs found")
+
 		result = {}
 		slot_config_name = TRANSFER_SLOT_CONFIGS[slot_type]
-		slot_config = self.configState_getValues(config_ids=slot_config_name, object_ids=depot_ids)
+		slot_config = self._configState_getValues(config_ids=slot_config_name, object_ids=depot_ids)
 		for depot_id in depot_ids:
 			result[depot_id] = TRANSFER_SLOT_MAX
 			val = slot_config.get(depot_id, {}).get(slot_config_name)
@@ -363,7 +369,7 @@ class RPCDepotserverMixin(Protocol):
 				if slot_id:
 					res = decode_redis_result(redis.get(slot.redis_key))
 					if res:
-						# Slot already acquired, reusing it
+						logger.debug("Slot already acquired for depot '%s', host '%s', slot ID '%s', reusing it", depot, host, slot_id)
 						redis.set(slot.redis_key, host, ex=TRANSFER_SLOT_RETENTION_TIME)
 						return slot
 
@@ -375,6 +381,7 @@ class RPCDepotserverMixin(Protocol):
 						f"{config.redis_key('slot')}:{depot}:{slot_type}:*",
 					)
 				)
+				logger.info("Maximum available slots for depot '%s': %d, currently used slots: %d", depot, max_slots, depot_slots)
 				if depot_slots < max_slots:
 					# Slot available, acquiring it
 					redis.set(slot.redis_key, host, ex=TRANSFER_SLOT_RETENTION_TIME)

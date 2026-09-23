@@ -137,7 +137,7 @@ class RPCConfigStateMixin(Protocol):
 			logger.error("Failed to write Config ConfigState audit log: %s", err, exc_info=True)
 
 	@rpc_method(check_acl=False)
-	def configState_getValues(
+	def _configState_getValues(
 		self: BackendProtocol,
 		config_ids: list[str] | str | None = None,
 		object_ids: list[str] | str | None = None,
@@ -146,8 +146,6 @@ class RPCConfigStateMixin(Protocol):
 		config_ids = to_string_list(config_ids or [])
 		# object_ids can contain depot IDs!
 		object_ids = to_object_id_list(object_ids or [])
-		if client_id := self._get_client_id():
-			object_ids = [client_id]
 
 		res: dict[str, dict[str, list[Any]]] = defaultdict(lambda: defaultdict(list))
 		if with_defaults:
@@ -179,6 +177,17 @@ class RPCConfigStateMixin(Protocol):
 			res[config_state.objectId][config_state.configId] = config_state.values or []
 
 		return res
+
+	@rpc_method(check_acl=False)
+	def configState_getValues(
+		self: BackendProtocol,
+		config_ids: list[str] | str | None = None,
+		object_ids: list[str] | str | None = None,
+		with_defaults: bool = True,
+	) -> dict[str, dict[str, list[Any]]]:
+		if client_id := self._get_client_id():
+			object_ids = [client_id]
+		return self._configState_getValues(config_ids=config_ids, object_ids=object_ids, with_defaults=with_defaults)
 
 	def configState_bulkInsertObjects(self: BackendProtocol, configStates: list[dict] | list[ConfigState]) -> None:
 		self._mysql.bulk_insert_objects(table="CONFIG_STATE", objs=configStates)  # ty: ignore[invalid-argument-type]

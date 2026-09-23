@@ -1768,7 +1768,7 @@ async def check_blocked(ip_address: str) -> None:
 	if num_failed_auth >= config.max_auth_failures:
 		is_blocked = True
 		logger.warning("Blocking client '%s' for %0.2f minutes", ip_address, (config.client_block_time / 60))
-		await redis.setex(f"{config.redis_key('stats')}:client:blocked:{ip_key}", config.client_block_time, 1)
+		await redis.set(f"{config.redis_key('stats')}:client:blocked:{ip_key}", 1, ex=config.client_block_time)
 
 
 async def check_user_agent(user_agent: str) -> None:

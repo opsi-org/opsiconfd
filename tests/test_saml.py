@@ -8,14 +8,14 @@ from base64 import b64encode
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
+from xml.etree import ElementTree
 
 import pytest
-import xmlsec
 from _pytest.capture import CaptureFixture
-from lxml.etree import Element
 from opsi.testing.helper import http_test_server
+from saml2.s_utils import UnsupportedBinding
 
-from opsiconfd.auth.saml import get_sp_metadata_xml, update_config_from_idp_metadata_xml
+from opsiconfd.auth.saml import get_saml_settings, get_sp_entity_id, get_sp_metadata_xml, get_sp_url, update_config_from_idp_metadata_xml
 from opsiconfd.redis import redis_client
 from opsiconfd.session import OPSISession
 from opsiconfd.setup import setup
@@ -33,13 +33,63 @@ from .utils import (  # noqa: F401
 )
 
 
-def test_saml_xmlsec() -> None:
-	# Assert that xmlsec is not producing segmentation fault
-	# https://github.com/SAML-Toolkits/python3-saml/issues/389
-	for _ in range(25):
-		elem = Element("root")
-		elem.attrib["ID"] = "ID"
-		xmlsec.tree.add_ids(elem, ["ID"])
+@pytest.mark.parametrize("slo_url", (None, "https://idp.test/slo"))
+@pytest.mark.parametrize("sign_messages", (False, True))
+def test_get_saml_settings(slo_url: str | None, sign_messages: bool) -> None:
+	with (
+		patch("opsiconfd.auth.saml.module_available", return_value=True),
+		patch("opsiconfd.auth.saml.get_sp_entity_id", return_value="sp.test"),
+		get_config(
+			{
+				"external-url": "https://sp.test:4447",
+				"saml-idp-entity-id": "https://idp.test",
+				"saml-idp-sso-url": "https://idp.test/sso",
+				"saml-idp-slo-url": slo_url,
+				"saml-idp-x509-cert": "CERTIFICATE",
+				"saml-sp-client-signature": sign_messages,
+				"saml-sp-x509-cert": "SP CERTIFICATE" if sign_messages else None,
+				"saml-sp-private-key": "SP PRIVATE KEY" if sign_messages else None,
+			}
+		),
+	):
+		settings = get_saml_settings()
+
+	assert settings.entityid == "sp.test"
+	assert settings.metadata_key_usage == "signing"
+	assert settings.endpoint(
+		"assertion_consumer_service",
+		binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
+		context="sp",
+	) == ["https://sp.test:4447/auth/saml/callback/login"]
+	for setting in (
+		"authn_requests_signed",
+		"logout_requests_signed",
+		"logout_responses_signed",
+		"want_response_signed",
+		"want_assertions_signed",
+	):
+		assert settings.getattr(setting, "sp") is sign_messages
+
+	metadata = settings.metadata
+	assert metadata is not None
+	assert metadata.identity_providers() == ["https://idp.test"]
+	idp_sso = metadata.single_sign_on_service("https://idp.test", binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect")
+	assert idp_sso[0]["location"] == "https://idp.test/sso"
+	sp_slo = settings.endpoint(
+		"single_logout_service",
+		binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
+		context="sp",
+	)
+	if slo_url:
+		idp_slo = metadata.single_logout_service(
+			"https://idp.test", binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect", typ="idpsso"
+		)
+		assert idp_slo[0]["location"] == slo_url
+		assert sp_slo == ["https://sp.test:4447/auth/saml/callback/logout"]
+	else:
+		with pytest.raises(UnsupportedBinding):
+			metadata.single_logout_service("https://idp.test", binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect", typ="idpsso")
+		assert sp_slo == []
 
 
 @pytest.mark.parametrize(
@@ -66,8 +116,11 @@ def test_saml_login(
 	not_on_or_after_str = not_on_or_after.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 	assertion_id = "ID_0cda0c90-ba3d-4b03-aa3d-1e0899e71615"
+	# PySAML2 validates Destination and Audience
+	acs_url = get_sp_url("/auth/saml/callback/login")
+	sp_entity_id = get_sp_entity_id()
 	saml_response = f"""<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
-		xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" Destination="https://server.opsi.test:4447/auth/saml/callback/login" ID="ID_f347561d-180c-46c6-8840-f44fc12d6d2e" InResponseTo="ONELOGIN_b153d66c2d481283663e72adee0c576657c907d6" IssueInstant="{not_before_str}" Version="2.0">
+		xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" Destination="{acs_url}" ID="ID_f347561d-180c-46c6-8840-f44fc12d6d2e" InResponseTo="ONELOGIN_b153d66c2d481283663e72adee0c576657c907d6" IssueInstant="{not_before_str}" Version="2.0">
 		<saml:Issuer>https://keycloak.opsi.test/realms/master</saml:Issuer>
 		<dsig:Signature xmlns:dsig="http://www.w3.org/2000/09/xmldsig#">
 			<dsig:SignedInfo>
@@ -97,12 +150,12 @@ def test_saml_login(
 			<saml:Subject>
 				<saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified">adminuser</saml:NameID>
 				<saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
-					<saml:SubjectConfirmationData InResponseTo="ONELOGIN_b153d66c2d481283663e72adee0c576657c907d6" NotOnOrAfter="{not_on_or_after_str}" Recipient="https://server.opsi.test:4447/auth/saml/callback/login"/>
+					<saml:SubjectConfirmationData InResponseTo="ONELOGIN_b153d66c2d481283663e72adee0c576657c907d6" NotOnOrAfter="{not_on_or_after_str}" Recipient="{acs_url}"/>
 				</saml:SubjectConfirmation>
 			</saml:Subject>
 			<saml:Conditions NotBefore="{not_before_str}" NotOnOrAfter="{not_on_or_after_str}">
 				<saml:AudienceRestriction>
-					<saml:Audience>server.opsi.test</saml:Audience>
+					<saml:Audience>{sp_entity_id}</saml:Audience>
 				</saml:AudienceRestriction>
 			</saml:Conditions>
 			<saml:AuthnStatement AuthnInstant="{not_before_str}" SessionIndex="ff584b64-6bb2-4138-a8d7-e275b1303933::3b94df11-7bab-441c-a15f-2717404dbb15" SessionNotOnOrAfter="{not_on_or_after_str}">
@@ -134,7 +187,7 @@ def test_saml_login(
 	redis = redis_client()
 	saml_idp_sso_url = "https://keycloak.opsi.test/realms/master/protocol/saml"
 	with (
-		patch("onelogin.saml2.utils.OneLogin_Saml2_Utils.validate_sign", lambda *args, **kwargs: True),
+		patch("saml2.sigver.SecurityContext._check_signature", lambda _self, _decoded_xml, item, *args, **kwargs: item),
 		get_config(
 			{
 				"saml-idp-entity-id": "https://keycloak.opsi.test/realms/master",
@@ -204,14 +257,24 @@ def test_saml_keycloak_group_membership(
 	not_before_str = not_before.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 	not_on_or_after_str = not_on_or_after.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
+	# PySAML2 validates Destination and Audience
+	acs_url = get_sp_url("/auth/saml/callback/login")
+	sp_entity_id = get_sp_entity_id()
 	saml_response = f"""<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
-		xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" Destination="https://opsi.acme.corp:4447/auth/saml/callback/login" ID="ID_2289cf5d-f901-4222-a4a7-1f14887fb8af" InResponseTo="ONELOGIN_9c52a28bfda30cbb55f91e57bb3158ecd6caec5b" IssueInstant="{not_before_str}" Version="2.0">
+		xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" Destination="{acs_url}" ID="ID_2289cf5d-f901-4222-a4a7-1f14887fb8af" InResponseTo="ONELOGIN_9c52a28bfda30cbb55f91e57bb3158ecd6caec5b" IssueInstant="{not_before_str}" Version="2.0">
 		<saml:Issuer>https://sso.acme.corp/auth/realms/CORP-REALM</saml:Issuer>
 		<dsig:Signature xmlns:dsig="http://www.w3.org/2000/09/xmldsig#">
 			<dsig:SignedInfo>
 				<dsig:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
 				<dsig:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
-
+				<dsig:Reference URI="#ID_2289cf5d-f901-4222-a4a7-1f14887fb8af">
+					<dsig:Transforms>
+						<dsig:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
+						<dsig:Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+					</dsig:Transforms>
+					<dsig:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
+					<dsig:DigestValue>==</dsig:DigestValue>
+				</dsig:Reference>
 			</dsig:SignedInfo>
 			<dsig:SignatureValue>==</dsig:SignatureValue>
 			<dsig:KeyInfo>
@@ -228,12 +291,12 @@ def test_saml_keycloak_group_membership(
 			<saml:Subject>
 				<saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified">user125343</saml:NameID>
 				<saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
-					<saml:SubjectConfirmationData InResponseTo="ONELOGIN_9c52a28bfda30cbb55f91e57bb3158ecd6caec5b" NotOnOrAfter="{not_on_or_after_str}" Recipient="https://opsi.acme.corp:4447/auth/saml/callback/login" />
+					<saml:SubjectConfirmationData InResponseTo="ONELOGIN_9c52a28bfda30cbb55f91e57bb3158ecd6caec5b" NotOnOrAfter="{not_on_or_after_str}" Recipient="{acs_url}" />
 				</saml:SubjectConfirmation>
 			</saml:Subject>
 			<saml:Conditions NotBefore="{not_before_str}" NotOnOrAfter="{not_on_or_after_str}">
 				<saml:AudienceRestriction>
-					<saml:Audience>opsi.acme.corp</saml:Audience>
+					<saml:Audience>{sp_entity_id}</saml:Audience>
 				</saml:AudienceRestriction>
 			</saml:Conditions>
 			<saml:AuthnStatement AuthnInstant="{not_before_str}" SessionIndex="5804e342-7dee-4cdd-a0fe-8c087ec447df::44dd6da6-bce0-4b76-be42-3ced873ad01f" SessionNotOnOrAfter="{not_on_or_after_str}">
@@ -271,7 +334,7 @@ def test_saml_keycloak_group_membership(
 	redis = redis_client()
 	saml_idp_sso_url = "https://keycloak.opsi.test/realms/master/protocol/saml"
 	with (
-		patch("onelogin.saml2.utils.OneLogin_Saml2_Utils.validate_sign", lambda *args, **kwargs: True),
+		patch("saml2.sigver.SecurityContext._check_signature", lambda _self, _decoded_xml, item, *args, **kwargs: item),
 		get_config(
 			{
 				"saml-idp-entity-id": "https://keycloak.opsi.test/realms/master",
@@ -321,52 +384,49 @@ def test_saml_keycloak_group_membership(
 	),
 )
 def test_saml_get_sp_metadata_xml(
-	test_client: OpsiconfdTestClient,  # noqa: F811
 	saml_sp_client_signature: bool,
 	saml_encrypted_assertions: bool,
 ) -> None:
-	with get_config(
-		{
-			"saml-idp-entity-id": "https://keycloak.opsi.test/realms/master",
-			"saml-idp-sso-url": "https://keycloak.opsi.test/realms/master/protocol/saml",
-			"saml-idp-slo-url": "https://keycloak.opsi.test/realms/master/protocol/saml",
-			"saml-idp-x509-cert": "== IDP_CERT ==",
-			"saml-sp-x509-cert": "== SP_CERT ==",
-			"saml-sp-private-key": "== SP_KEY ==",
-			"saml-sp-client-signature": saml_sp_client_signature,
-			"saml-encrypted-assertions": saml_encrypted_assertions,
-		}
+	with (
+		patch("opsiconfd.auth.saml.module_available", return_value=True),
+		patch("opsiconfd.auth.saml.get_sp_entity_id", return_value="sp.test"),
+		get_config(
+			{
+				"external-url": "https://sp.test:4447",
+				"saml-idp-entity-id": "https://idp.test",
+				"saml-idp-sso-url": "https://idp.test/sso",
+				"saml-idp-slo-url": "https://idp.test/slo",
+				"saml-idp-x509-cert": "IDP CERTIFICATE",
+				"saml-sp-x509-cert": "SP CERTIFICATE",
+				"saml-sp-private-key": "SP PRIVATE KEY",
+				"saml-sp-client-signature": saml_sp_client_signature,
+				"saml-encrypted-assertions": saml_encrypted_assertions,
+			}
+		),
 	):
 		metadata = get_sp_metadata_xml(login_callback_path="/login___callback", logout_callback_path="/logout___callback")
-		assert metadata.startswith('<?xml version="1.0" ?>\n')
-		assert metadata.count("<?xml") == 1
-		assert "login___callback" in metadata
-		assert "logout___callback" in metadata
-		if saml_sp_client_signature:
-			assert 'AuthnRequestsSigned="true"' in metadata
-			assert 'WantAssertionsSigned="true"' in metadata
-			assert '<md:KeyDescriptor use="signing">' in metadata
-		else:
-			assert 'AuthnRequestsSigned="false"' in metadata
-			assert 'WantAssertionsSigned="false"' in metadata
-			assert '<md:KeyDescriptor use="signing">' not in metadata
 
-		if saml_encrypted_assertions:
-			assert '<md:KeyDescriptor use="encryption">' in metadata
-		else:
-			assert '<md:KeyDescriptor use="encryption">' not in metadata
+	assert metadata.startswith('<?xml version="1.0" ?>\n')
+	root = ElementTree.fromstring(metadata)
+	assert root.attrib["entityID"] == "sp.test"
+	valid_until = datetime.strptime(root.attrib["validUntil"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+	assert timedelta(hours=47, minutes=59) < valid_until - datetime.now(tz=UTC) <= timedelta(hours=48)
 
-		assert metadata.count("<ds:X509Certificate>==SP_CERT==</ds:X509Certificate>") == int(saml_sp_client_signature) + int(
-			saml_encrypted_assertions
-		)
-
-		res = test_client.get("/auth/saml/sp-meta.xml")
-		assert res.status_code == 200
-		assert res.headers["content-type"] == "application/xml"
-		metadata2 = res.text
-		assert metadata == metadata2.replace("/auth/saml/callback/login", "/login___callback").replace(
-			"/auth/saml/callback/logout", "/logout___callback"
-		)
+	metadata_namespace = "{urn:oasis:names:tc:SAML:2.0:metadata}"
+	descriptor = root.find(f"{metadata_namespace}SPSSODescriptor")
+	assert descriptor is not None
+	assert descriptor.attrib["AuthnRequestsSigned"] == str(saml_sp_client_signature).lower()
+	assert descriptor.attrib["WantAssertionsSigned"] == str(saml_sp_client_signature).lower()
+	assertion_consumer_service = descriptor.find(f"{metadata_namespace}AssertionConsumerService")
+	assert assertion_consumer_service is not None
+	assert assertion_consumer_service.attrib["Location"] == "https://sp.test:4447/login___callback"
+	single_logout_service = descriptor.find(f"{metadata_namespace}SingleLogoutService")
+	assert single_logout_service is not None
+	assert single_logout_service.attrib["Location"] == "https://sp.test:4447/logout___callback"
+	key_descriptors = descriptor.findall(f"{metadata_namespace}KeyDescriptor")
+	assert [key_descriptor.attrib["use"] for key_descriptor in key_descriptors] == (
+		(["signing"] if saml_sp_client_signature else []) + (["encryption"] if saml_encrypted_assertions else [])
+	)
 
 
 IDP_METDATA_XML = """

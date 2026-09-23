@@ -1355,7 +1355,8 @@ async def authenticate_host(scope: Scope) -> None:
 async def _post_failed_authenticate(scope: Scope, err: Exception | None = None) -> None:
 	try:
 		session: OPSISession = scope["session"]
-		await session.delete()
+		if session:
+			await session.delete()
 	except Exception as delete_err:
 		logger.error("Failed to delete session after failed authentication: %s", delete_err, exc_info=True)
 

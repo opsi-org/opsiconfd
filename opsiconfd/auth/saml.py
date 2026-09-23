@@ -9,23 +9,29 @@ opsiconfd.auth.saml
 
 import re
 import xml.dom.minidom
+from base64 import b64decode
+from collections.abc import Generator
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import Any
 from urllib.parse import urlparse
 from xml.etree import ElementTree
 
 from cryptography import x509
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509 import CertificateBuilder
-from fastapi import Request
-from onelogin.saml2.metadata import OneLogin_Saml2_Metadata
 from opsi.exception import OpsiServiceAuthenticationError
 from opsi.opsi.service.model.object import AuditLogAuthenticationFailureReason
 from rich import print as rich_print
 from rich.prompt import Prompt
+from saml2 import metadata as saml2_metadata
+from saml2.client import Saml2Client
+from saml2.config import SPConfig
+from saml2.xmldsig import DIGEST_SHA256, SIG_RSA_SHA256
 
 from opsiconfd.config import config, get_configserver_id
 from opsiconfd.logging import get_logger
@@ -69,100 +75,118 @@ def get_sp_url(path: str | None = None) -> str:
 
 def get_saml_settings(
 	login_callback_path: str = "/auth/saml/callback/login", logout_callback_path: str = "/auth/saml/callback/logout"
-) -> dict[str, Any]:
+) -> SPConfig:
+	"""Build a PySAML2 service provider configuration."""
 	check_if_saml_available()
 
-	settings: dict[str, Any] = {
-		"strict": False,
-		# If debug is True, xmlsec errors will be printed
-		"debug": False,
-		"security": {
-			"allowRepeatAttributeName": True,
-			# Prevent sending RequestedAuthnContext in AuthnRequest to avoid error AADSTS75011
-			# See https://learn.microsoft.com/de-de/troubleshoot/entra/entra-id/app-integration/error-code-AADSTS75011-auth-method-mismatch
-			"requestedAuthnContext": False,
-			# Indicates whether the <samlp:AuthnRequest> messages sent by this SP
-			# will be signed. [Metadata of the SP will offer this info]
-			"authnRequestsSigned": False,
-			# Indicates whether the <samlp:logoutRequest> messages sent by this SP
-			# will be signed.
-			"logoutRequestSigned": False,
-			# Indicates whether the <samlp:logoutResponse> messages sent by this SP
-			# will be signed.
-			"logoutResponseSigned": False,
-			# Indicates a requirement for the <samlp:Response>, <samlp:LogoutRequest>
-			# and <samlp:LogoutResponse> elements received by this SP to be signed.
-			"wantMessagesSigned": False,
-			# Indicates a requirement for the <saml:Assertion> elements received by
-			# this SP to be signed. [Metadata of the SP will offer this info]
-			# This setting is not needed if document is already being signed.
-			"wantAssertionsSigned": False,
+	metadata_namespace = "urn:oasis:names:tc:SAML:2.0:metadata"
+	signature_namespace = "http://www.w3.org/2000/09/xmldsig#"
+	http_post_binding = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+	http_redirect_binding = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+	name_id_format = "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"
+	entity_descriptor = ElementTree.Element(f"{{{metadata_namespace}}}EntityDescriptor", entityID=config.saml_idp_entity_id)
+	idp_descriptor = ElementTree.SubElement(
+		entity_descriptor,
+		f"{{{metadata_namespace}}}IDPSSODescriptor",
+		protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol",
+	)
+	key_descriptor = ElementTree.SubElement(idp_descriptor, f"{{{metadata_namespace}}}KeyDescriptor", use="signing")
+	key_info = ElementTree.SubElement(key_descriptor, f"{{{signature_namespace}}}KeyInfo")
+	x509_data = ElementTree.SubElement(key_info, f"{{{signature_namespace}}}X509Data")
+	x509_certificate = ElementTree.SubElement(x509_data, f"{{{signature_namespace}}}X509Certificate")
+	x509_certificate.text = "".join(line.strip() for line in config.saml_idp_x509_cert.splitlines() if not line.startswith("-----"))
+	if config.saml_idp_slo_url:
+		ElementTree.SubElement(
+			idp_descriptor,
+			f"{{{metadata_namespace}}}SingleLogoutService",
+			Binding=http_redirect_binding,
+			Location=config.saml_idp_slo_url,
+		)
+	ElementTree.SubElement(
+		idp_descriptor,
+		f"{{{metadata_namespace}}}SingleSignOnService",
+		Binding=http_redirect_binding,
+		Location=config.saml_idp_sso_url,
+	)
+
+	sign_messages = config.saml_sp_client_signature
+	sp_settings: dict[str, Any] = {
+		"endpoints": {
+			"assertion_consumer_service": [(get_sp_url(login_callback_path), http_post_binding)],
 		},
-		# Identity Provider
-		"idp": {
-			"entityId": config.saml_idp_entity_id,
-			"singleSignOnService": {
-				"url": config.saml_idp_sso_url,
-				"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
-			},
-			"x509cert": config.saml_idp_x509_cert,
-			# TODO: Support separate certificates for signing and encryption?
-			# "x509certMulti": {"signing": [config.saml_idp_x509_cert], "encryption": [config.saml_idp_x509_cert]},
-		},
-		# Service Provider
-		"sp": {
-			"entityId": get_sp_entity_id(),
-			"NameIDFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified",
-			"assertionConsumerService": {
-				"url": f"{get_sp_url(login_callback_path)}",
-				"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
-			},
-		},
+		"name_id_format": [name_id_format],
+		"name_id_policy_format": name_id_format,
+		"requested_authn_context": None,
+		"authn_requests_signed": sign_messages,
+		"logout_requests_signed": sign_messages,
+		"logout_responses_signed": sign_messages,
+		"want_response_signed": sign_messages,
+		"want_assertions_signed": sign_messages,
+		# Like python3-saml: At least the response or the assertion has to be signed
+		"want_assertions_or_response_signed": True,
+		# Like python3-saml (non strict mode): InResponseTo is not checked
+		"allow_unsolicited": True,
 	}
 	if config.saml_idp_slo_url:
-		settings["idp"]["singleLogoutService"] = {
-			"url": config.saml_idp_slo_url,
-			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
-		}
-		settings["sp"]["singleLogoutService"] = {
-			"url": f"{get_sp_url(logout_callback_path)}",
-			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
-		}
+		sp_settings["endpoints"]["single_logout_service"] = [(get_sp_url(logout_callback_path), http_redirect_binding)]
 
-	if config.saml_sp_client_signature or config.saml_encrypted_assertions:
-		if not config.saml_sp_x509_cert or not config.saml_sp_private_key:
-			raise ValueError("saml-sp-x509-cert and saml-sp-private-key must be set in config")
-		settings["sp"]["x509cert"] = config.saml_sp_x509_cert
-		settings["sp"]["privateKey"] = config.saml_sp_private_key
+	if (config.saml_sp_client_signature or config.saml_encrypted_assertions) and (
+		not config.saml_sp_x509_cert or not config.saml_sp_private_key
+	):
+		raise ValueError("saml-sp-x509-cert and saml-sp-private-key must be set in config")
 
-	if config.saml_sp_client_signature:
-		settings["security"]["authnRequestsSigned"] = True
-		settings["security"]["logoutRequestSigned"] = True
-		settings["security"]["logoutResponseSigned"] = True
-		settings["security"]["wantMessagesSigned"] = True
-		settings["security"]["wantAssertionsSigned"] = True
-
-	return settings
-
-
-async def saml_auth_request_data(request: Request) -> dict[str, Any]:
-	assert request.client
-	assert request.url
-	params: dict[str, Any] = {
-		"http_host": request.client.host,
-		"server_port": request.url.port,
-		"script_name": request.url.path,
-		"post_data": {},
-		"get_data": {},
+	settings: dict[str, Any] = {
+		"entityid": get_sp_entity_id(),
+		"debug": 0,
+		# Allowed clock drift in seconds like python3-saml
+		"accepted_time_diff": 300,
+		"signing_algorithm": SIG_RSA_SHA256,
+		"digest_algorithm": DIGEST_SHA256,
+		"allow_unknown_attributes": True,
+		"metadata": {"inline": [ElementTree.tostring(entity_descriptor, encoding="unicode")]},
+		"metadata_key_usage": "both" if config.saml_encrypted_assertions else "signing",
+		"service": {"sp": sp_settings},
 	}
-	form_data = await request.form()
-	if request.query_params:
-		params["get_data"].update(request.query_params)
-	if "SAMLResponse" in form_data:
-		params["post_data"]["SAMLResponse"] = form_data["SAMLResponse"]
-	if "RelayState" in form_data:
-		params["post_data"]["RelayState"] = form_data["RelayState"]
-	return params
+	return SPConfig().load(settings)
+
+
+@contextmanager
+def saml_client(
+	login_callback_path: str = "/auth/saml/callback/login", logout_callback_path: str = "/auth/saml/callback/logout"
+) -> Generator[Saml2Client]:
+	"""
+	PySAML2 service provider client.
+	PySAML2 requires the SP private key and certificate as files,
+	they are only available in a temporary directory while the context is active.
+	"""
+	sp_config = get_saml_settings(login_callback_path=login_callback_path, logout_callback_path=logout_callback_path)
+	with TemporaryDirectory(prefix="opsiconfd-saml-") as tmp_dir:
+		if config.saml_sp_client_signature or config.saml_encrypted_assertions:
+			# Presence is checked in get_saml_settings
+			assert config.saml_sp_private_key and config.saml_sp_x509_cert
+			private_key = config.saml_sp_private_key
+			if "-----BEGIN" not in private_key:
+				private_key = (
+					serialization.load_der_private_key(b64decode("".join(private_key.split())), password=None)
+					.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+					.decode("ascii")
+				)
+			certificate = config.saml_sp_x509_cert
+			if "-----BEGIN" not in certificate:
+				certificate = as_pem(x509.load_der_x509_certificate(b64decode("".join(certificate.split()))))
+
+			key_file = Path(tmp_dir) / "sp.key"
+			cert_file = Path(tmp_dir) / "sp.crt"
+			for file, content in ((key_file, private_key), (cert_file, certificate)):
+				file.touch(mode=0o600)
+				file.write_text(content, encoding="utf-8")
+
+			sp_config.key_file = str(key_file)
+			sp_config.cert_file = str(cert_file)
+			if config.saml_encrypted_assertions:
+				sp_config.encryption_keypairs = [{"key_file": str(key_file), "cert_file": str(cert_file)}]
+
+		yield Saml2Client(config=sp_config)
 
 
 def update_config_from_idp_metadata_xml(metadata_xml: str) -> None:
@@ -215,30 +239,25 @@ def update_config_from_idp_metadata_xml(metadata_xml: str) -> None:
 def get_sp_metadata_xml(
 	login_callback_path: str = "/auth/saml/callback/login", logout_callback_path: str = "/auth/saml/callback/logout"
 ) -> str:
-	now = datetime.now(tz=UTC)
-	valid_until = now + timedelta(days=2)
+	"""Build PySAML2 service provider metadata XML."""
+	sp_config = get_saml_settings(login_callback_path=login_callback_path, logout_callback_path=logout_callback_path)
+	sp_config.valid_for = 48
 
-	saml_settings = get_saml_settings(login_callback_path=login_callback_path, logout_callback_path=logout_callback_path)
-	metadata = OneLogin_Saml2_Metadata.builder(
-		sp=saml_settings["sp"],
-		authnsign=saml_settings["security"]["authnRequestsSigned"],
-		wsign=saml_settings["security"]["wantAssertionsSigned"],
-		valid_until=valid_until,
-	)
-	if saml_settings["sp"].get("x509cert"):
-		metadata = OneLogin_Saml2_Metadata.add_x509_key_descriptors(
-			metadata=metadata,
-			cert=saml_settings["sp"]["x509cert"],
-			add_encryption=config.saml_encrypted_assertions,
+	metadata_descriptor = saml2_metadata.entity_descriptor(sp_config)
+
+	if config.saml_sp_x509_cert and (config.saml_sp_client_signature or config.saml_encrypted_assertions):
+		certificate = "".join(line.strip() for line in config.saml_sp_x509_cert.splitlines() if not line.startswith("-----"))
+		metadata_descriptor.spsso_descriptor.key_descriptor = saml2_metadata.do_key_descriptor(
+			cert=certificate,
+			enc_cert=certificate if config.saml_encrypted_assertions else None,
+			use="both",
 		)
-	if isinstance(metadata, bytes):
-		metadata = metadata.decode("utf-8")
 
-	# Fix XML formatting
-	dom = xml.dom.minidom.parseString(metadata)
+	ElementTree.register_namespace("md", "urn:oasis:names:tc:SAML:2.0:metadata")
+	ElementTree.register_namespace("ds", "http://www.w3.org/2000/09/xmldsig#")
+	dom = xml.dom.minidom.parseString(str(metadata_descriptor))
 	metadata = dom.toprettyxml()
-	metadata = re.sub(r"^\s*\n", "", metadata, flags=re.MULTILINE)
-	return metadata
+	return re.sub(r"^\s*\n", "", metadata, flags=re.MULTILINE)
 
 
 def generate_client_certificate() -> None:
@@ -279,7 +298,7 @@ def setup_saml_configuration(interactive: bool = True, unattended_configuration:
 	else:
 		if not interactive:
 			raise ValueError("Interactive setup or unattended configuration required")
-		url = Prompt.ask("Enter SAML IdP XML metadata URL of filename").strip()
+		url = Prompt.ask("Enter SAML IdP XML metadata URL or filename").strip()
 
 	if url.startswith("http"):
 		rich_print(f"Fetching metadata from '{url}'")

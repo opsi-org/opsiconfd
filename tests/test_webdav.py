@@ -81,7 +81,7 @@ def test_webdav_propfind(test_client: OpsiconfdTestClient, path: str, status_cod
 	)
 	assert res.status_code == status_code
 	if status_code == 207:
-		assert res.text.lower().startswith("<?xml version='1.0' encoding='utf-8'?>")
+		assert re.match(r"""<\?xml version=["']1\.0["'] encoding=["']utf-8["']\s*\?>""", res.text, re.IGNORECASE)
 
 
 def test_webdav_upload_download_delete_with_special_chars(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

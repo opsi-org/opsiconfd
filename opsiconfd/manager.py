@@ -345,7 +345,7 @@ class Manager:
 			self._metrics_collectors.append(SystemMetricsCollector())
 		# Collect depot metrics only on config server
 		# Do not create DepotMetricsCollectors if all DepotMetrics are disabled
-		if self._is_config_server and MetricsRegistry().get_metrics(DepotMetric):
+		if self._is_config_server and next(MetricsRegistry().get_metrics(DepotMetric), None):
 			for depot_id in get_unprotected_backend().host_getIdents(returnType="str", type="OpsiDepotserver"):
 				self._metrics_collectors.append(DepotMetricsCollector(depot_id))
 

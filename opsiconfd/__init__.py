@@ -9,7 +9,7 @@ The opsi configuration service.
 
 from __future__ import annotations
 
-__version__ = "4.3.56.10"
+__version__ = "4.3.60.1"
 
 
 from collections.abc import Generator

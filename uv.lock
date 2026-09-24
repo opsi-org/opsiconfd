@@ -1300,7 +1300,7 @@ wheels = [
 
 [[package]]
 name = "opsiconfd"
-version = "4.3.60.0"
+version = "4.3.60.1"
 source = { editable = "." }
 dependencies = [
     { name = "acme" },

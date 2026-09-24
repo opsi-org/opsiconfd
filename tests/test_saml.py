@@ -7,6 +7,8 @@ import json
 from base64 import b64encode
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from subprocess import Popen
+from typing import Any
 from unittest.mock import patch
 from xml.etree import ElementTree
 
@@ -14,8 +16,17 @@ import pytest
 from _pytest.capture import CaptureFixture
 from opsi.testing.helper import http_test_server
 from saml2.s_utils import UnsupportedBinding
+from saml2.sigver import XmlsecError
 
-from opsiconfd.auth.saml import get_saml_settings, get_sp_entity_id, get_sp_metadata_xml, get_sp_url, update_config_from_idp_metadata_xml
+from opsiconfd.auth.saml import (
+	XmlSec1CryptoBackend,
+	get_saml_settings,
+	get_sp_entity_id,
+	get_sp_metadata_xml,
+	get_sp_url,
+	saml_client,
+	update_config_from_idp_metadata_xml,
+)
 from opsiconfd.redis import redis_client
 from opsiconfd.session import OPSISession
 from opsiconfd.setup import setup
@@ -90,6 +101,46 @@ def test_get_saml_settings(slo_url: str | None, sign_messages: bool) -> None:
 		with pytest.raises(UnsupportedBinding):
 			metadata.single_logout_service("https://idp.test", binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect", typ="idpsso")
 		assert sp_slo == []
+
+
+def test_saml_client_xmlsec1_subprocess_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+	# PyInstaller sets LD_LIBRARY_PATH to the bundled libraries, xmlsec1 must be run with the original value
+	monkeypatch.setattr("sys.frozen", True, raising=False)
+	monkeypatch.setenv("LD_LIBRARY_PATH", "/usr/lib/opsiconfd/_internal")
+	monkeypatch.setenv("LD_LIBRARY_PATH_ORIG", "/usr/local/lib")
+
+	environments: list[dict[str, str]] = []
+
+	def popen(*args: Any, **kwargs: Any) -> Popen:
+		"""Record the environment of the subprocess."""
+		environments.append(kwargs["env"])
+		return Popen(*args, **kwargs)
+
+	with (
+		patch("opsiconfd.auth.saml.module_available", return_value=True),
+		patch("opsiconfd.auth.saml.get_sp_entity_id", return_value="sp.test"),
+		patch("opsi.process._process.Popen", popen),
+		get_config(
+			{
+				"external-url": "https://sp.test:4447",
+				"saml-idp-entity-id": "https://idp.test",
+				"saml-idp-sso-url": "https://idp.test/sso",
+				"saml-idp-x509-cert": "CERTIFICATE",
+				"saml-sp-client-signature": False,
+			}
+		),
+		saml_client() as client,
+	):
+		assert client.sec
+		crypto = client.sec.crypto
+		assert isinstance(crypto, XmlSec1CryptoBackend)
+		assert crypto.version_nums >= (1, 2)
+		with pytest.raises(XmlsecError):
+			crypto._run_xmlsec([crypto.xmlsec, "--verify"], ["/nonexistent.xml"])
+
+	assert len(environments) >= 2
+	for env in environments:
+		assert env["LD_LIBRARY_PATH"] == "/usr/local/lib"
 
 
 @pytest.mark.parametrize(

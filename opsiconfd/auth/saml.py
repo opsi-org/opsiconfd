@@ -13,6 +13,7 @@ from base64 import b64decode
 from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
+from functools import cached_property
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
@@ -25,12 +26,16 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509 import CertificateBuilder
 from opsi.exception import OpsiServiceAuthenticationError
+from opsi.logging import LOG_DEBUG
 from opsi.opsi.service.model.object import AuditLogAuthenticationFailureReason
+from opsi.process import run_command
+from opsi.system.file.temp import TempFile
 from rich import print as rich_print
 from rich.prompt import Prompt
 from saml2 import metadata as saml2_metadata
 from saml2.client import Saml2Client
 from saml2.config import SPConfig
+from saml2.sigver import CryptoBackendXmlSec1, XmlsecError
 from saml2.xmldsig import DIGEST_SHA256, SIG_RSA_SHA256
 
 from opsiconfd.config import config, get_configserver_id
@@ -150,6 +155,57 @@ def get_saml_settings(
 	return SPConfig().load(settings)
 
 
+class XmlSec1CryptoBackend(CryptoBackendXmlSec1):
+	"""
+	PySAML2 xmlsec1 crypto backend which runs xmlsec1 via opsi.process.
+
+	In PyInstaller builds LD_LIBRARY_PATH points to the bundled libraries,
+	which can be incompatible with the system xmlsec1 binary.
+	opsi.process runs subprocesses with the original environment.
+	Except for this, the behaviour is identical to CryptoBackendXmlSec1.
+	"""
+
+	@cached_property
+	def version(self) -> str:
+		"""Version of the xmlsec1 binary, determined once per instance."""
+		proc = run_command([self.xmlsec, "--version"], success_exit_codes=None, start_log_level=LOG_DEBUG)
+		try:
+			return proc.get_stdout_text().split(" ")[1]
+		except IndexError:
+			return "0.0.0"
+
+	def _run_xmlsec(self, com_list: list[str], extra_args: list[str]) -> tuple[str, str, bytes]:
+		"""
+		Run xmlsec1 and return stdout, stderr and the content of the output file.
+
+		Args:
+			com_list: Key-value parameter list for xmlsec1.
+			extra_args: Positional parameters appended after all key-value parameters.
+
+		Returns:
+			A tuple of stdout, stderr and the content written to the --output file.
+
+		Raises:
+			XmlsecError: If xmlsec1 exits with a non-zero return code.
+		"""
+		with TempFile(extension="xml") as output_file:
+			com_list.extend(["--output", str(output_file.path)])
+			if self.version_nums >= (1, 3):
+				com_list.append("--lax-key-search")
+			com_list += extra_args
+
+			proc = run_command(com_list, success_exit_codes=None, start_log_level=LOG_DEBUG)
+			p_out = proc.get_stdout_text()
+			p_err = proc.get_stderr_text()
+
+			if proc.exit_code != 0:
+				errmsg = f"returncode={proc.exit_code}\nerror={p_err}\noutput={p_out}"
+				logger.error(errmsg)
+				raise XmlsecError(errmsg)
+
+			return p_out, p_err, output_file.path.read_bytes()
+
+
 @contextmanager
 def saml_client(
 	login_callback_path: str = "/auth/saml/callback/login", logout_callback_path: str = "/auth/saml/callback/logout"
@@ -186,7 +242,12 @@ def saml_client(
 			if config.saml_encrypted_assertions:
 				sp_config.encryption_keypairs = [{"key_file": str(key_file), "cert_file": str(cert_file)}]
 
-		yield Saml2Client(config=sp_config)
+		client = Saml2Client(config=sp_config)
+		security_context = client.sec
+		if security_context and isinstance(security_context.crypto, CryptoBackendXmlSec1):
+			crypto = security_context.crypto
+			security_context.crypto = XmlSec1CryptoBackend(crypto.xmlsec, delete_tmpfiles=crypto.delete_tmpfiles)
+		yield client
 
 
 def update_config_from_idp_metadata_xml(metadata_xml: str) -> None:
@@ -324,7 +385,8 @@ def setup_saml_configuration(interactive: bool = True, unattended_configuration:
 	generate_client_certificate()
 	metadata_xml = get_sp_metadata_xml()
 	metadata_xml = re.sub(r'<\?\s*xml version="1.0"\s*\?>', "", metadata_xml)
-	rich_print(
+	# Plain print, rich would insert line breaks and interpret markup, which breaks the XML
+	print(
 		dedent(
 			f"""
 			<?xml version="1.0"?>

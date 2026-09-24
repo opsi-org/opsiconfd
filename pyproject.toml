@@ -56,7 +56,7 @@ dependencies = [
 	"pydantic-extra-types>=2.10.6",
 	"argon2-cffi>=25.1.0",
 	"ldap3>=2.9.1",
-	"python-opsi>=4.3.30",
+	"python-opsi>=4.3.32",
 	"pysaml2>=7.5.5",
 ]
 

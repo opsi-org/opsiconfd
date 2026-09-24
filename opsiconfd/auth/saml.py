@@ -239,8 +239,9 @@ def saml_client(
 
 			sp_config.key_file = str(key_file)
 			sp_config.cert_file = str(cert_file)
-			if config.saml_encrypted_assertions:
-				sp_config.encryption_keypairs = [{"key_file": str(key_file), "cert_file": str(cert_file)}]
+			# Like python3-saml: Always decrypt encrypted assertions with the SP key,
+			# the IdP can encrypt assertions even if saml-encrypted-assertions is disabled
+			sp_config.encryption_keypairs = [{"key_file": str(key_file), "cert_file": str(cert_file)}]
 
 		client = Saml2Client(config=sp_config)
 		security_context = client.sec

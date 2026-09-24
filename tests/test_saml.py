@@ -14,9 +14,13 @@ from xml.etree import ElementTree
 
 import pytest
 from _pytest.capture import CaptureFixture
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import rsa
 from opsi.testing.helper import http_test_server
+from saml2 import BINDING_HTTP_POST, samlp
 from saml2.s_utils import UnsupportedBinding
-from saml2.sigver import XmlsecError
+from saml2.sigver import RSA_1_5, XmlsecError, pre_encryption_part
 
 from opsiconfd.auth.saml import (
 	XmlSec1CryptoBackend,
@@ -30,6 +34,7 @@ from opsiconfd.auth.saml import (
 from opsiconfd.redis import redis_client
 from opsiconfd.session import OPSISession
 from opsiconfd.setup import setup
+from opsiconfd.ssl import as_pem
 
 from .utils import (  # noqa: F401
 	Config,
@@ -141,6 +146,103 @@ def test_saml_client_xmlsec1_subprocess_environment(monkeypatch: pytest.MonkeyPa
 	assert len(environments) >= 2
 	for env in environments:
 		assert env["LD_LIBRARY_PATH"] == "/usr/local/lib"
+
+
+@pytest.mark.parametrize("saml_encrypted_assertions", (False, True))
+def test_saml_client_decrypt_encrypted_assertion(tmp_path: Path, saml_encrypted_assertions: bool) -> None:
+	# The IdP (e.g. Keycloak) can encrypt assertions even if saml-encrypted-assertions is disabled
+	now = datetime.now(tz=UTC)
+	key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+	subject = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, "sp.test")])
+	cert = x509.CertificateBuilder(
+		issuer_name=subject,
+		subject_name=subject,
+		public_key=key.public_key(),
+		serial_number=x509.random_serial_number(),
+		not_valid_before=now - timedelta(minutes=1),
+		not_valid_after=now + timedelta(days=1),
+	).sign(key, hashes.SHA256())
+	cert_file = tmp_path / "sp.crt"
+	cert_file.write_text(as_pem(cert), encoding="ascii")
+
+	def strip_pem(pem: str) -> str:
+		"""Return the base64 data of a PEM like it is stored in the config."""
+		return "".join(line.strip() for line in pem.splitlines() if not line.startswith("-----"))
+
+	def signature(reference_id: str) -> str:
+		"""Dummy signature, signature verification is patched."""
+		return f"""<dsig:Signature xmlns:dsig="http://www.w3.org/2000/09/xmldsig#"><dsig:SignedInfo>
+			<dsig:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+			<dsig:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
+			<dsig:Reference URI="#{reference_id}"><dsig:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
+			<dsig:DigestValue>==</dsig:DigestValue></dsig:Reference>
+		</dsig:SignedInfo><dsig:SignatureValue>==</dsig:SignatureValue></dsig:Signature>"""
+
+	time_str = (now - timedelta(seconds=10)).strftime("%Y-%m-%dT%H:%M:%SZ")
+	not_on_or_after_str = (now + timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ")
+	acs_url = "https://sp.test:4447/auth/saml/callback/login"
+	saml_response = f"""<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+		xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" Destination="{acs_url}" ID="ID_response" IssueInstant="{time_str}" Version="2.0">
+		<saml:Issuer>https://idp.test</saml:Issuer>
+		{signature("ID_response")}
+		<samlp:Status><samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/></samlp:Status>
+		<saml:Assertion ID="ID_assertion" IssueInstant="{time_str}" Version="2.0">
+			<saml:Issuer>https://idp.test</saml:Issuer>
+			{signature("ID_assertion")}
+			<saml:Subject>
+				<saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified">adminuser</saml:NameID>
+				<saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
+					<saml:SubjectConfirmationData NotOnOrAfter="{not_on_or_after_str}" Recipient="{acs_url}"/>
+				</saml:SubjectConfirmation>
+			</saml:Subject>
+			<saml:Conditions NotBefore="{time_str}" NotOnOrAfter="{not_on_or_after_str}">
+				<saml:AudienceRestriction><saml:Audience>sp.test</saml:Audience></saml:AudienceRestriction>
+			</saml:Conditions>
+			<saml:AuthnStatement AuthnInstant="{time_str}" SessionIndex="session-index">
+				<saml:AuthnContext>
+					<saml:AuthnContextClassRef>urn:oasis:names:tc:SAML:2.0:ac:classes:unspecified</saml:AuthnContextClassRef>
+				</saml:AuthnContext>
+			</saml:AuthnStatement>
+		</saml:Assertion>
+	</samlp:Response>
+	"""
+
+	with (
+		patch("opsiconfd.auth.saml.module_available", return_value=True),
+		patch("opsiconfd.auth.saml.get_sp_entity_id", return_value="sp.test"),
+		patch("saml2.sigver.SecurityContext._check_signature", lambda _self, _decoded_xml, item, *args, **kwargs: item),
+		get_config(
+			{
+				"external-url": "https://sp.test:4447",
+				"saml-idp-entity-id": "https://idp.test",
+				"saml-idp-sso-url": "https://idp.test/sso",
+				"saml-idp-x509-cert": "==",
+				"saml-sp-client-signature": True,
+				"saml-encrypted-assertions": saml_encrypted_assertions,
+				"saml-sp-x509-cert": strip_pem(as_pem(cert)),
+				"saml-sp-private-key": strip_pem(as_pem(key)),
+			}
+		),
+		saml_client() as client,
+	):
+		assert client.sec
+		# Encrypt the assertion like Keycloak does (AES-256-CBC, key transport RSA 1.5)
+		encrypted_response = client.sec.crypto.encrypt_assertion(
+			samlp.response_from_string(saml_response),
+			str(cert_file),
+			pre_encryption_part(msg_enc="http://www.w3.org/2001/04/xmlenc#aes256-cbc", key_enc=RSA_1_5),
+			key_type="aes-256",
+		)
+		assert "EncryptedAssertion" in encrypted_response
+		assert "adminuser" not in encrypted_response
+
+		authn_response = client.parse_authn_request_response(b64encode(encrypted_response.encode()).decode(), BINDING_HTTP_POST)
+
+	assert authn_response
+	assert authn_response.assertion
+	assert authn_response.assertion.id == "ID_assertion"
+	assert authn_response.name_id
+	assert authn_response.name_id.text == "adminuser"
 
 
 @pytest.mark.parametrize(

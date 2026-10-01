@@ -409,7 +409,8 @@ class MySQLConnection:
 			);
 			SET SESSION group_concat_max_len = 1000000;
 			SET SESSION lock_wait_timeout = 60;
-			SET SESSION time_zone = '+00:00';
+			SET SESSION time_zone = '+00:00'
+			/*M!110602 , innodb_snapshot_isolation = OFF */;
 		"""
 		)
 

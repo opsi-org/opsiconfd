@@ -39,7 +39,8 @@ RUN mkdir -p /usr/local/share/keyrings \
 	&& sed -i 's#secure_path=.*#secure_path=/root/.local/bin:/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin#' /etc/sudoers \
 	&& uv self update \
 	&& curl -fsSL https://deb.nodesource.com/setup_current.x | sudo -E bash - \
-	&& apt-get --yes install nodejs
+	&& apt-get --yes install nodejs \
+	&& rustup default stable
 
 COPY files/ /
 

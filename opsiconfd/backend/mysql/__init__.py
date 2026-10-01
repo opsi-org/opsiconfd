@@ -371,6 +371,19 @@ class MySQLConnection:
 		if not self._engine:
 			raise RuntimeError("Failed to create engine")
 
+		dialect = self._engine.dialect
+		orig_is_disconnect = dialect.is_disconnect
+
+		def is_disconnect(err: Exception, connection: Any, cursor: Any) -> bool:
+			# MariaDB >= 11.4 enables TLS by default.
+			# A TLS connection closed by the server (killed, timed out, server restart) raises
+			# CR_SSL_CONNECTION_ERROR (2026), which is not detected as disconnect by SQLAlchemy.
+			if isinstance(err, dialect.dbapi.OperationalError) and dialect._extract_error_code(err) == 2026:
+				return True
+			return orig_is_disconnect(err, connection, cursor)
+
+		dialect.is_disconnect = is_disconnect  # type: ignore[method-assign]
+
 		self._session_factory = sessionmaker(bind=self._engine, class_=MySQLSession, autocommit=False, autoflush=False)
 		self._Session = scoped_session(self._session_factory)
 

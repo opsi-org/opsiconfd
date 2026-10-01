@@ -669,9 +669,11 @@ def get_foreign_keys(session: Session, database: str, table: str) -> list[OpsiFo
 			`t2`.`DELETE_RULE`
 		FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
 		INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
-		ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
+		ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA`
+		AND `t1`.`TABLE_NAME` = `t2`.`TABLE_NAME`
+		AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
 		WHERE `t1`.`TABLE_SCHEMA` LIKE :database AND `t1`.`TABLE_NAME` LIKE :table
-		GROUP BY `CONSTRAINT_NAME`
+		GROUP BY `t1`.`CONSTRAINT_NAME`
 		""",
 		params={"database": database, "table": table},
 	).fetchall():
@@ -691,7 +693,7 @@ def get_foreign_keys(session: Session, database: str, table: str) -> list[OpsiFo
 
 def remove_foreign_key(session: Session, foreign_key: OpsiForeignKey) -> None:
 	logger.info("Removing foreign key to %s on table %s", foreign_key.ref_table, foreign_key.table)
-	session.execute(f"ALTER TABLE `{foreign_key.table}` DROP FOREIGN KEY {foreign_key.name}")
+	session.execute(f"ALTER TABLE `{foreign_key.table}` DROP FOREIGN KEY `{foreign_key.name}`")
 
 
 def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeignKey, cleanup_function: Callable | None = None) -> None:

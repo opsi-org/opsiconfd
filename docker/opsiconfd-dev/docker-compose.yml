@@ -47,7 +47,7 @@ services:
       start_period: 300s
 
   mysql-dev:
-    image: mariadb:10.7
+    image: mariadb:12.3
     restart: ${RESTART_POLICY}
     hostname: mysql-dev
     command: --max_connections=${MYSQL_MAX_CONNECTIONS} --max_allowed_packet=${MYSQL_MAX_ALLOWED_PACKET} --sort_buffer_size=${MYSQL_SORT_BUFFER_SIZE}
@@ -109,7 +109,7 @@ services:
       start_period: 300s
 
   mysql-cs:
-    image: mariadb:10.7
+    image: mariadb:12.3
     restart: ${RESTART_POLICY}
     hostname: mysql-cs
     command: --max_connections=${MYSQL_MAX_CONNECTIONS} --max_allowed_packet=${MYSQL_MAX_ALLOWED_PACKET} --sort_buffer_size=${MYSQL_SORT_BUFFER_SIZE}

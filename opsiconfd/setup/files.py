@@ -8,6 +8,7 @@ opsiconfd - setup
 """
 
 import os
+import re
 import shutil
 import time
 from pathlib import Path
@@ -51,6 +52,12 @@ EXTENDER_FILES = (
 	"45_deprecated.conf",
 	"70_dynamic_depot.conf",
 	"70_wan.conf",
+)
+
+MONITORING_ACL_LINES = (
+	"monitoring_checkConnection : sys_group({admingroup})",
+	"monitoring_getInfo       : sys_group({admingroup}); opsi_depotserver; opsi_client",
+	"monitoring_.*            : sys_group({admingroup}); opsi_depotserver; self",
 )
 
 
@@ -115,6 +122,37 @@ def migrate_acl_conf_if_default() -> None:
 		write_default_acl_conf(Path(config.acl_file))
 
 
+def migrate_acl_conf_add_monitoring() -> None:
+	"""
+	Add the acl entries for the monitoring methods to an existing acl.conf.
+
+	The entries are inserted before the first entry matching `.*_get.*` or `.*`,
+	otherwise they would never be evaluated.
+	If the acl.conf already contains entries for monitoring methods, nothing is changed.
+	"""
+	acl_file = Path(config.acl_file)
+	if not acl_file.exists():
+		return
+
+	lines = acl_file.read_text(encoding="utf-8").split("\n")
+	if any(re.match(r"^\s*monitoring_", line) for line in lines):
+		return
+
+	insert_idx = len(lines)
+	for idx, line in enumerate(lines):
+		if re.match(r"^\s*\.\*", line):
+			insert_idx = idx
+			break
+	if insert_idx == len(lines) and lines[-1] == "":
+		insert_idx -= 1
+
+	backup_file = acl_file.with_name(f"{acl_file.name}.pre-monitoring")
+	logger.notice("Adding monitoring entries to '%s' (backup: '%s')", acl_file, backup_file)
+	shutil.copy2(acl_file, backup_file)
+	lines[insert_idx:insert_idx] = MONITORING_ACL_LINES
+	acl_file.write_text("\n".join(lines), encoding="utf-8")
+
+
 def setup_files() -> None:
 	for _dir in _get_default_dirs():
 		if _dir and not os.path.isdir(_dir) and not os.path.islink(_dir):
@@ -123,6 +161,7 @@ def setup_files() -> None:
 	move_exender_files()
 	cleanup_audit_hardware_config_locales_dir()
 	migrate_acl_conf_if_default()
+	migrate_acl_conf_add_monitoring()
 
 
 def setup_file_permissions() -> None:

@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Protocol
 
+from opsi.exception import BackendPermissionDeniedError
 from opsi.opsi.service.model.object import AuditLogEventType, ConfigState, ProductOnDepot
 from opsi.opsi.service.model.type import (
 	to_bool,
@@ -35,7 +36,26 @@ if TYPE_CHECKING:
 	from .protocol import BackendProtocol, IdentType
 
 
+CLIENT_READ_ONLY_CONFIG_IDS = ("monitoring.host_name",)
+
+
 class RPCConfigStateMixin(Protocol):
+	def _configState_check_client_write_allowed(self: BackendProtocol, config_states: list[ConfigState]) -> None:
+		"""
+		Raise an error if a client tries to write a config state which only administrators may change.
+
+		Args:
+			config_states: The config states to be written.
+
+		Raises:
+			BackendPermissionDeniedError: If the caller is a client and a protected config state is affected.
+		"""
+		if not self._get_client_id():
+			return
+		for config_state in config_states:
+			if config_state.configId in CLIENT_READ_ONLY_CONFIG_IDS:
+				raise BackendPermissionDeniedError(f"Clients are not allowed to change config {config_state.configId!r}")
+
 	def _configState_values_supplied(self: BackendProtocol, config_state: dict | ConfigState) -> bool:
 		if isinstance(config_state, dict):
 			return config_state.get("values") is not None
@@ -48,6 +68,7 @@ class RPCConfigStateMixin(Protocol):
 		raw_config_states = to_list(configStates)
 		values_supplied = [self._configState_values_supplied(config_state) for config_state in raw_config_states]
 		config_states = to_object_class_list(raw_config_states, ConfigState)
+		self._configState_check_client_write_allowed(config_states)
 		return config_states, [config_state for config_state, supplied in zip(config_states, values_supplied) if supplied]
 
 	def _configState_audit_config_value_set(self: BackendProtocol, config_states: list[ConfigState]) -> None:

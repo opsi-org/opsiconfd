@@ -29,6 +29,7 @@ from opsiconfd.backend.rpc.ext_wim import RPCExtWIMMixin
 from opsiconfd.backend.rpc.extender import RPCExtenderMixin
 from opsiconfd.backend.rpc.general import RPCGeneralMixin
 from opsiconfd.backend.rpc.host_control import RPCHostControlMixin
+from opsiconfd.backend.rpc.monitoring import RPCMonitoringMixin
 from opsiconfd.backend.rpc.obj_audit_hardware import RPCAuditHardwareMixin
 from opsiconfd.backend.rpc.obj_audit_hardware_on_host import RPCAuditHardwareOnHostMixin
 from opsiconfd.backend.rpc.obj_audit_log import RPCAuditLogMixin
@@ -101,6 +102,7 @@ class BackendProtocol(
 	RPCExtSSHCommandsMixin,
 	RPCDepotserverMixin,
 	RPCHostControlMixin,
+	RPCMonitoringMixin,
 	RPCDriverMixin,
 	RPCBootMixin,
 	RPCDHCPDControlMixin,

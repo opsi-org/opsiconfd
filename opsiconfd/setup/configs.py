@@ -456,6 +456,19 @@ def setup_configs() -> None:
 			)
 		)
 
+	if "monitoring.host_name" not in config_ids:
+		logger.info("Creating config 'monitoring.host_name'")
+		add_configs.append(
+			UnicodeConfig(
+				id="monitoring.host_name",
+				description="Name of the host in the monitoring system. If not set, the FQDN of the client is used.",
+				possibleValues=[],
+				defaultValues=[],
+				editable=True,
+				multiValue=False,
+			)
+		)
+
 	# Bootimage configs
 	@lru_cache
 	def _get_legacy_append_values() -> dict[str, list[str]]:

@@ -56,6 +56,7 @@ from .ext_wim import RPCExtWIMMixin
 from .extender import RPCExtenderMixin
 from .general import RPCGeneralMixin
 from .host_control import RPCHostControlMixin
+from .monitoring import RPCMonitoringMixin
 from .obj_audit_hardware import RPCAuditHardwareMixin
 from .obj_audit_hardware_on_host import RPCAuditHardwareOnHostMixin
 from .obj_audit_log import RPCAuditLogMixin
@@ -140,6 +141,7 @@ class Backend(
 	RPCDriverMixin,
 	RPCBootMixin,
 	RPCHostControlMixin,
+	RPCMonitoringMixin,
 	RPCDHCPDControlMixin,
 	RPCOpsiPXEConfdControlMixin,
 	RPCExtenderMixin,
@@ -321,6 +323,7 @@ class Backend(
 	def reload_config(self) -> None:
 		self._dhcpd_control_reload_config()
 		self._read_host_control_config_file()
+		self._read_monitoring_config_file()
 		self._read_opsipxeconfd_control_config_file()
 
 	def _read_acl_file(self) -> None:

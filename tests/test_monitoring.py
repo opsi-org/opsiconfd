@@ -280,7 +280,7 @@ class FakeMonitoringClient(MonitoringClient):
 		return [downtime for downtime in self.downtimes if downtime.host == host]
 
 	def set_downtime(self, host: str, services: list[str], start: datetime, end: datetime, comment: str) -> list[Downtime]:
-		return [self._add(host, service, start, end, comment) for service in services or [None]]  # ty: ignore[invalid-argument-type]
+		return [self._add(host, service, start, end, comment) for service in services or [None]]
 
 	def delete_downtimes(self, downtimes: list[Downtime]) -> None:
 		ids = {downtime.id for downtime in downtimes}

@@ -12,7 +12,16 @@ from pathlib import Path
 
 from opsi.opsi.service.model.object import AuditSoftware, AuditSoftwareOnClient, OpsiClient
 
-from tests.utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, UnprotectedBackend, backend, clean_mysql, clean_redis, test_client  # noqa: F401
+from tests.utils import (  # noqa: F401
+	ADMIN_PASS,
+	ADMIN_USER,
+	OpsiconfdTestClient,
+	UnprotectedBackend,
+	backend,
+	clean_mysql,
+	clean_redis,
+	test_client,
+)
 
 
 def test_audit_software(backend: UnprotectedBackend) -> None:  # noqa: F811
@@ -93,7 +102,6 @@ def test_audit_software(backend: UnprotectedBackend) -> None:  # noqa: F811
 
 	# Test AuditSoftwareOnClient
 	backend.auditSoftwareOnClient_createObjects(audit_software_on_clients)
-
 
 	auditSoftwareOnClients = backend.auditSoftwareOnClient_getObjects(version="1.2.3")
 	assert len(auditSoftwareOnClients) == len(audit_software_on_clients) / 2

@@ -146,6 +146,7 @@ def test_audit_software_on_client_self_acl(test_client: OpsiconfdTestClient) -> 
 	client1_key = "5913c501a2854587dec4e60d57676892"
 	client2_id = "test-audit-software-self-2.opsi.test"
 	software = {
+		"type": "AuditSoftware",
 		"name": "test-audit-software-self",
 		"version": "1.0",
 		"subVersion": "",
@@ -165,14 +166,17 @@ def test_audit_software_on_client_self_acl(test_client: OpsiconfdTestClient) -> 
 			],
 		),
 		("auditSoftware_createObjects", [[software]]),
-		("auditSoftwareOnClient_createObjects", [[software | {"clientId": client_id} for client_id in (client1_id, client2_id)]]),
+		(
+			"auditSoftwareOnClient_createObjects",
+			[[software | {"type": "AuditSoftwareOnClient", "clientId": client_id} for client_id in (client1_id, client2_id)]],
+		),
 	):
 		response = test_client.post("/rpc", json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).json()
 		assert "error" not in response
 
 	test_client.reset_cookies()
 	test_client.auth = (client1_id, client1_key)
-	foreign_audit = software | {"clientId": client2_id}
+	foreign_audit = software | {"type": "AuditSoftwareOnClient", "clientId": client2_id}
 	for method, params in (
 		("auditSoftwareOnClient_deleteObjects", [[foreign_audit]]),
 		("auditSoftwareOnClient_setObsolete", [client2_id]),
@@ -191,7 +195,7 @@ def test_audit_software_on_client_self_acl(test_client: OpsiconfdTestClient) -> 
 	test_client.reset_cookies()
 	test_client.auth = (client1_id, client1_key)
 	for method, params in (
-		("auditSoftwareOnClient_deleteObjects", [[software | {"clientId": client1_id}]]),
+		("auditSoftwareOnClient_deleteObjects", [[software | {"type": "AuditSoftwareOnClient", "clientId": client1_id}]]),
 		("auditSoftwareOnClient_setObsolete", [client1_id]),
 	):
 		response = test_client.post("/rpc", json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).json()

@@ -30,7 +30,8 @@ LINUX_DISTRO_EOL = {
 		"18.04": date(2023, 4, 1),
 		"20.04": date(2025, 4, 1),
 		"22.04": date(2027, 4, 1),
-		"24.04": date(2029, 6, 1),
+		"24.04": date(2029, 4, 1),
+		"26.04": date(2031, 4, 1),
 	},
 	# https://wiki.debian.org/DebianReleases
 	"debian": {
@@ -45,16 +46,19 @@ LINUX_DISTRO_EOL = {
 		"7": date(2029, 5, 1),
 		"8": date(2030, 6, 1),
 		"9": date(2032, 6, 1),
+		"10": date(2035, 5, 31),
 	},
 	"opensuse-leap": {
 		"15.3": date(2022, 12, 31),
 		"15.4": date(2023, 11, 1),
 		"15.5": date(2024, 11, 1),
 		"15.6": date(2025, 11, 1),
+		"16.0": date(2027, 10, 31),
 	},
 	"almalinux": {
 		"8": date(2024, 5, 1),
 		"9": date(2027, 5, 31),
+		"10": date(2030, 5, 31),
 	},
 	"centos": {
 		"7": date(2024, 5, 1),
@@ -63,11 +67,13 @@ LINUX_DISTRO_EOL = {
 	"rocky": {
 		"8": date(2029, 5, 31),
 		"9": date(2032, 5, 31),
+		"10": date(2035, 5, 31),
 	},
 	"ol": {
 		"7": date(2024, 12, 1),
 		"8": date(2029, 6, 1),
 		"9": date(2032, 6, 1),
+		"10": date(2035, 6, 30),
 	},
 	"UCS": {
 		"4.4-9": date(2024, 12, 31),
@@ -93,16 +99,19 @@ LINUX_DISTRO_REPO_NAMES = {
 		"20.04": "Ubuntu_20.04",
 		"22.04": "Ubuntu_22.04",
 		"24.04": "Ubuntu_24.04",
+		"26.04": "Ubuntu_26.04",
 	},
 	"opensuse-leap": {
 		"15.3": "openSUSE_Leap_15.3",
 		"15.4": "openSUSE_Leap_15.4",
 		"15.5": "openSUSE_Leap_15.5",
 		"15.6": "openSUSE_Leap_15.6",
+		"16.0": "openSUSE_Leap_16.0",
 	},
 	"almalinux": {
 		"8": "AlmaLinux_8",
 		"9": "AlmaLinux_9",
+		"10": "AlmaLinux_10",
 	},
 	"centos": {
 		"7": "CentOS_7",
@@ -111,11 +120,19 @@ LINUX_DISTRO_REPO_NAMES = {
 	"rocky": {
 		"8": "RockyLinux_8",
 		"9": "RockyLinux_9",
+		"10": "RockyLinux_10",
 	},
 	"ol": {
 		"7": "OracleLinux_7",
 		"8": "OracleLinux_8",
 		"9": "OracleLinux_9",
+		"10": "OracleLinux_10",
+	},
+	"rhel": {
+		"7": "RHEL_7",
+		"8": "RHEL_8",
+		"9": "RHEL_9",
+		"10": "RHEL_10",
 	},
 }
 
@@ -489,7 +506,7 @@ class SystemRepositoriesCheck(Check):
 						result.message = f"System and OPSI repositories are incompatible. System '{distro} {version}' using repository: {line.split()[1]}"
 
 		elif distro in ("almalinux", "centos", "rocky", "rhel", "ol"):
-			if distro in ("rocky", "ol"):
+			if distro in ("rhel", "rocky", "ol"):
 				version = version.split(".")[0]
 			cmd = ["yum", "repolist"]
 			try:

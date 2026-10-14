@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsi.exception import BackendReferentialIntegrityError
+from opsi.exception import BackendPermissionDeniedError, BackendReferentialIntegrityError
 from opsi.opsi.service.model.object import AuditSoftwareOnClient
 from opsi.opsi.service.model.type import to_list
 
@@ -151,9 +151,12 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 	) -> None:
 		if not auditSoftwareOnClients:
 			return
+		allowed_client_ids = self._mysql.get_allowed_client_ids(self._get_ace("auditSoftwareOnClient_deleteObjects"))
 		for audit_software_on_client in to_list(auditSoftwareOnClients):
 			if not isinstance(audit_software_on_client, AuditSoftwareOnClient):
 				audit_software_on_client = AuditSoftwareOnClient.fromHash(audit_software_on_client)
+			if allowed_client_ids is not None and audit_software_on_client.clientId not in allowed_client_ids:
+				raise BackendPermissionDeniedError("Delete permission denied")
 			with self._mysql.session() as session:
 				session.execute(
 					"""
@@ -236,5 +239,9 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def auditSoftwareOnClient_setObsolete(self: BackendProtocol, clientId: list[str] | str) -> None:
+		client_ids = to_list(clientId)
+		allowed_client_ids = self._mysql.get_allowed_client_ids(self._get_ace("auditSoftwareOnClient_setObsolete"))
+		if allowed_client_ids is not None and not set(client_ids).issubset(allowed_client_ids):
+			raise BackendPermissionDeniedError("Delete permission denied")
 		with self._mysql.session() as session:
-			session.execute("DELETE FROM `SOFTWARE_CONFIG` WHERE `clientId` in :client_ids", params={"client_ids": to_list(clientId)})
+			session.execute("DELETE FROM `SOFTWARE_CONFIG` WHERE `clientId` in :client_ids", params={"client_ids": client_ids})

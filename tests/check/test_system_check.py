@@ -323,6 +323,20 @@ def test_check_system_repos() -> None:
 				result = check_manager.get("system_repositories").run(clear_cache=True)
 				assert result.check_status == CheckStatus.OK
 				assert result.message == "No issues found with the system repositories."
+	# RHEL point releases must match repositories for their major version.
+	with mock.patch("opsiconfd.check.system.linux_distro_id", return_value="rhel"):
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id", return_value="9.4"):
+			with mock.patch("opsiconfd.check.system.run_command") as mock_run:
+				mock_run.return_value = MockProcess(
+					stdout=(
+						"repo id                         repo name\n"
+						"home_uibmz_opsi_4.3_stable     OPSI 4.3 stable (RHEL_9)\n"
+						"rhel-9-baseos                  Red Hat Enterprise Linux 9 BaseOS\n"
+					)
+				)
+				result = check_manager.get("system_repositories").run(clear_cache=True)
+				assert result.check_status == CheckStatus.OK
+				assert result.message == "No issues found with the system repositories."
 	# Test openSUSE 15.5 with openSUSE 15.4 repository and openSUSE 15.5 repository
 	with mock.patch("opsiconfd.check.system.linux_distro_id") as mock_distro_id:
 		mock_distro_id.return_value = "opensuse-leap"
@@ -468,7 +482,7 @@ def test_check_system_distro_eol() -> None:
 			mock_distro_version.return_value = "24.04"
 			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
 			assert result.check_status == CheckStatus.OK
-			assert result.message == "Version 24.04 of distribution ubuntu is supported until 2029-06-01."
+			assert result.message == "Version 24.04 of distribution ubuntu is supported until 2029-04-01."
 		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
 			mock_distro_version.return_value = "22.04"
 			result = check_manager.get("linux_distro_eol").run(clear_cache=True)

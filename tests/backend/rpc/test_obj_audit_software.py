@@ -12,7 +12,16 @@ from pathlib import Path
 
 from opsi.opsi.service.model.object import AuditSoftware, AuditSoftwareOnClient, OpsiClient
 
-from tests.utils import UnprotectedBackend, backend, clean_mysql, clean_redis  # noqa: F401
+from tests.utils import (  # noqa: F401
+	ADMIN_PASS,
+	ADMIN_USER,
+	OpsiconfdTestClient,
+	UnprotectedBackend,
+	backend,
+	clean_mysql,
+	clean_redis,
+	test_client,
+)
 
 
 def test_audit_software(backend: UnprotectedBackend) -> None:  # noqa: F811
@@ -93,6 +102,7 @@ def test_audit_software(backend: UnprotectedBackend) -> None:  # noqa: F811
 
 	# Test AuditSoftwareOnClient
 	backend.auditSoftwareOnClient_createObjects(audit_software_on_clients)
+
 	auditSoftwareOnClients = backend.auditSoftwareOnClient_getObjects(version="1.2.3")
 	assert len(auditSoftwareOnClients) == len(audit_software_on_clients) / 2
 	for auditSoftwareOnClient in auditSoftwareOnClients:
@@ -129,6 +139,67 @@ def test_audit_software(backend: UnprotectedBackend) -> None:  # noqa: F811
 	assert len(backend.auditSoftwareOnClient_getObjects()) == 0
 
 	backend.auditSoftwareOnClient_createObjects(audit_software_on_clients)
+
+
+def test_audit_software_on_client_self_acl(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	client1_id = "test-audit-software-self-1.opsi.test"
+	client1_key = "5913c501a2854587dec4e60d57676892"
+	client2_id = "test-audit-software-self-2.opsi.test"
+	software = {
+		"type": "AuditSoftware",
+		"name": "test-audit-software-self",
+		"version": "1.0",
+		"subVersion": "",
+		"language": "",
+		"architecture": "",
+	}
+
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	for method, params in (
+		(
+			"host_createObjects",
+			[
+				[
+					{"type": "OpsiClient", "id": client1_id, "opsiHostKey": client1_key},
+					{"type": "OpsiClient", "id": client2_id, "opsiHostKey": "e692485913c587de0d57676501a285c4"},
+				]
+			],
+		),
+		("auditSoftware_createObjects", [[software]]),
+		(
+			"auditSoftwareOnClient_createObjects",
+			[[software | {"type": "AuditSoftwareOnClient", "clientId": client_id} for client_id in (client1_id, client2_id)]],
+		),
+	):
+		response = test_client.post("/rpc", json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).json()
+		assert "error" not in response
+
+	test_client.reset_cookies()
+	test_client.auth = (client1_id, client1_key)
+	foreign_audit = software | {"type": "AuditSoftwareOnClient", "clientId": client2_id}
+	for method, params in (
+		("auditSoftwareOnClient_deleteObjects", [[foreign_audit]]),
+		("auditSoftwareOnClient_setObsolete", [client2_id]),
+	):
+		response = test_client.post("/rpc", json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).json()
+		assert "error" in response
+
+	test_client.reset_cookies()
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	response = test_client.post(
+		"/rpc", json={"jsonrpc": "2.0", "id": 1, "method": "auditSoftwareOnClient_getObjects", "params": [[], {}]}
+	).json()
+	assert "error" not in response
+	assert {audit["clientId"] for audit in response["result"] if audit["name"] == software["name"]} == {client1_id, client2_id}
+
+	test_client.reset_cookies()
+	test_client.auth = (client1_id, client1_key)
+	for method, params in (
+		("auditSoftwareOnClient_deleteObjects", [[software | {"type": "AuditSoftwareOnClient", "clientId": client1_id}]]),
+		("auditSoftwareOnClient_setObsolete", [client1_id]),
+	):
+		response = test_client.post("/rpc", json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).json()
+		assert "error" not in response
 
 
 def test_audit_software_from_data(backend: UnprotectedBackend) -> None:  # noqa: F811

@@ -171,9 +171,12 @@ def is_opsiconfd(proc: psutil.Process) -> bool:
 	Returns:
 		bool: True if the process is opsiconfd, False otherwise.
 	"""
-	return proc.name() == "opsiconfd" or (
-		proc.name() in ("python", "python3") and ("opsiconfd" in proc.cmdline() or "opsiconfd.__main__" in " ".join(proc.cmdline()))
-	)
+	try:
+		return proc.name() == "opsiconfd" or (
+			proc.name() in ("python", "python3") and ("opsiconfd" in proc.cmdline() or "opsiconfd.__main__" in " ".join(proc.cmdline()))
+		)
+	except psutil.NoSuchProcess, psutil.AccessDenied, FileNotFoundError:
+		return False
 
 
 def is_manager(proc: psutil.Process) -> bool:

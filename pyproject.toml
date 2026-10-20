@@ -148,6 +148,8 @@ filterwarnings = [
 	"ignore::urllib3.exceptions.InsecureRequestWarning",
 	# ldap3 (unmaintained) imports deprecated names from pyasn1 >= 0.6.1
 	"ignore:(tagMap|typeMap) is deprecated:DeprecationWarning:ldap3.utils.asn1",
+	# ptyprocess (used by opsi.messagebus terminal) spawns the shell via pty.fork() in a multi-threaded process
+	"ignore:This process .* is multi-threaded, use of forkpty\\(\\) may lead to deadlocks:DeprecationWarning:pty",
 ]
 
 [tool.setuptools.package-data]

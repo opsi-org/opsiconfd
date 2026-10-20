@@ -6,6 +6,7 @@
 import re
 from dataclasses import dataclass
 from datetime import date
+from enum import StrEnum
 from typing import Any
 from urllib.parse import urlparse
 
@@ -55,6 +56,14 @@ LINUX_DISTRO_EOL = {
 		"15.6": date(2025, 11, 1),
 		"16.0": date(2027, 10, 31),
 	},
+	# End of general support (without LTSS) https://www.suse.com/lifecycle/
+	"sles": {
+		"15.3": date(2022, 12, 31),
+		"15.4": date(2023, 12, 31),
+		"15.5": date(2024, 12, 31),
+		"15.6": date(2025, 12, 31),
+		"15.7": date(2031, 7, 31),
+	},
 	"almalinux": {
 		"8": date(2024, 5, 1),
 		"9": date(2027, 5, 31),
@@ -83,6 +92,134 @@ LINUX_DISTRO_EOL = {
 		"5.0-9": date(2025, 12, 31),
 		"5.2-4": date(2026, 6, 2),
 		"5.2-5": date(2027, 3, 10),
+	},
+}
+
+
+class DistroSupportStatus(StrEnum):
+	"""Support status of a Linux distribution version."""
+
+	SUPPORTED = "supported"
+	DEPRECATED = "deprecated"
+	UNSUPPORTED = "unsupported"
+
+
+@dataclass(frozen=True)
+class DistroSupportInfo:
+	"""Support information for a Linux distribution version.
+
+	Attributes:
+		status: The support status of the distribution version.
+		reason: Explanation why the distribution version is not fully supported.
+		unsupported_from: opsiconfd version as of which a deprecated distribution version is no longer supported.
+	"""
+
+	status: DistroSupportStatus
+	reason: str = ""
+	unsupported_from: str | None = None
+
+
+OPENSSL_1_UNSUPPORTED_FROM = "4.3.63"
+SUPPORTED = DistroSupportInfo(status=DistroSupportStatus.SUPPORTED)
+NOT_LISTED = DistroSupportInfo(
+	status=DistroSupportStatus.UNSUPPORTED,
+	reason="The distribution version is not in the list of distributions supported by OPSI.",
+)
+
+
+def _openssl_1_deprecated(openssl_version: str) -> DistroSupportInfo:
+	"""Create a deprecation entry for a distribution version shipping OpenSSL 1.x.
+
+	Args:
+		openssl_version: The OpenSSL version shipped by the distribution.
+
+	Returns:
+		The deprecation entry.
+	"""
+	return DistroSupportInfo(
+		status=DistroSupportStatus.DEPRECATED,
+		reason=f"The distribution ships OpenSSL {openssl_version}, which is end of life and no longer receives security updates.",
+		unsupported_from=OPENSSL_1_UNSUPPORTED_FROM,
+	)
+
+
+def _openssl_1_unsupported(openssl_version: str) -> DistroSupportInfo:
+	"""Create an unsupported entry for a distribution version shipping OpenSSL 1.x or older.
+
+	Args:
+		openssl_version: The OpenSSL version shipped by the distribution.
+
+	Returns:
+		The unsupported entry.
+	"""
+	return DistroSupportInfo(
+		status=DistroSupportStatus.UNSUPPORTED,
+		reason=f"The distribution ships OpenSSL {openssl_version}, which is end of life and no longer receives security updates.",
+	)
+
+
+# Support status of distribution versions.
+# Distribution versions not listed here are considered unsupported.
+# Version keys are matched against the full version, major.minor and major version (see get_distro_support_info).
+LINUX_DISTRO_SUPPORT: dict[str, dict[str, DistroSupportInfo]] = {
+	"debian": {
+		"9": _openssl_1_unsupported("1.1.0"),
+		"10": _openssl_1_unsupported("1.1.1"),
+		"11": _openssl_1_unsupported("1.1.1"),
+		"12": SUPPORTED,
+		"13": SUPPORTED,
+	},
+	"ubuntu": {
+		"18.04": _openssl_1_unsupported("1.1.1"),
+		"20.04": _openssl_1_unsupported("1.1.1f"),
+		"22.04": SUPPORTED,
+		"24.04": SUPPORTED,
+		"26.04": SUPPORTED,
+	},
+	"rhel": {
+		"7": _openssl_1_unsupported("1.0.2k"),
+		"8": _openssl_1_deprecated("1.1.1k"),
+		"9": SUPPORTED,
+		"10": SUPPORTED,
+	},
+	"almalinux": {
+		"8": _openssl_1_deprecated("1.1.1k"),
+		"9": SUPPORTED,
+		"10": SUPPORTED,
+	},
+	"rocky": {
+		"8": _openssl_1_deprecated("1.1.1k"),
+		"9": SUPPORTED,
+		"10": SUPPORTED,
+	},
+	"ol": {
+		"7": _openssl_1_unsupported("1.0.2k"),
+		"8": _openssl_1_deprecated("1.1.1k"),
+		"9": SUPPORTED,
+		"10": SUPPORTED,
+	},
+	"centos": {
+		"7": _openssl_1_unsupported("1.0.2k"),
+		"8": _openssl_1_unsupported("1.1.1k"),
+	},
+	"sles": {
+		"15.3": _openssl_1_unsupported("1.1.1d"),
+		"15.4": _openssl_1_deprecated("1.1.1l"),
+		"15.5": _openssl_1_deprecated("1.1.1l"),
+		"15.6": _openssl_1_deprecated("1.1.1w"),
+		"15.7": SUPPORTED,
+	},
+	"opensuse-leap": {
+		"15.3": _openssl_1_unsupported("1.1.1d"),
+		"15.4": _openssl_1_unsupported("1.1.1l"),
+		"15.5": _openssl_1_deprecated("1.1.1l"),
+		"15.6": _openssl_1_deprecated("1.1.1w"),
+		"16.0": SUPPORTED,
+	},
+	"UCS": {
+		"4.4": _openssl_1_unsupported("1.1.0"),
+		"5.0": _openssl_1_unsupported("1.1.1"),
+		"5.2": SUPPORTED,
 	},
 }
 
@@ -225,6 +362,66 @@ def get_disk_mountpoints() -> set:
 	return check_mountpoints
 
 
+def get_linux_distro_and_version() -> tuple[str, str]:
+	"""Get the Linux distribution id and version of the system.
+
+	For UCS, the version is composed of version and patchlevel (e.g. `5.2-5`).
+
+	Returns:
+		Tuple of distribution id and version.
+	"""
+	if is_ucs():
+		version = (
+			run_command(["ucr", "get", "version/version"], timeout=10).get_stdout_text().strip()
+			+ "-"
+			+ run_command(["ucr", "get", "version/patchlevel"], timeout=10).get_stdout_text().strip()
+		)
+		return "UCS", version
+	return linux_distro_id(), linux_distro_version_id()
+
+
+def get_distro_support_info(distro: str, version: str) -> DistroSupportInfo:
+	"""Get the support information for a distribution version from LINUX_DISTRO_SUPPORT.
+
+	The version is matched in the order: full version, major.minor, major.
+	A UCS patchlevel suffix (e.g. `-5` in `5.2-5`) is ignored.
+	Distribution versions which are not listed are considered unsupported.
+
+	Args:
+		distro: The distribution id.
+		version: The distribution version.
+
+	Returns:
+		The support information.
+	"""
+	version_info = LINUX_DISTRO_SUPPORT.get(distro)
+	if not version_info:
+		return NOT_LISTED
+	version = version.split("-", 1)[0]
+	parts = version.split(".")
+	for candidate in (version, ".".join(parts[:2]), parts[0]):
+		if info := version_info.get(candidate):
+			return info
+	return NOT_LISTED
+
+
+def get_system_openssl_version() -> str | None:
+	"""Get the version of the system OpenSSL library using the `openssl` command.
+
+	Returns:
+		The OpenSSL version or None if it could not be determined.
+	"""
+	try:
+		output = run_command(["openssl", "version"], timeout=5).get_stdout_text().strip()
+	except ProcessError as err:
+		logger.info("Failed to get system OpenSSL version: %s", err)
+		return None
+	# Example output: OpenSSL 3.5.2 5 Aug 2025 (Library: OpenSSL 3.5.2 5 Aug 2025)
+	# Prefer the library version, which can differ from the version of the command line tool.
+	match = re.search(r"Library: OpenSSL (\S+)", output) or re.search(r"^OpenSSL (\S+)", output)
+	return match.group(1) if match else None
+
+
 def get_matching_version_info(version_info: dict[str, Any] | None, version: str | None) -> Any:
 	if not version_info or not version:
 		return None
@@ -266,16 +463,7 @@ class SystemEOLCheck(Check):
 			check_status=CheckStatus.OK,
 			message="All systems are up to date.",
 		)
-		if is_ucs():
-			distro = "UCS"
-			version = (
-				run_command(["ucr", "get", "version/version"], timeout=10).get_stdout_text().strip()
-				+ "-"
-				+ run_command(["ucr", "get", "version/patchlevel"], timeout=10).get_stdout_text().strip()
-			)
-		else:
-			distro = linux_distro_id()
-			version = linux_distro_version_id()
+		distro, version = get_linux_distro_and_version()
 		if distro in ("rocky", "ol"):
 			version = version.split(".")[0]
 		if version_info := LINUX_DISTRO_EOL.get(distro):
@@ -302,6 +490,61 @@ class SystemEOLCheck(Check):
 			result.message = f"Linux distribution {distro} is not supported."
 			result.upgrade_issue = __version__
 
+		return result
+
+
+@dataclass()
+class SystemSupportCheck(Check):
+	"""Check whether the Linux distribution version is supported by OPSI."""
+
+	id: str = "linux_distro_support"
+	name: str = "Operating System Support"
+	description: str = "Check whether the operating system is supported by OPSI."
+	documentation: str = f"""
+		## {name} [{id}]
+
+		Checks whether the server's Linux distribution version is supported by OPSI.
+		A distribution version can be deprecated or unsupported, for example because it
+		ships an outdated OpenSSL version (1.x) which no longer receives security updates.
+
+		For a deprecated distribution version, the check issues a warning which includes
+		the opsi version as of which the distribution version will no longer be supported.
+		For an unsupported distribution version, the check issues an error.
+		Distribution versions which are not explicitly listed as supported are considered unsupported.
+	"""
+	depot_check: bool = True
+
+	def _check(self) -> CheckResult:
+		distro, version = get_linux_distro_and_version()
+		support_info = get_distro_support_info(distro, version)
+		result = CheckResult(
+			check=self,
+			check_status=CheckStatus.OK,
+			message=f"Version {version} of distribution {distro} is supported.",
+			details={
+				"distribution": distro,
+				"version": version,
+				"support_status": support_info.status.value,
+				"reason": support_info.reason or None,
+				"unsupported_from": support_info.unsupported_from,
+				"system_openssl_version": get_system_openssl_version(),
+			},
+		)
+		if support_info.status == DistroSupportStatus.SUPPORTED:
+			return result
+
+		if support_info.status == DistroSupportStatus.DEPRECATED:
+			result.check_status = CheckStatus.WARNING
+			result.message = f"Version {version} of distribution {distro} is deprecated"
+			if support_info.unsupported_from:
+				result.message += f" and will no longer be supported as of opsiconfd {support_info.unsupported_from}"
+				result.upgrade_issue = support_info.unsupported_from
+			result.message += f". Reason: {support_info.reason}"
+			return result
+
+		result.check_status = CheckStatus.ERROR
+		result.message = f"Version {version} of distribution {distro} is not supported. Reason: {support_info.reason}"
+		result.upgrade_issue = __version__
 		return result
 
 
@@ -557,7 +800,8 @@ class SystemRepositoriesCheck(Check):
 
 
 system_eol_check = SystemEOLCheck()
+system_support_check = SystemSupportCheck()
 disk_usage_check = DiskUsageCheck()
 system_repositories_check = SystemRepositoriesCheck()
 system_packages_check = SystemPackagesCheck()
-check_manager.register(system_eol_check, disk_usage_check, system_repositories_check, system_packages_check)
+check_manager.register(system_eol_check, system_support_check, disk_usage_check, system_repositories_check, system_packages_check)

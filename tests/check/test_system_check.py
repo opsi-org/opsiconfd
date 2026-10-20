@@ -9,19 +9,25 @@ check tests
 
 from unittest import mock
 
+import pytest
 import requests
+from opsi.process import ProcessError
 from rich.console import Console
 
+from opsiconfd import __version__
 from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.check.cli import process_check_result
 from opsiconfd.check.common import CheckStatus, check_manager
 from opsiconfd.check.system import (
 	CHECK_SYSTEM_PACKAGES,
+	OPENSSL_1_UNSUPPORTED_FROM,
 	disk_usage_check,
 	get_repo_versions,
+	get_system_openssl_version,
 	system_eol_check,
 	system_packages_check,
 	system_repositories_check,
+	system_support_check,
 )
 from tests.test_addon_manager import cleanup  # noqa: F401
 from tests.utils import (  # noqa: F401
@@ -498,3 +504,183 @@ def test_check_system_distro_eol() -> None:
 			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
 			assert result.check_status == CheckStatus.ERROR
 			assert result.message == "Support of version 18.04 of distribution ubuntu ended on 2023-04-01."
+
+
+@pytest.mark.parametrize(
+	("version", "check_status", "message"),
+	[
+		("15.7", CheckStatus.OK, "Version 15.7 of distribution sles is supported until 2031-07-31."),
+		("15.6", CheckStatus.ERROR, "Support of version 15.6 of distribution sles ended on 2025-12-31."),
+		("15.4", CheckStatus.ERROR, "Support of version 15.4 of distribution sles ended on 2023-12-31."),
+	],
+)
+def test_check_system_distro_eol_sles(version: str, check_status: CheckStatus, message: str) -> None:
+	check_manager.register(system_eol_check)
+	with (
+		mock.patch("opsiconfd.check.system.is_ucs", return_value=False),
+		mock.patch("opsiconfd.check.system.linux_distro_id", return_value="sles"),
+		mock.patch("opsiconfd.check.system.linux_distro_version_id", return_value=version),
+	):
+		result = check_manager.get("linux_distro_eol").run(clear_cache=True)
+	assert result.check_status == check_status
+	assert result.message == message
+
+
+OPENSSL_VERSION_OUTPUT = "OpenSSL 3.0.17 1 Jul 2025 (Library: OpenSSL 3.0.18 30 Sep 2025)\n"
+NOT_LISTED_REASON = "The distribution version is not in the list of distributions supported by OPSI."
+
+
+def openssl_reason(openssl_version: str) -> str:
+	"""Return the expected reason for a distribution shipping an outdated OpenSSL version."""
+	return f"The distribution ships OpenSSL {openssl_version}, which is end of life and no longer receives security updates."
+
+
+@pytest.mark.parametrize(
+	("distro", "version", "reason", "status"),
+	[
+		("rhel", "8.10", openssl_reason("1.1.1k"), "deprecated"),
+		("almalinux", "8.9", openssl_reason("1.1.1k"), "deprecated"),
+		("rocky", "8.10", openssl_reason("1.1.1k"), "deprecated"),
+		("ol", "8.4", openssl_reason("1.1.1k"), "deprecated"),
+		("sles", "15.4", openssl_reason("1.1.1l"), "deprecated"),
+		("sles", "15.5", openssl_reason("1.1.1l"), "deprecated"),
+		("sles", "15.6", openssl_reason("1.1.1w"), "deprecated"),
+		("opensuse-leap", "15.5", openssl_reason("1.1.1l"), "deprecated"),
+		("opensuse-leap", "15.6", openssl_reason("1.1.1w"), "deprecated"),
+		("debian", "11", openssl_reason("1.1.1"), "unsupported"),
+		("debian", "10", openssl_reason("1.1.1"), "unsupported"),
+		("ubuntu", "20.04", openssl_reason("1.1.1f"), "unsupported"),
+		("rhel", "7.9", openssl_reason("1.0.2k"), "unsupported"),
+		("centos", "8", openssl_reason("1.1.1k"), "unsupported"),
+		("opensuse-leap", "15.4", openssl_reason("1.1.1l"), "unsupported"),
+		("fedora", "42", NOT_LISTED_REASON, "unsupported"),
+		("debian", "14", NOT_LISTED_REASON, "unsupported"),
+		("ubuntu", "23.10", NOT_LISTED_REASON, "unsupported"),
+		("sles", "16.0", NOT_LISTED_REASON, "unsupported"),
+		("debian", "12", None, "supported"),
+		("debian", "13", None, "supported"),
+		("ubuntu", "22.04", None, "supported"),
+		("ubuntu", "24.04", None, "supported"),
+		("rhel", "9.6", None, "supported"),
+		("rhel", "10.0", None, "supported"),
+		("almalinux", "9.6", None, "supported"),
+		("rocky", "10.0", None, "supported"),
+		("ol", "9.4", None, "supported"),
+		("sles", "15.7", None, "supported"),
+		("opensuse-leap", "16.0", None, "supported"),
+	],
+)
+def test_check_system_distro_support(distro: str, version: str, reason: str | None, status: str) -> None:
+	check_manager.register(system_support_check)
+	with (
+		mock.patch("opsiconfd.check.system.is_ucs", return_value=False),
+		mock.patch("opsiconfd.check.system.linux_distro_id", return_value=distro),
+		mock.patch("opsiconfd.check.system.linux_distro_version_id", return_value=version),
+		mock.patch("opsiconfd.check.system.run_command", return_value=MockProcess(stdout=OPENSSL_VERSION_OUTPUT)),
+	):
+		result = check_manager.get("linux_distro_support").run(clear_cache=True)
+
+	assert result.details["distribution"] == distro
+	assert result.details["version"] == version
+	assert result.details["support_status"] == status
+	assert result.details["reason"] == reason
+	assert result.details["system_openssl_version"] == "3.0.18"
+	if status == "deprecated":
+		assert result.check_status == CheckStatus.WARNING
+		assert result.message == (
+			f"Version {version} of distribution {distro} is deprecated and will no longer be supported "
+			f"as of opsiconfd {OPENSSL_1_UNSUPPORTED_FROM}. Reason: {reason}"
+		)
+		assert result.details["unsupported_from"] == OPENSSL_1_UNSUPPORTED_FROM
+		assert result.upgrade_issue == OPENSSL_1_UNSUPPORTED_FROM
+	elif status == "unsupported":
+		assert result.check_status == CheckStatus.ERROR
+		assert result.message == f"Version {version} of distribution {distro} is not supported. Reason: {reason}"
+		assert result.details["unsupported_from"] is None
+		assert result.upgrade_issue == __version__
+	else:
+		assert result.check_status == CheckStatus.OK
+		assert result.message == f"Version {version} of distribution {distro} is supported."
+		assert result.details["unsupported_from"] is None
+		assert result.upgrade_issue is None
+
+
+@pytest.mark.parametrize(
+	("ucs_version", "check_status"),
+	[
+		(("5.0", "9"), CheckStatus.ERROR),
+		(("4.4", "9"), CheckStatus.ERROR),
+		(("5.1", "0"), CheckStatus.ERROR),
+		(("5.2", "5"), CheckStatus.OK),
+	],
+)
+def test_check_system_distro_support_ucs(ucs_version: tuple[str, str], check_status: CheckStatus) -> None:
+	check_manager.register(system_support_check)
+	command_output = {
+		"version/version": ucs_version[0],
+		"version/patchlevel": ucs_version[1],
+	}
+
+	def run_command(command: list[str], **kwargs: object) -> MockProcess:
+		"""Mock ucr and openssl commands."""
+		if command[0] == "ucr":
+			return MockProcess(stdout=command_output[command[2]] + "\n")
+		return MockProcess(stdout=OPENSSL_VERSION_OUTPUT)
+
+	with (
+		mock.patch("opsiconfd.check.system.is_ucs", return_value=True),
+		mock.patch("opsiconfd.check.system.run_command", side_effect=run_command),
+	):
+		result = check_manager.get("linux_distro_support").run(clear_cache=True)
+
+	assert result.check_status == check_status
+	assert result.details["distribution"] == "UCS"
+	assert result.details["version"] == f"{ucs_version[0]}-{ucs_version[1]}"
+
+
+@pytest.mark.parametrize(
+	("check_version", "upgrade_issue_expected"),
+	[
+		("4.3.61", False),
+		("4.3.62", False),
+		(OPENSSL_1_UNSUPPORTED_FROM, True),
+		("4.4", True),
+	],
+)
+def test_check_system_distro_support_upgrade_check(check_version: str, upgrade_issue_expected: bool) -> None:
+	check_manager.register(system_support_check)
+	console = Console(log_time=False, force_terminal=False, width=1000)
+	with (
+		mock.patch("opsiconfd.check.system.is_ucs", return_value=False),
+		mock.patch("opsiconfd.check.system.linux_distro_id", return_value="rhel"),
+		mock.patch("opsiconfd.check.system.linux_distro_version_id", return_value="8.10"),
+		mock.patch("opsiconfd.check.system.run_command", return_value=MockProcess(stdout=OPENSSL_VERSION_OUTPUT)),
+	):
+		result = check_manager.get("linux_distro_support").run(clear_cache=True)
+
+	captured_output = captured_function_output(
+		process_check_result, result=result, console=console, check_version=check_version, detailed=True
+	)
+	if upgrade_issue_expected:
+		assert "1 upgrade issue" in captured_output
+	else:
+		assert "No upgrade issues" in captured_output
+
+
+@pytest.mark.parametrize(
+	("stdout", "expected"),
+	[
+		("OpenSSL 3.5.2 5 Aug 2025 (Library: OpenSSL 3.5.2 5 Aug 2025)\n", "3.5.2"),
+		("OpenSSL 3.0.17 1 Jul 2025 (Library: OpenSSL 3.0.18 30 Sep 2025)\n", "3.0.18"),
+		("OpenSSL 1.1.1k  FIPS 25 Mar 2021\n", "1.1.1k"),
+		("unexpected output\n", None),
+	],
+)
+def test_get_system_openssl_version(stdout: str, expected: str | None) -> None:
+	with mock.patch("opsiconfd.check.system.run_command", return_value=MockProcess(stdout=stdout)):
+		assert get_system_openssl_version() == expected
+
+
+def test_get_system_openssl_version_error() -> None:
+	with mock.patch("opsiconfd.check.system.run_command", side_effect=ProcessError("openssl not found", process=mock.MagicMock())):
+		assert get_system_openssl_version() is None

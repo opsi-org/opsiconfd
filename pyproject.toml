@@ -144,7 +144,11 @@ asyncio_default_fixture_loop_scope = "function"
 markers = [
 	"grafana_is_local: mark test to run only if a local grafana instance is running on the local host",
 ]
-filterwarnings = ["ignore::urllib3.exceptions.InsecureRequestWarning"]
+filterwarnings = [
+	"ignore::urllib3.exceptions.InsecureRequestWarning",
+	# ldap3 (unmaintained) imports deprecated names from pyasn1 >= 0.6.1
+	"ignore:(tagMap|typeMap) is deprecated:DeprecationWarning:ldap3.utils.asn1",
+]
 
 [tool.setuptools.package-data]
 opsiconfd_data = ["*"]

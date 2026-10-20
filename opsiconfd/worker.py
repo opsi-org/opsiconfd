@@ -450,8 +450,8 @@ class Worker(WorkerInfo, UvicornServer):
 				if name.lower() == b"user-agent":
 					info = f"{info} - {val.decode('utf-8', errors='ignore')}"
 					break
-		scope = getattr(connection, "scope", {})
-		method = str(scope.get("method"))
+		scope = getattr(connection, "scope", None) or {}
+		method = scope.get("method") or ""
 		info = f"{info} - {method + ' ' if method else ''}{scope.get('path', '')}"
 		return f"{connection.__class__.__name__}({info})"
 

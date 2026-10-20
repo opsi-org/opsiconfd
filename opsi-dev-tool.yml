@@ -116,6 +116,7 @@ package:
       mkdir -p "${arch_dst}/usr/lib"
       mkdir -p "${arch_dst}/etc/opsi"
       cp -a "${arch_src}" "${arch_dst}/usr/lib/opsiconfd"
+      rm -f "${arch_dst}/usr/lib/opsiconfd/_internal/opsiconfd_data/opsiconfd.service"
       mv "${arch_dst}/usr/lib/opsiconfd/sbom.cyclonedx.json" ${DST}/rootfs/usr/share/doc/opsiconfd/
       cp -a "${arch_src}/_internal/opsiconfd_data/grub.cfg" ${DST}/rootfs/usr/share/opsiconfd/
       cp -a "${arch_src}/_internal/opsiconfd_data/static" ${DST}/rootfs/usr/share/opsiconfd/

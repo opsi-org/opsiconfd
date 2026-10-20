@@ -157,7 +157,6 @@ class RPCConfigStateMixin(Protocol):
 		except Exception as err:
 			logger.error("Failed to write Config ConfigState audit log: %s", err, exc_info=True)
 
-	@rpc_method(check_acl=False)
 	def _configState_getValues(
 		self: BackendProtocol,
 		config_ids: list[str] | str | None = None,

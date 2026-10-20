@@ -313,7 +313,7 @@ def test_license_bundle(backend: UnprotectedBackend) -> None:  # noqa: F811
 		patch("opsiconfd.backend.rpc.general.get_default_opsi_license_pool", mock_get_default_opsi_license_pool),
 		patch("opsi.opsi.licensing._licensing.get_signature_public_key_schema_version_2", lambda: public_key),
 	):
-		today = date.today()  # noqa: DTZ011
+		today = date.today()
 		lic1 = OpsiLicense(
 			id="0ca84826-8f54-4bda-a476-0ee66a6f6dec",
 			type="standard",

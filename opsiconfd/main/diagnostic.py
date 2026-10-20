@@ -46,7 +46,7 @@ def diagnostic_data_main() -> None:
 	console = Console(quiet=config.quiet)
 
 	def data_filename() -> str:
-		now = datetime.now().strftime("%Y%m%d-%H%M%S")  # noqa: DTZ005
+		now = datetime.now().strftime("%Y%m%d-%H%M%S")
 		return f"opsiconfd-diagnostic-data-{now}.json.lz4"
 
 	try:

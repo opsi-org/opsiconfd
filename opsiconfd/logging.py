@@ -443,6 +443,10 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):
 	def name(self) -> str:
 		return self._name
 
+	@name.setter
+	def name(self, value: str | None) -> None:
+		self._name = str(value or "")
+
 	def run(self) -> None:
 		try:
 			# Trim redis log stream to max size

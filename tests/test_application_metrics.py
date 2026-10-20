@@ -9,7 +9,7 @@ test application.metrics
 
 import asyncio
 import datetime
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC
 from typing import Any
@@ -48,7 +48,7 @@ def _grafana_response(status: int, json_data: Any = None, text: str = "") -> Mag
 
 
 @asynccontextmanager
-async def _grafana_admin_session(session: MagicMock) -> AsyncIterator[tuple[str, MagicMock]]:
+async def _grafana_admin_session(session: MagicMock) -> AsyncGenerator[tuple[str, MagicMock]]:
 	"""Yield a mocked Grafana administrator session."""
 	yield "http://grafana", session
 

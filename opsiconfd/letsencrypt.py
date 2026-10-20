@@ -153,7 +153,7 @@ def _perform_http01(acme_client: client.ClientV2, challenge_body: messages.Chall
 		# Let the CA server know that we are ready for the challenge.
 		acme_client.answer_challenge(challenge_body, response)
 		# Wait for challenge status and then issue a certificate.
-		deadline = datetime.now() + timedelta(seconds=CHALLENGE_TIMEOUT_SECONDS)  # noqa: DTZ005
+		deadline = datetime.now() + timedelta(seconds=CHALLENGE_TIMEOUT_SECONDS)
 		finalized_orderr = acme_client.poll_and_finalize(order_resource, deadline=deadline)
 
 	return finalized_orderr.fullchain_pem

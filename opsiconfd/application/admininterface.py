@@ -915,7 +915,7 @@ def get_licensing_info() -> RESTResponse:
 
 	for at_date, date_info in info.get("dates", {}).items():
 		at_date = datetime.date.fromisoformat(at_date)
-		if (at_date <= datetime.date.today()) and (not active_date or at_date > active_date):  # noqa: DTZ011
+		if (at_date <= datetime.date.today()) and (not active_date or at_date > active_date):
 			active_date = at_date
 
 		for module_id in module_ids:

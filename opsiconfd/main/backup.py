@@ -37,7 +37,7 @@ def backup_main() -> None:
 	backup_file = None
 
 	def backup_filename() -> str:
-		now = datetime.now().strftime("%Y%m%d-%H%M%S")  # noqa: DTZ005
+		now = datetime.now().strftime("%Y%m%d-%H%M%S")
 		return f"opsiconfd-backup-{now}.msgpack.lz4{'.aes' if config.password else ''}"
 
 	try:

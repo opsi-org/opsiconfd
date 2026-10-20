@@ -75,7 +75,7 @@ class RPCExtOpsiMixin(Protocol):
 	def getServiceTime(self: BackendProtocol, utctime: bool = False) -> str:
 		if utctime:
 			return str(datetime.datetime.now(tz=datetime.UTC))
-		return str(datetime.datetime.now())  # noqa: DTZ005
+		return str(datetime.datetime.now())
 
 	@rpc_method(deprecated=True, alternative_method="auditSoftwareOnClient_getObjects", check_acl=False)
 	def getSoftwareAuditDataCount(self: BackendProtocol) -> int:

@@ -203,7 +203,7 @@ class RPCGeneralMixin(Protocol):
 		file_compression = "lz4"
 		backup_file = None
 		if return_type in ("file_id", "backup_dir"):
-			now = datetime.now().strftime("%Y%m%d-%H%M%S")  # noqa: DTZ005
+			now = datetime.now().strftime("%Y%m%d-%H%M%S")
 			filename = f"opsiconfd-backup-{now}.{file_encoding}.{file_compression}{'.aes' if password else ''}"
 			if return_type == "file_id":
 				file_meta = prepare_file(filename=filename, content_type="binary/octet-stream")

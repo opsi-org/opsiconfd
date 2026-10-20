@@ -280,7 +280,7 @@ class SystemEOLCheck(Check):
 			version = version.split(".")[0]
 		if version_info := LINUX_DISTRO_EOL.get(distro):
 			if eol := get_matching_version_info(version_info, version):
-				today = date.today()  # noqa: DTZ011
+				today = date.today()
 				diff = (today - eol).days
 				if diff < -90:
 					result.check_status = CheckStatus.OK

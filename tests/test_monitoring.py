@@ -37,7 +37,7 @@ from .utils import backend, clean_mysql, default_acl, get_config  # noqa: F401
 
 CLIENT_ID = "monitoring-test1.opsi.test"
 OTHER_CLIENT_ID = "monitoring-test2.opsi.test"
-PREFIX = "[opsi]"
+PREFIX = "[OPSI]"
 
 
 # --- MonitoringConfig ---

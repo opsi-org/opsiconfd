@@ -118,14 +118,14 @@ class CustomSerializeProductOnClient(ProductOnClient):
 
 def _get_serialize_test_objects() -> list[Any]:
 	client = OpsiClient(id="client1.opsi.test", description="test")
-	client.created = datetime(2026, 1, 2, 3, 4, 5)  # type: ignore[assignment]
-	client.lastSeen = date(2026, 1, 2)  # type: ignore[assignment]
+	client.created = datetime(2026, 1, 2, 3, 4, 5)  # ty: ignore[invalid-assignment]
+	client.lastSeen = date(2026, 1, 2)  # ty: ignore[invalid-assignment]
 	poc = ProductOnClient(
 		productId="product1", productType="LocalbootProduct", clientId="client1.opsi.test", modificationTime="2026-01-01 00:00:00"
 	)
 	poc_int_ident = ProductOnClient(productId="product2", productType="LocalbootProduct", clientId="client1.opsi.test")
-	poc_int_ident.productId = 1  # type: ignore[assignment]
-	poc_int_ident.clientId = None  # type: ignore[assignment]
+	poc_int_ident.productId = 1  # ty: ignore[invalid-assignment]
+	poc_int_ident.clientId = None  # ty: ignore[invalid-assignment]
 	poc_generated_default = ProductOnClient(productId="product3", productType="LocalbootProduct", clientId="client1.opsi.test")
 	poc_generated_default.setGeneratedDefault(True)
 	return [

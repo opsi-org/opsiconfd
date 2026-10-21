@@ -195,11 +195,11 @@ def common_parameters(
 
 
 def common_query_parameters(
-	filterQuery: str | None = Query(default=None, embed=True),
-	pageNumber: int | None = Query(default=1, embed=True),
-	perPage: int | None = Query(default=20, embed=True),
-	sortBy: list[str] | None = Query(default=None, embed=True),
-	sortDesc: bool = Query(default=True, embed=True),
+	filterQuery: str | None = Query(default=None),
+	pageNumber: int | None = Query(default=1),
+	perPage: int | None = Query(default=20),
+	sortBy: list[str] | None = Query(default=None),
+	sortDesc: bool = Query(default=True),
 ) -> dict[str, Any]:
 	return {"filterQuery": filterQuery, "pageNumber": pageNumber, "perPage": perPage, "sortBy": parse_list(sortBy), "sortDesc": sortDesc}
 

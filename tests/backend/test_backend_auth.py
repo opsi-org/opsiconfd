@@ -11,8 +11,10 @@ from pathlib import Path
 
 import pytest
 
+from opsiconfd import contextvar_client_session
 from opsiconfd.backend.auth import read_acl_file
 from opsiconfd.backend.rpc.main import ProtectedBackend
+from opsiconfd.session import OPSISession
 from tests.utils import get_config
 
 
@@ -159,6 +161,37 @@ def test_read_acl_file(tmp_path: Path) -> None:
 
 	finally:
 		# Restore original ACL
+		protected_backend._read_acl_file()
+
+
+def test_get_ace_self_does_not_modify_shared_ace(tmp_path: Path) -> None:
+	acl_file = tmp_path / "acl.conf"
+	acl_file.write_text(data="host_getObjects : self\n", encoding="utf-8")
+	protected_backend = ProtectedBackend()
+	contextvar_client_session_org = contextvar_client_session.get()
+	try:
+		with get_config({"acl_file": str(acl_file)}):
+			protected_backend._read_acl_file()
+			shared_ace = protected_backend._acl["host_getObjects"][0]
+			assert shared_ace.type == "self"
+			assert shared_ace.id is None
+
+			for client_id in ("client1.opsi.test", "client2.opsi.test"):
+				session = OPSISession("127.0.0.1")
+				session.authenticated = True
+				session.username = client_id
+				session.host_id = client_id
+				session.host_type = "OpsiClient"
+				contextvar_client_session.set(session)
+
+				ace_list = protected_backend._get_ace("host_getObjects")
+				assert len(ace_list) == 1
+				assert ace_list[0].type == "self"
+				assert ace_list[0].id == client_id
+				assert ace_list[0] is not shared_ace
+				assert shared_ace.id is None
+	finally:
+		contextvar_client_session.set(contextvar_client_session_org)
 		protected_backend._read_acl_file()
 
 

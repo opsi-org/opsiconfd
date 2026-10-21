@@ -18,6 +18,7 @@ from unittest.mock import patch
 
 import pytest
 from opsi.opsi.service.model.object import OpsiClient
+from sqlalchemy.event import listen
 
 from opsiconfd.backend.auth import RPCACE
 from opsiconfd.backend.mysql import MySQLConnection
@@ -339,6 +340,30 @@ def test_connect() -> None:
 	con = MySQLConnection()
 	with con.connection(), con.session() as session:
 		assert session.execute("SELECT 999").fetchone()[0] == 999
+
+
+def test_session_variables() -> None:
+	con = MySQLConnection()
+	with con.connection():
+		executed_statements: list[str] = []
+
+		def before_cursor_execute(conn: Any, cursor: Any, statement: str, *args: Any) -> None:
+			executed_statements.append(statement)
+
+		listen(con._engine, "before_cursor_execute", before_cursor_execute)
+		for _ in range(3):
+			# Session variables must be set on every connection, but only once per DBAPI connection
+			with con.session() as session:
+				row = session.execute(
+					"SELECT @@SESSION.sql_mode, @@SESSION.group_concat_max_len, @@SESSION.lock_wait_timeout, @@SESSION.time_zone"
+				).fetchone()
+				sql_mode, group_concat_max_len, lock_wait_timeout, time_zone = row
+				for mode in ("ONLY_FULL_GROUP_BY", "NO_ZERO_IN_DATE", "NO_ZERO_DATE", "STRICT_TRANS_TABLES"):
+					assert mode not in sql_mode.split(",")
+				assert group_concat_max_len == 1000000
+				assert lock_wait_timeout == 60
+				assert time_zone == "+00:00"
+		assert not any(statement.lstrip().upper().startswith("SET") for statement in executed_statements)
 
 
 def test_big_query() -> None:

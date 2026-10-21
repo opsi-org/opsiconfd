@@ -36,7 +36,6 @@ from opsi.opsi.service.model.object import (
 )
 from opsi.util.version import compare_versions
 from sqlalchemy import create_engine
-from sqlalchemy.engine.base import Connection
 from sqlalchemy.engine.result import Result
 from sqlalchemy.engine.row import Row
 from sqlalchemy.event import listen
@@ -387,32 +386,38 @@ class MySQLConnection:
 		self._session_factory = sessionmaker(bind=self._engine, class_=MySQLSession, autocommit=False, autoflush=False)
 		self._Session = scoped_session(self._session_factory)
 
-		listen(self._engine, "engine_connect", self._on_engine_connect)
+		# Use the pool connect event, which is called once per new DBAPI connection.
+		# The engine_connect event is called on every connection checkout, causing additional round trips.
+		listen(self._engine, "connect", self._on_dbapi_connect)
 
 	@staticmethod
-	def _on_engine_connect(conn: Connection, branch: Connection | None) -> None:
-		conn.execute(
-			"""
-			SET SESSION sql_mode=(SELECT
-				REPLACE(
+	def _on_dbapi_connect(dbapi_connection: Any, connection_record: Any) -> None:
+		cursor = dbapi_connection.cursor()
+		try:
+			cursor.execute(
+				"""
+				SET SESSION sql_mode=(SELECT
 					REPLACE(
 						REPLACE(
-							REPLACE(@@sql_mode,
-								'ONLY_FULL_GROUP_BY', ''
+							REPLACE(
+								REPLACE(@@sql_mode,
+									'ONLY_FULL_GROUP_BY', ''
+								),
+								'NO_ZERO_IN_DATE', ''
 							),
-							'NO_ZERO_IN_DATE', ''
+							'NO_ZERO_DATE', ''
 						),
-						'NO_ZERO_DATE', ''
-					),
-					'STRICT_TRANS_TABLES', ''
-				)
-			);
-			SET SESSION group_concat_max_len = 1000000;
-			SET SESSION lock_wait_timeout = 60;
-			SET SESSION time_zone = '+00:00'
-			/*M!110602 , innodb_snapshot_isolation = OFF */;
-		"""
-		)
+						'STRICT_TRANS_TABLES', ''
+					)
+				),
+				group_concat_max_len = 1000000,
+				lock_wait_timeout = 60,
+				time_zone = '+00:00'
+				/*M!110602 , innodb_snapshot_isolation = OFF */
+				"""
+			)
+		finally:
+			cursor.close()
 
 	def _init_connection(self) -> None:
 		password = self.password

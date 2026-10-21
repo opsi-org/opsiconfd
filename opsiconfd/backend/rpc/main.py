@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 from contextlib import contextmanager
+from dataclasses import replace
 from functools import lru_cache
 from inspect import getmembers, ismethod
 from types import MethodType
@@ -460,9 +461,8 @@ class ProtectedBackend(Backend):
 				elif ace.type == "sys_group" and (not ace.id or ace.id in session.user_groups):
 					ace_list.append(ace)
 			elif ace.type == "self" and user_type in ("client", "depot"):
-				kwargs = ace.__dict__
-				kwargs["id"] = session.username
-				ace_list.append(RPCACE(**kwargs))
+				# Create a copy, the ACE is shared between concurrent requests and must not be modified
+				ace_list.append(replace(ace, id=session.username))
 			elif user_type == "client" and ace.type == "opsi_client" or user_type == "depot" and ace.type == "opsi_depotserver":  # noqa: SIM102
 				if not ace.id or ace.id == session.username:
 					ace_list.append(ace)

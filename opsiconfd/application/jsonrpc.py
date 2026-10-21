@@ -15,12 +15,13 @@ import time
 import traceback
 import urllib.parse
 import warnings
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from inspect import iscoroutinefunction
 from os import makedirs
 from queue import Empty, Queue
+from types import GeneratorType
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import msgspec
@@ -36,7 +37,8 @@ from opsi.opsi.messagebus import (
 	Message,
 )
 from opsi.opsi.service.client import Messagebus, MessagebusListener
-from opsi.opsi.service.model.object import deserialize, serialize
+from opsi.opsi.service.model.object import BaseObject, Relationship, deserialize, get_ident_attributes
+from opsi.opsi.service.model.type import to_string
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_session, server_timing
@@ -51,11 +53,20 @@ from opsiconfd.utils import asyncio_create_task
 from opsiconfd.worker import Worker
 
 if TYPE_CHECKING:
+	from opsiconfd.backend.rpc import MethodInterface
 	from opsiconfd.backend.rpc.main import ProtectedBackend, UnprotectedBackend
 
 
 COMPRESS_MIN_SIZE = 10000
 AWAIT_STORE_RPC_INFO = False
+# Request bodies up to this size are decompressed and deserialized directly in the event loop.
+# Compressed bodies are limited to a quarter of this size because of the decompressed size.
+INLINE_MAX_REQUEST_SIZE = 16_000
+# Responses up to these limits are serialized directly in the event loop (see is_small_data).
+SMALL_DATA_MAX_ITEMS = 1000
+SMALL_DATA_MAX_STR_LEN = 64_000
+# lz4 is fast enough to compress data up to this size directly in the event loop.
+LZ4_INLINE_MAX_SIZE = 256_000
 
 jsonrpc_router = APIRouter()
 jsonrpc_message_reader = None
@@ -208,6 +219,70 @@ def jsonrpc_request_from_data(data: bytes, serialization: str, client: str = "")
 	return [jsonrpc_request_from_dict(dat, client)]
 
 
+def decode_request(
+	data: bytes, compression: Literal["lz4", "deflate", "gzip"] | None, serialization: str, client: str = ""
+) -> list[JSONRPCRequest | JSONRPC20Request]:
+	"""
+	Decompress and deserialize request data.
+
+	Args:
+		data: The request data.
+		compression: The compression of the request data or None if not compressed.
+		serialization: The serialization of the request data.
+		client: The client that sent the request.
+
+	Returns:
+		The list of JSON-RPC requests.
+	"""
+	if compression:
+		with server_timing("decompression"):
+			data = decompress(data, compression)
+	with server_timing("deserialization"):
+		return jsonrpc_request_from_data(data, serialization, client)
+
+
+def is_small_data(data: Any) -> bool:
+	"""
+	Check if data is small enough to be serialized directly in the event loop.
+
+	The check is aborted as soon as a limit is exceeded, so it is cheap for large data too.
+
+	Args:
+		data: The data to check.
+
+	Returns:
+		True if the data contains at most SMALL_DATA_MAX_ITEMS container items and
+		SMALL_DATA_MAX_STR_LEN characters / bytes in total, False otherwise.
+		Data containing values of other types (objects, dataclasses, ...) is never considered small.
+	"""
+	stack = [data]
+	num_items = 0
+	str_len = 0
+	while stack:
+		item = stack.pop()
+		if item is None or isinstance(item, (bool, int, float)):
+			continue
+		if isinstance(item, (str, bytes)):
+			str_len += len(item)
+			if str_len > SMALL_DATA_MAX_STR_LEN:
+				return False
+			continue
+		if isinstance(item, dict):
+			num_items += len(item)
+			if num_items > SMALL_DATA_MAX_ITEMS:
+				return False
+			stack.extend(item.values())
+			continue
+		if isinstance(item, (list, tuple)):
+			num_items += len(item)
+			if num_items > SMALL_DATA_MAX_ITEMS:
+				return False
+			stack.extend(item)
+			continue
+		return False
+	return True
+
+
 def deserialize_data(data: bytes, serialization: str) -> Any:
 	if serialization == "msgpack":
 		return msgpack_decoder.decode(data)
@@ -246,13 +321,45 @@ async def store_deprecated_call(method_name: str, client: str) -> None:
 		await pipe.execute()
 
 
+# msgpack encoded key "rpc_num" and the encoded placeholder value 0
+RPC_NUM_KEY = msgspec.msgpack.encode("rpc_num")
+RPC_NUM_PLACEHOLDER = RPC_NUM_KEY + msgspec.msgpack.encode(0)
+# KEYS[1]: RPC counter, KEYS[2]: RPC info list
+# ARGV[1]: msgpack encoded RPC info up to the rpc_num value, ARGV[2]: rest of the encoded RPC info, ARGV[3]: LTRIM end
+# The incremented counter is msgpack encoded as unsigned int with the smallest possible size.
+STORE_RPC_INFO_LUA_SCRIPT = """
+local num = redis.call("INCR", KEYS[1])
+local encoded
+if num < 128 then
+	encoded = string.char(num)
+else
+	local prefix, size
+	if num < 256 then
+		prefix, size = 204, 1
+	elseif num < 65536 then
+		prefix, size = 205, 2
+	elseif num < 4294967296 then
+		prefix, size = 206, 4
+	else
+		prefix, size = 207, 8
+	end
+	local bytes = ""
+	for i = 1, size do
+		bytes = string.char(num % 256) .. bytes
+		num = math.floor(num / 256)
+	end
+	encoded = string.char(prefix) .. bytes
+end
+redis.call("LPUSH", KEYS[2], ARGV[1] .. encoded .. ARGV[2])
+redis.call("LTRIM", KEYS[2], 0, tonumber(ARGV[3]))
+"""
+
+
 async def store_rpc_info(
 	request: JSONRPC20Request | JSONRPCRequest,
 	response: JSONRPC20Response | JSONRPC20ErrorResponse | JSONRPCResponse | JSONRPCErrorResponse,
 ) -> None:
 	worker = Worker.get_instance()
-	redis = await async_redis_client()
-	rpc_num = await redis.incr(f"{config.redis_key('stats')}:num_rpcs")
 
 	num_params = 0
 	if request.params:
@@ -269,7 +376,8 @@ async def store_rpc_info(
 			await worker.metrics_collector.add_value("worker:avg_jsonrpc_duration", request.info.duration)
 
 	data = {
-		"rpc_num": rpc_num,
+		# Placeholder, replaced by the incremented counter in the lua script, must be the first key
+		"rpc_num": 0,
 		"method": request.method,
 		"deprecated": request.info.deprecated,
 		"num_params": num_params,
@@ -292,21 +400,148 @@ async def store_rpc_info(
 
 	max_rpcs = 9999
 	redis_prefix_stats = config.redis_key("stats")
-	async with redis.pipeline() as pipe:
-		pipe.lpush(
-			f"{redis_prefix_stats}:rpcs",
-			msgspec.msgpack.encode(data),
-		)
-		pipe.ltrim(f"{redis_prefix_stats}:rpcs", 0, max_rpcs - 1)
-		await pipe.execute()
+	# Split the encoded data at the rpc_num placeholder value
+	data_head, data_tail = msgspec.msgpack.encode(data).split(RPC_NUM_PLACEHOLDER, 1)
+	redis = await async_redis_client()
+	# Increment the RPC counter and store the RPC info in one round trip
+	await redis.eval(
+		STORE_RPC_INFO_LUA_SCRIPT,
+		2,
+		f"{redis_prefix_stats}:num_rpcs",
+		f"{redis_prefix_stats}:rpcs",
+		data_head + RPC_NUM_KEY,
+		data_tail,
+		max_rpcs - 1,
+	)
 
 	if request.info.deprecated:
 		await store_deprecated_call(request.method, request.info.client)
 
 
+def deserialize_params(
+	params: list[Any] | tuple[Any, ...] | dict[str, Any], method_interface: MethodInterface
+) -> tuple[list[Any] | tuple[Any, ...], dict[str, Any]]:
+	"""
+	Split JSON-RPC params into positional and keyword arguments and deserialize them.
+
+	Args:
+		params: The JSON-RPC params.
+		method_interface: The interface of the method to call.
+
+	Returns:
+		A tuple of positional and keyword arguments.
+
+	Raises:
+		TypeError: If the keyword arguments param is not a dict.
+	"""
+	if isinstance(params, dict):
+		return [], deserialize(params)
+
+	keywords = {}
+	if method_interface.keywords:
+		parameter_count = 0
+		if method_interface.args:
+			parameter_count += len(method_interface.args)
+		if method_interface.varargs:
+			parameter_count += len(method_interface.varargs)
+
+		if len(params) >= parameter_count:
+			# params needs to be a copy, leave rpc.params unchanged
+			kwargs = params[-1]
+			params = params[:-1]
+			if not isinstance(kwargs, dict):
+				raise TypeError(f"kwargs param is not a dict: {type(kwargs)}")
+			keywords = {str(key): deserialize(value) for key, value in kwargs.items()}
+	return deserialize(params), keywords
+
+
+_fast_serializable_classes: dict[type, bool] = {}
+
+
+def _is_fast_serializable(cls: type[BaseObject]) -> bool:
+	try:
+		return _fast_serializable_classes[cls]
+	except KeyError:
+		pass
+	fast = (
+		cls.serialize in (BaseObject.serialize, Relationship.serialize)
+		and cls.to_dict is BaseObject.to_dict
+		and cls.getType is BaseObject.getType
+		and cls.getIdent is BaseObject.getIdent
+		and cls.getIdentAttributes is BaseObject.getIdentAttributes
+	)
+	_fast_serializable_classes[cls] = fast
+	return fast
+
+
+def _serialize_object(obj: BaseObject) -> dict[str, Any]:
+	cls = obj.__class__
+	if not _is_fast_serializable(cls):
+		return obj.serialize()
+
+	# Same result as BaseObject.serialize() but significantly faster
+	data = dict(obj.__dict__)
+	data["type"] = cls.__name__
+	for key, val in data.items():
+		if isinstance(val, date):
+			data[key] = val.isoformat()
+
+	ident_values = []
+	for attr in get_ident_attributes(cls):
+		val = getattr(obj, attr, None)
+		if val is None:
+			val = ""
+		elif type(val) is not str:
+			val = to_string(val)
+		ident_values.append(val)
+	data["ident"] = cls.ident_separator.join(ident_values)
+	return data
+
+
+def serialize_result(obj: Any) -> Any:
+	"""
+	Serialize the result of a backend method.
+
+	Returns the same result as `opsi.opsi.service.model.object.serialize(obj)`,
+	but uses a faster serialization for opsi objects.
+
+	Args:
+		obj: The result to serialize.
+
+	Returns:
+		The serialized result.
+	"""
+	if isinstance(obj, (list, set, GeneratorType)):
+		return [serialize_result(o) for o in obj]
+	if isinstance(obj, BaseObject):
+		return _serialize_object(obj)
+	return obj
+
+
+def execute_sync_method(method: Callable, params: list[Any] | tuple[Any, ...] | dict[str, Any], method_interface: MethodInterface) -> Any:
+	"""
+	Deserialize params, execute a synchronous backend method and serialize the result.
+
+	All steps are executed in the calling thread, to need only one thread pool call per RPC.
+
+	Args:
+		method: The backend method to execute.
+		params: The JSON-RPC params.
+		method_interface: The interface of the method.
+
+	Returns:
+		The serialized result.
+	"""
+	with server_timing("deserialize_objects"):
+		args, keywords = deserialize_params(params, method_interface)
+	with server_timing("method_execution"):
+		result = method(*args, **keywords)
+	with server_timing("serialize_objects"):
+		return serialize_result(result)
+
+
 async def execute_rpc(request: JSONRPC20Request | JSONRPCRequest, backend: UnprotectedBackend | ProtectedBackend) -> Any:
 	method_name = request.method
-	params = request.params
 
 	method_interface = backend.get_method_interface(method_name)
 	if not method_interface:
@@ -317,37 +552,16 @@ async def execute_rpc(request: JSONRPC20Request | JSONRPCRequest, backend: Unpro
 		warnings.warn(f"Client {request.info.client} is calling deprecated method {method_name!r}", DeprecationWarning)
 		request.info.deprecated = True
 
-	with server_timing("deserialize_objects"):
-		keywords = {}
-		if isinstance(params, dict):
-			keywords = await run_in_threadpool(deserialize, params)
-			params = []
-		else:
-			if method_interface.keywords:
-				parameter_count = 0
-				if method_interface.args:
-					parameter_count += len(method_interface.args)
-				if method_interface.varargs:
-					parameter_count += len(method_interface.varargs)
-
-				if len(params) >= parameter_count:
-					# params needs to be a copy, leave rpc.params unchanged
-					kwargs = params[-1]
-					params = params[:-1]
-					if not isinstance(kwargs, dict):
-						raise TypeError(f"kwargs param is not a dict: {type(kwargs)}")
-					keywords = {str(key): await run_in_threadpool(deserialize, value) for key, value in kwargs.items()}
-			params = await run_in_threadpool(deserialize, params)
-
 	method = getattr(backend, method_name)
-	with server_timing("method_execution"):
-		if iscoroutinefunction(method):
-			result = await method(*params, **keywords)
-		else:
-			result = await run_in_threadpool(method, *params, **keywords)
+	if not iscoroutinefunction(method):
+		return await run_in_threadpool(execute_sync_method, method, request.params, method_interface)
 
+	with server_timing("deserialize_objects"):
+		args, keywords = await run_in_threadpool(deserialize_params, request.params, method_interface)
+	with server_timing("method_execution"):
+		result = await method(*args, **keywords)
 	with server_timing("serialize_objects"):
-		return await run_in_threadpool(serialize, result)
+		return await run_in_threadpool(serialize_result, result)
 
 
 def write_debug_log(
@@ -502,17 +716,18 @@ async def process_request(request: Request, response: Response) -> Response:
 		request_data = await request.body()
 		if not isinstance(request_data, bytes):
 			raise TypeError("Request data must be bytes")
-		if request_data:
-			if request_compression:
-				with server_timing("decompression"):
-					request_data = await run_in_threadpool(decompress, request_data, request_compression)
-		else:
+		if not request_data:
 			request_data = urllib.parse.unquote(request.url.query).encode("utf-8")
+			request_compression = None
 		if not request_data:
 			raise ValueError("Request data empty")
 
-		with server_timing("deserialization"):
-			requests = await run_in_threadpool(jsonrpc_request_from_data, request_data, request_serialization, client)
+		inline_max_size = INLINE_MAX_REQUEST_SIZE // 4 if request_compression else INLINE_MAX_REQUEST_SIZE
+		if len(request_data) <= inline_max_size:
+			# Avoid thread pool overhead for small requests
+			requests = decode_request(request_data, request_compression, request_serialization, client)
+		else:
+			requests = await run_in_threadpool(decode_request, request_data, request_compression, request_serialization, client)
 		logger.trace("rpcs: %s", requests)
 
 		backend = get_protected_backend()
@@ -531,8 +746,13 @@ async def process_request(request: Request, response: Response) -> Response:
 	response.headers["content-type"] = f"application/{response_serialization}"
 	response.headers["accept"] = "application/msgpack,application/json"
 	response.headers["accept-encoding"] = "lz4,gzip"
+	response_data = results[0] if len(results) == 1 else results
 	with server_timing("serialization"):
-		data = await run_in_threadpool(serialize_data, results[0] if len(results) == 1 else results, response_serialization)
+		if is_small_data([getattr(res, "result", None) for res in results]):
+			# Avoid thread pool overhead for small responses
+			data = serialize_data(response_data, response_serialization)
+		else:
+			data = await run_in_threadpool(serialize_data, response_data, response_serialization)
 
 	data_len = len(data)
 	if response_compression and data_len > COMPRESS_MIN_SIZE:
@@ -542,7 +762,10 @@ async def process_request(request: Request, response: Response) -> Response:
 			# lz4-java - RuntimeException: Dependent block stream is unsupported (BLOCK_INDEPENDENCE must be set).
 			block_linked = False
 		with server_timing("compression"):
-			data = await run_in_threadpool(compress, data, response_compression, block_linked=block_linked)
+			if response_compression == "lz4" and data_len <= LZ4_INLINE_MAX_SIZE:
+				data = compress(data, response_compression, block_linked=block_linked)
+			else:
+				data = await run_in_threadpool(compress, data, response_compression, block_linked=block_linked)
 
 	content_length = len(data)
 	response.headers["content-length"] = str(content_length)

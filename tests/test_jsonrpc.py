@@ -9,16 +9,34 @@ jsonrpc tests
 
 import json
 import shutil
+from datetime import date, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from unittest.mock import patch
 
 import msgpack
+import msgspec
 import pytest
 from opsi.compression import compress, decompress
-from opsi.opsi.service.model.object import OpsiClient
+from opsi.opsi.service.model.object import ConfigState, LocalbootProduct, OpsiClient, ProductOnClient, serialize
 
-from opsiconfd.application.jsonrpc import deserialize_data, serialize_data
+from opsiconfd.application.jsonrpc import (
+	SMALL_DATA_MAX_ITEMS,
+	SMALL_DATA_MAX_STR_LEN,
+	JSONRPC20Error,
+	JSONRPC20ErrorResponse,
+	JSONRPC20Request,
+	JSONRPCRequest,
+	JSONRPCResponse,
+	RequestInfo,
+	deserialize_data,
+	deserialize_params,
+	is_small_data,
+	serialize_data,
+	serialize_result,
+	store_rpc_info,
+)
+from opsiconfd.backend.rpc import get_method_interface
 from opsiconfd.redis import redis_client
 
 from .utils import (  # noqa: F401
@@ -41,6 +59,106 @@ TESTFILE = TESTDIR / "testfile"
 TESTPACKAGE_NAME = "localboot_legacy"
 TESTPACKAGE = Path(f"tests/data/jsonrpc/{TESTPACKAGE_NAME}_42.0-1337.opsi")
 CONTROLFILE = Path("tests/data/jsonrpc/control")
+
+
+def _get_objects(self: object, attributes: list[str] | None = None, **filter: Any) -> None:
+	pass
+
+
+def test_deserialize_params() -> None:
+	method_interface = get_method_interface(_get_objects)
+	client = OpsiClient(id="client1.opsi.test")
+
+	# Positional params with keyword arguments dict as last param
+	params = [["id"], {"id": "client1.opsi.test", "host": client.to_hash()}]
+	args, keywords = deserialize_params(params, method_interface)
+	assert args == [["id"]]
+	assert keywords["id"] == "client1.opsi.test"
+	assert isinstance(keywords["host"], OpsiClient)
+	# Original params must not be modified
+	assert len(params) == 2
+
+	# Positional params without keyword arguments
+	args, keywords = deserialize_params([[client.to_hash()]], method_interface)
+	assert isinstance(args[0][0], OpsiClient)
+	assert keywords == {}
+
+	# Named params
+	args, keywords = deserialize_params({"attributes": ["id"], "id": "client1.opsi.test"}, method_interface)
+	assert args == []
+	assert keywords == {"attributes": ["id"], "id": "client1.opsi.test"}
+
+	with pytest.raises(TypeError, match="kwargs param is not a dict"):
+		deserialize_params([["id"], "invalid"], method_interface)
+
+
+@pytest.mark.parametrize(
+	"data, expected",
+	(
+		(None, True),
+		(1, True),
+		("x" * SMALL_DATA_MAX_STR_LEN, True),
+		("x" * (SMALL_DATA_MAX_STR_LEN + 1), False),
+		([{"id": "client1.opsi.test", "type": "OpsiClient"}], True),
+		(list(range(SMALL_DATA_MAX_ITEMS)), True),
+		(list(range(SMALL_DATA_MAX_ITEMS + 1)), False),
+		({"a": [{"b": list(range(SMALL_DATA_MAX_ITEMS))}]}, False),
+		([["x" * (SMALL_DATA_MAX_STR_LEN // 2)], ["x" * (SMALL_DATA_MAX_STR_LEN // 2 + 1)]], False),
+		([OpsiClient(id="client1.opsi.test")], False),
+	),
+)
+def test_is_small_data(data: Any, expected: bool) -> None:
+	assert is_small_data(data) is expected
+
+
+class CustomSerializeProductOnClient(ProductOnClient):
+	def serialize(self) -> dict[str, Any]:
+		return {"custom": self.productId}
+
+
+def _get_serialize_test_objects() -> list[Any]:
+	client = OpsiClient(id="client1.opsi.test", description="test")
+	client.created = datetime(2026, 1, 2, 3, 4, 5)  # type: ignore[assignment]
+	client.lastSeen = date(2026, 1, 2)  # type: ignore[assignment]
+	poc = ProductOnClient(
+		productId="product1", productType="LocalbootProduct", clientId="client1.opsi.test", modificationTime="2026-01-01 00:00:00"
+	)
+	poc_int_ident = ProductOnClient(productId="product2", productType="LocalbootProduct", clientId="client1.opsi.test")
+	poc_int_ident.productId = 1  # type: ignore[assignment]
+	poc_int_ident.clientId = None  # type: ignore[assignment]
+	poc_generated_default = ProductOnClient(productId="product3", productType="LocalbootProduct", clientId="client1.opsi.test")
+	poc_generated_default.setGeneratedDefault(True)
+	return [
+		client,
+		poc,
+		poc_int_ident,
+		poc_generated_default,
+		LocalbootProduct(id="product1", productVersion="1.0", packageVersion="1"),
+		ConfigState(configId="config1", objectId="client1.opsi.test", values=["a", "b"]),
+		CustomSerializeProductOnClient(productId="product4", productType="LocalbootProduct", clientId="client1.opsi.test"),
+	]
+
+
+@pytest.mark.parametrize(
+	"data_factory",
+	(
+		lambda: None,
+		lambda: "string",
+		lambda: {"key": OpsiClient(id="client1.opsi.test")},
+		list,
+		_get_serialize_test_objects,
+		lambda: _get_serialize_test_objects()[0],
+		lambda: [_get_serialize_test_objects(), [{"id": "x"}, 1]],
+		lambda: {OpsiClient(id="client1.opsi.test")},
+		lambda: (obj for obj in _get_serialize_test_objects()),
+	),
+)
+def test_serialize_result(data_factory: Any) -> None:
+	result = serialize_result(data_factory())
+	expected = serialize(data_factory())
+	assert result == expected
+	# Key order must also be identical
+	assert json.dumps(result, default=str) == json.dumps(expected, default=str)
 
 
 def test_request_param_list(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
@@ -293,6 +411,51 @@ def test_store_rpc_info(config: Config, test_client: OpsiconfdTestClient) -> Non
 					assert info["error"] is False
 					assert info["num_results"] == num_results
 					assert info["num_params"] == 2
+
+
+@pytest.mark.parametrize(
+	"start_num",
+	(0, 126, 127, 254, 255, 65534, 65535, 2**32 - 1, 2**40),
+)
+async def test_store_rpc_info_rpc_num(config: Config, start_num: int) -> None:  # noqa: F811
+	redis = redis_client()
+	redis_prefix_stats = config.redis_key("stats")
+	redis.set(f"{redis_prefix_stats}:num_rpcs", start_num)
+
+	request_info = RequestInfo(client="127.0.0.1/test", duration=0.5)
+	requests_responses: list[tuple[Any, Any]] = [
+		(
+			JSONRPC20Request(id=1, method="host_getObjects", params=[["id"], {"type": "OpsiClient"}], info=request_info),
+			JSONRPCResponse(id=1, result=[1, 2, 3]),
+		),
+		(
+			JSONRPCRequest(id=2, method="invalid", info=request_info),
+			JSONRPC20ErrorResponse(id=2, error=JSONRPC20Error(message="error")),
+		),
+	]
+	for request, response in requests_responses:
+		await store_rpc_info(request, response)
+
+	assert int(redis.get(f"{redis_prefix_stats}:num_rpcs") or 0) == start_num + 2
+	redis_result = list(reversed(redis.lrange(f"{redis_prefix_stats}:rpcs", 0, -1)))
+	assert len(redis_result) == 2
+	for idx, value in enumerate(redis_result):
+		info = msgspec.msgpack.decode(value)
+		expected = {
+			"rpc_num": start_num + idx + 1,
+			"method": requests_responses[idx][0].method,
+			"deprecated": False,
+			"num_params": 2 if idx == 0 else 0,
+			"date": request_info.date.strftime("%Y-%m-%dT%H:%M:%SZ"),
+			"client": "127.0.0.1/test",
+			"error": idx == 1,
+			"num_results": 3 if idx == 0 else 0,
+			"duration": 0.5,
+			"worker": info["worker"],
+		}
+		assert info == expected
+		# Must be identical to the msgpack encoding of msgspec
+		assert value == msgspec.msgpack.encode(expected)
 
 
 def test_jsonrpc_depotservermixin(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

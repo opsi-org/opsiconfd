@@ -313,7 +313,7 @@ def test_help() -> None:
 
 def test_update_config_files(tmp_path: Path) -> None:
 	config_file = tmp_path / "opsiconfd.conf"
-	config_file.write_text(("# comment\nlog-level = 1\nrun-as-user = opsiconfd\nmonitoring-debug = yes\n\n"), encoding="utf-8")
+	config_file.write_text(("# comment\nlog-level = 1\nrun-as-user = opsiconfd\n\n"), encoding="utf-8")
 
 	with get_config(["--config-file", str(config_file)]) as conf:
 		conf._update_config_file()

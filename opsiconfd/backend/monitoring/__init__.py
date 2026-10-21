@@ -21,7 +21,7 @@ from typing import Any
 from opsi.exception import BackendConfigurationError
 from opsi.opsi.service.model.type import to_bool
 
-DEFAULT_COMMENT_PREFIX = "[opsi]"
+DEFAULT_COMMENT_PREFIX = "[OPSI]"
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)

@@ -60,7 +60,7 @@ CONFIG_FILE_HEADER = """
 # networks = [192.168.0.0/16, 10.0.0.0/8, ::/0, host.example.corp]
 # update-ip = true
 """
-DEPRECATED = ("monitoring-debug", "verify-ip", "dispatch-config-file", "jsonrpc-time-to-cache", "debug")
+DEPRECATED = ("verify-ip", "dispatch-config-file", "jsonrpc-time-to-cache", "debug")
 CA_KEY_DEFAULT_PASSPHRASE = "Toohoerohpiep8yo"
 SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"
 GC_THRESHOLDS = (150_000, 50, 100)
@@ -1061,12 +1061,6 @@ class Config:
 				"Filter log records contexts (<ctx-name-1>=<val1>[,val2][;ctx-name-2=val3]).\n"
 				'Example: --log-filter="client_address=192.168.20.101"',
 			),
-		)
-		self._parser.add_argument(
-			"--monitoring-user",
-			env_var="OPSICONFD_MONITORING_USER",
-			default="monitoring",
-			help=self._help("opsiconfd", "The User for opsi-Nagios-Connector."),
 		)
 		self._parser.add_argument(
 			"--internal-url", env_var="OPSICONFD_INTERNAL_URL", help=self._help("opsiconfd", "The internal base url.")

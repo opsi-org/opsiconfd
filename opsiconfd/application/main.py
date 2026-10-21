@@ -37,7 +37,6 @@ from opsiconfd.application.jsonrpc import (
 )
 from opsiconfd.application.metrics import metrics_setup
 from opsiconfd.application.middleware import BaseMiddleware
-from opsiconfd.application.monitoring.monitoring import monitoring_setup
 from opsiconfd.application.proxy import reverse_proxy_setup
 from opsiconfd.application.redisinterface import redis_interface_setup
 from opsiconfd.application.status import status_setup
@@ -215,7 +214,6 @@ def application_setup() -> None:
 	status_setup(app)
 
 	if get_server_role() == "configserver":
-		monitoring_setup(app)
 		metrics_setup(app)
 		messagebus_setup(app)
 		reverse_proxy_setup(app)

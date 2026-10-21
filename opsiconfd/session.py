@@ -257,7 +257,7 @@ class SessionMiddleware:
 						break
 			if (
 				required_access_role != ACCESS_ROLE_PUBLIC
-				and path.startswith(("/rpc", "/monitoring", "/messagebus", "/file-transfer", "/auth"))
+				and path.startswith(("/rpc", "/messagebus", "/file-transfer", "/auth"))
 				or (path.startswith(("/depot",)) and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
 			):
 				required_access_role = ACCESS_ROLE_AUTHENTICATED
@@ -1530,7 +1530,7 @@ async def _authenticate(*, scope: Scope, username: str, password: str, password_
 	if user and (user.passwordHash or user.tokenHash):
 		if "database" in config.disabled_auth_methods:
 			logger.debug("Database authentication is disabled")
-		elif not (module_available("opsi_auth") or user.id in (config.monitoring_user, opsi_config.get("depot_user", "username"))):
+		elif not (module_available("opsi_auth") or user.id == opsi_config.get("depot_user", "username")):
 			logger.error("Database authentication not licensed")
 		else:
 			if password_is_token:

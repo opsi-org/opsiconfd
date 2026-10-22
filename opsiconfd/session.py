@@ -16,6 +16,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from functools import lru_cache
+from hmac import compare_digest
 from ipaddress import ip_network
 from socket import getaddrinfo
 from typing import Any, Literal
@@ -1313,10 +1314,12 @@ async def authenticate_host(scope: Scope) -> None:
 		else:
 			logger.error("WAN/VPN module not licensed, client certificate authentication disabled")
 
-	if host.opsiHostKey and session.password == host.opsiHostKey:
+	# Constant time comparison to prevent timing attacks
+	password = (session.password or "").encode("utf-8")
+	if host.opsiHostKey and compare_digest(password, host.opsiHostKey.encode("utf-8")):
 		session.add_auth_methods(AuthenticationMethod.HOST_KEY)
 		logger.info("Host '%s' authenticated by host key", host.id)
-	elif isinstance(host, OpsiClient) and host.oneTimePassword and session.password == host.oneTimePassword:
+	elif isinstance(host, OpsiClient) and host.oneTimePassword and compare_digest(password, host.oneTimePassword.encode("utf-8")):
 		session.add_auth_methods(AuthenticationMethod.PASSWORD_ONETIME)
 		logger.info("Host '%s' authenticated by onetime password", host.id)
 		host.oneTimePassword = ""

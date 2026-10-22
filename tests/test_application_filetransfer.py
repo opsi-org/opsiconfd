@@ -93,6 +93,55 @@ def test_raw_file_upload_download_with_delete(
 		assert not meta_path.exists()
 
 
+def test_file_access_only_by_owner_and_admin(
+	tmp_path: Path,
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	clients = [OpsiClient(id="test-file-access-1.opsi.org"), OpsiClient(id="test-file-access-2.opsi.org")]
+	for client in clients:
+		client.setDefaults()
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[c.to_hash() for c in clients]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	def login(username: str, password: str) -> None:
+		"""Start a new session for the given user."""
+		test_client.reset_cookies()
+		test_client.auth = (username, password)
+
+	with patch("opsiconfd.application.filetransfer.FILE_TRANSFER_STORAGE_DIR", str(tmp_path)):
+		data = b"file-data"
+		login(clients[0].id, str(clients[0].opsiHostKey))
+		resp = test_client.post("/file-transfer/raw", content=data)
+		assert resp.status_code == 201
+		file_id = resp.json()["file_id"]
+
+		# Other client is not allowed to access the file
+		login(clients[1].id, str(clients[1].opsiHostKey))
+		resp = test_client.get(f"/file-transfer/{file_id}")
+		assert resp.status_code == 403
+		resp = test_client.get(f"/file-transfer/{file_id}", params={"delete": "true"})
+		assert resp.status_code == 403
+		resp = test_client.delete(f"/file-transfer/{file_id}")
+		assert resp.status_code == 403
+		assert (tmp_path / file_id).exists()
+
+		# Owner and admin are allowed to access the file
+		login(clients[0].id, str(clients[0].opsiHostKey))
+		resp = test_client.get(f"/file-transfer/{file_id}")
+		assert resp.status_code == 200
+		assert resp.content == data
+
+		login(ADMIN_USER, ADMIN_PASS)
+		resp = test_client.get(f"/file-transfer/{file_id}")
+		assert resp.status_code == 200
+		assert resp.content == data
+		resp = test_client.delete(f"/file-transfer/{file_id}")
+		assert resp.status_code == 200
+		assert not (tmp_path / file_id).exists()
+
+
 def test_multipart_file_upload_download_delete(
 	tmp_path: Path,
 	test_client: OpsiconfdTestClient,  # noqa: F811

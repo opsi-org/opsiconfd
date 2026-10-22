@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import aiofiles
-from fastapi import APIRouter, FastAPI, Request, UploadFile, status
+from fastapi import APIRouter, FastAPI, Request, Response, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse
 from opsi.time import unix_timestamp
 from pydantic import BaseModel
@@ -215,6 +215,22 @@ def prepare_file(filename: str | None = None, content_type: str | None = None, v
 	return _prepare_file(filename=filename, content_type=content_type, validity=validity, session=session)
 
 
+def file_access_allowed(file_meta: FileMetaData) -> bool:
+	"""
+	Checks if the user of the current session is allowed to access the file.
+
+	Args:
+		file_meta: Metadata of the file.
+
+	Returns:
+		True if the user created the file or is an admin, False otherwise.
+	"""
+	session = contextvar_client_session.get()
+	if not session or not session.username:
+		return False
+	return session.is_admin or session.username == file_meta.username
+
+
 def cleanup_file_storage() -> None:
 	"""
 	Removes expired files and their metadata from the storage directory.
@@ -347,27 +363,32 @@ async def filetransfer_post_file_multipart(file: UploadFile) -> JSONResponse:
 
 @filetransfer_router.get("{file_id}")
 @filetransfer_router.get("/{file_id}")
-async def filetransfer_get_file(file_id: UUID, delete: bool = False) -> FileResponse:
+async def filetransfer_get_file(file_id: UUID, delete: bool = False) -> Response:
 	"""
 	Retrieves a file by its ID.
+
+	Only the user who created the file and admins are allowed to retrieve the file.
 
 	Args:
 		file_id: The UUID of the file to retrieve.
 		delete: If True, the file will be deleted after being sent.
 
 	Returns:
-		FileResponse: A response containing the file.
+		Response: A response containing the file
+				  or an error message with a 403 status code if permission is denied.
 
 	Raises:
 		ValueError: If the file ID is invalid or the file has expired.
 	"""
 	file_path = Path(FILE_TRANSFER_STORAGE_DIR) / str(file_id)
 	meta_path = file_path.with_suffix(".meta")
-	if not file_path.exists() or not file_path.exists():
+	if not file_path.exists() or not meta_path.exists():
 		raise ValueError("Invalid file ID")
-	file_meta = FileMetaData.model_validate_json(meta_path.read_bytes())
+	file_meta = FileMetaData.read_meta(meta_path)
 	if file_meta.expires <= unix_timestamp():
 		raise ValueError("Invalid file ID")
+	if not file_access_allowed(file_meta):
+		return JSONResponse({"error": "Permission denied"}, status_code=status.HTTP_403_FORBIDDEN)
 	background = BackgroundTask(delete_file, file_id) if delete else None
 	return FileResponse(path=file_path, filename=file_meta.filename, media_type=file_meta.content_type, background=background)
 
@@ -378,11 +399,17 @@ async def filetransfer_delete_file(file_id: UUID) -> JSONResponse:
 	"""
 	Deletes a file by its ID.
 
+	Only the user who created the file and admins are allowed to delete the file.
+
 	Args:
 		file_id: The UUID of the file to delete.
 
 	Returns:
-		JSONResponse: A JSON response containing the file_id of the deleted file.
+		JSONResponse: A JSON response containing the file_id of the deleted file
+					  or an error message with a 403 status code if permission is denied.
 	"""
+	meta_path = Path(FILE_TRANSFER_STORAGE_DIR) / f"{file_id}.meta"
+	if meta_path.exists() and not file_access_allowed(FileMetaData.read_meta(meta_path)):
+		return JSONResponse({"error": "Permission denied"}, status_code=status.HTTP_403_FORBIDDEN)
 	delete_file(file_id)
 	return JSONResponse({"file_id": str(file_id)}, status_code=status.HTTP_200_OK)

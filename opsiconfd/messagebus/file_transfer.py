@@ -58,13 +58,16 @@ async def check_filetransfer_message(
 		if isinstance(message, FileDownloadRequestMessage):
 			if not message.path:
 				raise ValueError("No path specified")
-			path = Path(message.path)
-			if not path.exists():
-				raise ValueError(f"File {message.path} does not exist")
-			if not path.is_relative_to(*FILE_DOWNLOAD_ALLOWED_PATHS):
+			# Resolve ".." and symlinks before checking the allowed paths
+			path = Path(message.path).resolve()
+			if not any(path.is_relative_to(allowed_path.resolve()) for allowed_path in FILE_DOWNLOAD_ALLOWED_PATHS):
 				raise ValueError(f"File {message.path} is not in allowed paths")
+			if not path.is_file():
+				raise ValueError(f"File {message.path} does not exist")
 			if path.stat().st_size > FILE_DOWNLOAD_MAX_SIZE:
 				raise ValueError(f"File {message.path} is too large")
+			# Download the checked file
+			message.path = str(path)
 	except Exception as err:
 		logger.error(err)
 		msg = FileTransferErrorMessage(

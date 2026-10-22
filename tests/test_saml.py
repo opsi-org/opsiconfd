@@ -246,12 +246,14 @@ def test_saml_client_decrypt_encrypted_assertion(tmp_path: Path, saml_encrypted_
 
 
 @pytest.mark.parametrize(
-	"expiration_seconds, redirect, expected_status_code, expected_text",
+	"expiration_seconds, redirect, callback_client_address, expected_status_code, expected_text",
 	(
-		(360000, None, 200, '<meta http-equiv="refresh" content="0; url=/admin">'),
-		(100, "/some/path", 200, '<meta http-equiv="refresh" content="0; url=/some/path">'),
-		(60, "close_window", 200, "<script>window.close();</script>"),
-		(0, None, 401, "Authentication failure"),
+		(360000, None, None, 200, '<meta http-equiv="refresh" content="0; url=/admin">'),
+		(100, "/some/path", None, 200, '<meta http-equiv="refresh" content="0; url=/some/path">'),
+		(60, "close_window", None, 200, "<script>window.close();</script>"),
+		(0, None, None, 401, "Authentication failure"),
+		# Session fixation: callback from a client address other than the one that created the session
+		(360000, None, "192.168.1.1", 401, "Authentication failure"),
 	),
 )
 def test_saml_login(
@@ -259,6 +261,7 @@ def test_saml_login(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 	expiration_seconds: int,
 	redirect: str | None,
+	callback_client_address: str | None,
 	expected_status_code: int,
 	expected_text: str,
 ) -> None:
@@ -367,6 +370,9 @@ def test_saml_login(
 		assert session_data["authenticated"] is False
 		assert session_data["is_admin"] is False
 		assert not session_data["user_groups"]
+
+		if callback_client_address:
+			test_client.set_client_address(callback_client_address, 12345)
 
 		for attempt in range(2):
 			res = test_client.post("/auth/saml/callback/login", data=data)

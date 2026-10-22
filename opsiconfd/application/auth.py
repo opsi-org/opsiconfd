@@ -227,6 +227,12 @@ async def saml_callback_login(request: Request) -> Response:
 		await pre_authenticate(request.scope, session_id=session_id)
 		session: OPSISession = request.scope["session"]
 
+		# The session ID is taken from the RelayState, which can be passed on to another user (session fixation).
+		# Only accept the callback from the client address that created the session.
+		client_addr = request.scope["client"][0]
+		if session.client_addr != client_addr:
+			raise RuntimeError(f"Client address {client_addr!r} does not match session client address {session.client_addr!r}")
+
 		if not saml_response or not isinstance(saml_response, str):
 			raise RuntimeError("No SAMLResponse in SAML login callback")
 

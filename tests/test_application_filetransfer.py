@@ -12,6 +12,7 @@ from pathlib import Path
 from time import sleep, time
 from unittest.mock import patch
 
+import pytest
 from msgspec import json
 from opsi.opsi.service.model.object import OpsiClient
 from werkzeug.http import parse_options_header
@@ -22,6 +23,7 @@ from .utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
+	get_config,
 	test_client,
 )
 
@@ -185,3 +187,41 @@ def test_raw_file_stream_upload(tmp_path: Path, test_client: OpsiconfdTestClient
 			resp = test_client.delete(f"/file-transfer/{file_id}")
 			assert resp.status_code == 200
 			assert resp.json()["file_id"] == file_id
+
+
+@pytest.mark.parametrize("upload_type", ("raw", "raw-stream", "multipart"))
+@pytest.mark.parametrize("size_diff, expected_status_code", ((0, 201), (1, 413)))
+def test_file_upload_max_size(
+	tmp_path: Path,
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	upload_type: str,
+	size_diff: int,
+	expected_status_code: int,
+) -> None:
+	max_size = 1024 * 1024
+	data = b"x" * (max_size + size_diff)
+
+	def read_chunks() -> Generator[bytes]:
+		"""Stream the data without content-length header."""
+		for idx in range(0, len(data), 100_000):
+			yield data[idx : idx + 100_000]
+
+	with (
+		patch("opsiconfd.application.filetransfer.FILE_TRANSFER_STORAGE_DIR", str(tmp_path)),
+		get_config({"file_transfer_max_size": 1}),
+	):
+		test_client.auth = (ADMIN_USER, ADMIN_PASS)
+		if upload_type == "raw":
+			resp = test_client.post("/file-transfer/raw", content=data)
+		elif upload_type == "raw-stream":
+			resp = test_client.post("/file-transfer/raw", content=read_chunks())
+		else:
+			resp = test_client.post("/file-transfer/multipart", files={"file": ("test.bin", data, "application/octet-stream")})
+
+		assert resp.status_code == expected_status_code
+		if expected_status_code == 201:
+			assert (tmp_path / resp.json()["file_id"]).read_bytes() == data
+		else:
+			assert "maximum size" in resp.json()["error"]
+			# File and metadata must be removed
+			assert not list(tmp_path.iterdir())

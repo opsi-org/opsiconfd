@@ -25,14 +25,71 @@ from starlette.background import BackgroundTask
 from werkzeug.http import parse_options_header
 
 from opsiconfd import contextvar_client_session
-from opsiconfd.config import FILE_TRANSFER_STORAGE_DIR
+from opsiconfd.config import FILE_TRANSFER_STORAGE_DIR, config
 from opsiconfd.logging import logger
 
 if TYPE_CHECKING:
+	from collections.abc import AsyncIterator
+
 	from opsiconfd.session import OPSISession
 
 
 filetransfer_router = APIRouter()
+
+
+class FileTooLargeError(ValueError):
+	"""Raised if an uploaded file exceeds the maximum file transfer size."""
+
+
+def get_max_file_size() -> int:
+	"""
+	Gets the maximum size of an uploaded file.
+
+	Returns:
+		The maximum file size in bytes, 0 means unlimited.
+	"""
+	return max(int(config.file_transfer_max_size), 0) * 1024 * 1024
+
+
+async def write_file(file_meta: FileMetaData, chunks: AsyncIterator[bytes]) -> None:
+	"""
+	Writes the uploaded chunks to the file, enforcing the maximum file size.
+
+	The file and its metadata are deleted if the maximum file size is exceeded.
+
+	Args:
+		file_meta: Metadata of the prepared file.
+		chunks: The file content chunks.
+
+	Raises:
+		FileTooLargeError: If the file exceeds the maximum file size.
+	"""
+	max_size = get_max_file_size()
+	size = 0
+	try:
+		async with aiofiles.open(file_meta.file_path, mode="wb") as out_file:
+			async for chunk in chunks:
+				size += len(chunk)
+				if max_size and size > max_size:
+					raise FileTooLargeError(f"File exceeds maximum size of {max_size} bytes")
+				await out_file.write(chunk)
+	except BaseException:
+		delete_file(UUID(file_meta.file_id))
+		raise
+
+
+def file_too_large_response(err: FileTooLargeError) -> JSONResponse:
+	"""
+	Creates the response for a file exceeding the maximum file size.
+
+	Args:
+		err: The error raised.
+
+	Returns:
+		JSONResponse: An error message with a 413 status code.
+	"""
+	logger.warning(err)
+	return JSONResponse({"error": str(err)}, status_code=status.HTTP_413_CONTENT_TOO_LARGE)
 
 
 def filetransfer_setup(app: FastAPI) -> None:
@@ -229,20 +286,26 @@ async def filetransfer_post_file_raw(request: Request) -> JSONResponse:
 
 	Returns:
 		JSONResponse: A JSON response containing the file_id upon successful upload,
-					  or an error message with a 403 status code if permission is denied.
+					  an error message with a 403 status code if permission is denied
+					  or an error message with a 413 status code if the file is too large.
 	"""
 	filename = None
 	content_disposition = request.headers.get("content-disposition")
 	if content_disposition:
 		filename = parse_options_header(content_disposition)[1].get("filenname") or filename
+	max_size = get_max_file_size()
+	content_length = request.headers.get("content-length")
+	if max_size and content_length and content_length.isdigit() and int(content_length) > max_size:
+		return file_too_large_response(FileTooLargeError(f"File exceeds maximum size of {max_size} bytes"))
 	try:
 		file_meta = prepare_file(filename=filename, content_type=request.headers.get("content-type") or None)
 	except PermissionError:
 		return JSONResponse({"error": "Permission denied"}, status_code=status.HTTP_403_FORBIDDEN)
 
-	async with aiofiles.open(file_meta.file_path, mode="wb") as out_file:
-		async for chunk in request.stream():
-			await out_file.write(chunk)
+	try:
+		await write_file(file_meta, request.stream())
+	except FileTooLargeError as err:
+		return file_too_large_response(err)
 
 	return JSONResponse({"file_id": file_meta.file_id}, status_code=status.HTTP_201_CREATED)
 
@@ -258,16 +321,26 @@ async def filetransfer_post_file_multipart(file: UploadFile) -> JSONResponse:
 
 	Returns:
 		JSONResponse: A JSON response containing the file_id upon successful upload,
-					  or an error message with a 403 status code if permission is denied.
+					  an error message with a 403 status code if permission is denied
+					  or an error message with a 413 status code if the file is too large.
 	"""
+	max_size = get_max_file_size()
+	if max_size and file.size and file.size > max_size:
+		return file_too_large_response(FileTooLargeError(f"File exceeds maximum size of {max_size} bytes"))
 	try:
 		file_meta = prepare_file(filename=file.filename, content_type=file.content_type)
 	except PermissionError:
 		return JSONResponse({"error": "Permission denied"}, status_code=status.HTTP_403_FORBIDDEN)
 
-	async with aiofiles.open(file_meta.file_path, mode="wb") as out_file:
+	async def read_chunks() -> AsyncIterator[bytes]:
+		"""Read the uploaded file in chunks."""
 		while chunk := await file.read(1_000_000):
-			await out_file.write(chunk)
+			yield chunk
+
+	try:
+		await write_file(file_meta, read_chunks())
+	except FileTooLargeError as err:
+		return file_too_large_response(err)
 
 	return JSONResponse({"file_id": file_meta.file_id}, status_code=status.HTTP_201_CREATED)
 

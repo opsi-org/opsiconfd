@@ -1480,6 +1480,13 @@ class Config:
 			help=self._help("opsiconfd", "The maximum number of sessions that can be opened through one ip address."),
 		)
 		self._parser.add_argument(
+			"--file-transfer-max-size",
+			env_var="OPSICONFD_FILE_TRANSFER_MAX_SIZE",
+			type=int,
+			default=2048,
+			help=self._help("expert", "The maximum size in MiB of a file uploaded via file transfer (0 = unlimited)."),
+		)
+		self._parser.add_argument(
 			"--max-sessions-excludes",
 			nargs="*",
 			env_var="OPSICONFD_MAX_SESSIONS_EXCLUDES",

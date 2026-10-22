@@ -252,6 +252,12 @@ def test_saml_client_decrypt_encrypted_assertion(tmp_path: Path, saml_encrypted_
 		(100, "/some/path", None, 200, '<meta http-equiv="refresh" content="0; url=/some/path">'),
 		(60, "close_window", None, 200, "<script>window.close();</script>"),
 		(0, None, None, 401, "Authentication failure"),
+		# Open redirect and XSS
+		(100, "https://evil.test", None, 200, '<meta http-equiv="refresh" content="0; url=/admin">'),
+		(100, "//evil.test", None, 200, '<meta http-equiv="refresh" content="0; url=/admin">'),
+		(100, "/\\evil.test", None, 200, '<meta http-equiv="refresh" content="0; url=/admin">'),
+		(100, "/\t/evil.test", None, 200, '<meta http-equiv="refresh" content="0; url=/admin">'),
+		(100, '/"><script>alert(1)</script>', None, 200, 'url=/&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"'),
 		# Session fixation: callback from a client address other than the one that created the session
 		(360000, None, "192.168.1.1", 401, "Authentication failure"),
 	),

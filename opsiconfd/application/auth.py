@@ -9,9 +9,11 @@ session
 
 import asyncio
 import json
+import re
 import time
 from base64 import b64decode
 from datetime import UTC, datetime
+from html import escape
 
 from fastapi import APIRouter, FastAPI, Request, Response, status
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
@@ -46,6 +48,9 @@ from opsiconfd.utils import asyncio_create_task
 logger = get_logger()
 saml_logger = get_logger("opsiconfd.saml")
 auth_router = APIRouter()
+
+# Local absolute path only, no scheme relative URL ("//host" or "/\host"), no whitespace or control characters
+SAFE_REDIRECT_REGEX = re.compile(r"/(?![/\\])[^\s\\\x00-\x1f\x7f]*")
 
 
 def auth_setup(app: FastAPI) -> None:
@@ -223,6 +228,9 @@ async def saml_callback_login(request: Request) -> Response:
 			saml_logger.trace("SAML Login Callback RelayState data: %s", relay_state_data)
 
 		redirect = relay_state_data.get("redirect") or "/admin"
+		if redirect != "close_window" and (not isinstance(redirect, str) or not SAFE_REDIRECT_REGEX.fullmatch(redirect)):
+			saml_logger.warning("Invalid redirect %r in SAML login callback, using /admin", redirect)
+			redirect = "/admin"
 
 		await pre_authenticate(request.scope, session_id=session_id)
 		session: OPSISession = request.scope["session"]
@@ -314,7 +322,7 @@ async def saml_callback_login(request: Request) -> Response:
 				"<html><body><p>The login was successful, you can close this window.</p><script>window.close();</script></body></html>",
 			)
 		return HTMLResponse(
-			f'<html><head><meta http-equiv="refresh" content="0; url={redirect}"><head></html>',
+			f'<html><head><meta http-equiv="refresh" content="0; url={escape(redirect)}"><head></html>',
 		)
 
 	except Exception as err:

@@ -248,7 +248,7 @@ class RPCAuditHardwareMixin(Protocol):
 		hardware_class = filter.get("hardwareClass")
 		if hardware_class not in ([], None):
 			for hwc in to_list(hardware_class):
-				regex = re.compile(f"^{hwc.replace('*', '.*')}$")
+				regex = re.compile(f"^{re.escape(str(hwc)).replace(r'\*', '.*')}$")
 				for key in self._audit_hardware_database_config:
 					if regex.search(key):
 						hardware_classes.add(key)

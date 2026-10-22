@@ -12,6 +12,7 @@ from collections import defaultdict
 from pathlib import Path
 from unittest import mock
 
+import pytest
 from opsi.opsi.service.model.object import AuditHardware, deserialize, serialize
 
 from opsiconfd.backend.rpc.obj_audit_hardware import get_audit_hardware_config
@@ -42,6 +43,43 @@ def test_get_audit_hardware_config(tmp_path: Path) -> None:
 		assert translations_found == 11
 
 	get_audit_hardware_config.cache_clear()
+
+
+@pytest.mark.parametrize(
+	"hardware_class, expected_count",
+	(
+		("NETWORK_CONTROLLER", 10),
+		("NETWORK_*", 10),
+		("NETWORK_CONTR.LLER", 0),
+		("NETWORK_(CONTROLLER)", 0),
+		(".*", 0),
+		("(", 0),
+		("[", 0),
+	),
+)
+def test_auditHardware_get_hardware_class_pattern(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	hardware_class: str,
+	expected_count: int,
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	hwaudit = Path("tests/data/hwaudit/hwaudit.json").read_text(encoding="utf-8")
+	hwaudit = hwaudit.replace("{{host_id}}", "")
+	audit_hardwares = list({AuditHardware.fromHash(ahoh) for ahoh in json.loads(hwaudit)})
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditHardware_createObjects", "params": [serialize(audit_hardwares)]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	# Regex special characters in the hardware class must be matched literally, only * is a wildcard
+	for method in ("auditHardware_getObjects", "auditHardwareOnHost_getObjects"):
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": method, "params": [[], {"hardwareClass": hardware_class}]}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+		if method == "auditHardware_getObjects":
+			assert len(res["result"]) == expected_count
+		else:
+			assert res["result"] == []
 
 
 def test_auditHardware_create_get_delete(

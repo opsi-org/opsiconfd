@@ -590,7 +590,7 @@ def test_messagebus_message_type_access(
 					responses = [Message.from_dict(msg) for msg in reader.get_messages()]
 					if is_admin:
 						assert isinstance(responses[0], FileTransferErrorMessage)
-						assert responses[0].error.message == "File bogus-path/testfile.txt does not exist"
+						assert responses[0].error.message == "File bogus-path/testfile.txt is not in allowed paths"
 					else:
 						assert isinstance(responses[0], GeneralErrorMessage)
 						assert responses[0].error.message == f"Read access to channel 'service:depot:{configserver_id}:filetransfer' denied"

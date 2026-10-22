@@ -673,7 +673,7 @@ class RPCProductDependencyMixin(Protocol):
 		with tempfile.NamedTemporaryFile(delete=False, dir=PROD_DEP_DEBUG_DIR, prefix=prefix, suffix=".log") as log_file:
 			logger.notice("Writing product action group debug log to: %s", log_file.name)
 			log_file.write(msgspec.json.encode([g.serialize() for g in product_action_groups]))
-			os.chmod(log_file.name, 0o666)
+			os.chmod(log_file.name, 0o644)
 
 	def productDependency_bulkInsertObjects(
 		self: BackendProtocol,

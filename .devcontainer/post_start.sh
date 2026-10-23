@@ -5,5 +5,4 @@ done
 echo "Container is healthy (post_start.sh)"
 
 git config --replace-all core.editor "code --wait"
-sudo chown -R "$USER" "$HOME" /workspace
 uv sync

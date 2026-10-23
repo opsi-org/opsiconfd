@@ -30,8 +30,6 @@ test:lint-and-test:
     - echo "LOCAL_WORKSPACE_DIR=${LOCAL_WORKSPACE_DIR}" >> docker/opsiconfd-dev/.env
     - echo "OPSISERVER_DEV_OPSICONFD_FORWARD_PORT=" >> docker/opsiconfd-dev/.env
     - echo "OPSISERVER_CS_OPSICONFD_FORWARD_PORT=" >> docker/opsiconfd-dev/.env
-    - echo "DEV_USER=" >> docker/opsiconfd-dev/.env
-    - echo "DEV_UID=" >> docker/opsiconfd-dev/.env
     # - echo "BENCHER_HOST=${BENCHER_HOST}" >> docker/opsiconfd-dev/.env
     # - echo "BENCHER_API_TOKEN=${BENCHER_API_TOKEN}" >> docker/opsiconfd-dev/.env
 

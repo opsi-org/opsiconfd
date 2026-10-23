@@ -1,13 +1,8 @@
 FROM docker.uib.gmbh/opsi/dev/pybuilder:deb10-py3.13
 
-ARG DEV_USER
-ARG DEV_UID
-
 ENV LC_ALL="en_US.UTF-8" \
 	LANG="en_US.UTF-8" \
 	LANGUAGE="en_US:en" \
-	DEV_USER=${DEV_USER} \
-	DEV_UID=${DEV_UID} \
 	OPSI_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/development/Debian_10/
 
 RUN mkdir -p /usr/local/share/keyrings \
@@ -52,22 +47,7 @@ RUN chmod +x /entrypoint.sh /healthcheck.sh \
 	&& (getent passwd adminuser || useradd --uid 2222 --create-home -d /home/adminuser -s /bin/zsh adminuser) \
 	&& echo "adminuser:adminuser" | chpasswd \
 	&& adduser adminuser opsifileadmins \
-	&& adduser adminuser opsiadmin \
-	&& if [ -n "$DEV_USER" ]; then \
-		uid=1000 \
-		&& if [ -n "$DEV_UID" ]; then uid=$DEV_UID; fi \
-		&& useradd --uid $uid --create-home -s /bin/zsh ${DEV_USER} \
-		&& cp -a /root/.zshrc /root/.oh-my-zsh /root/.p10k.zsh  /root/.zsh_history /home/${DEV_USER}/ \
-		&& chown -R ${DEV_USER}:${DEV_USER} /home/${DEV_USER} \
-		&& chmod -R g-rww,o-rww /home/${DEV_USER}/.oh-my-zsh \
-		&& echo "${DEV_USER}:adminuser" | chpasswd \
-		&& adduser ${DEV_USER} opsifileadmins \
-		&& adduser ${DEV_USER} opsiadmin \
-		&& adduser ${DEV_USER} sudo \
-		&& adduser ${DEV_USER} shadow \
-		&& echo "${DEV_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
-		&& chown -R $DEV_USER /workspace \
-	; fi
+	&& adduser adminuser opsiadmin
 
 ENTRYPOINT [ "/entrypoint.sh" ]
 CMD [ "sleep", "infinity" ]

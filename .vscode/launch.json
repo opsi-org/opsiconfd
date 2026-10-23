@@ -13,7 +13,6 @@
 				"--log-mode=redis",
 				"--static-dir=${workspaceFolder}/opsiconfd_data/static"
 			],
-			"sudo": true,
 			"justMyCode": false
 		},
 		{
@@ -27,7 +26,6 @@
 				"--log-level-file=${input:loglevelfile}",
 				"--static-dir=${workspaceFolder}/opsiconfd_data/static"
 			],
-			"sudo": true,
 		},
 		{
 			"name": "opsiconfd test",
@@ -43,7 +41,6 @@
 				"--config-file",
 				"tests/data/default-opsiconfd.conf",
 			],
-			"sudo": true,
 		},
 		{
 			"name": "opsiconfd jemalloc",
@@ -55,7 +52,6 @@
 				"--log-level-stderr=${input:loglevel}",
 				"--static-dir=${workspaceFolder}/opsiconfd_data/static"
 			],
-			"sudo": true,
 			"env": {
 				"LD_PRELOAD": "/usr/lib/x86_64-linux-gnu/libjemalloc.so.2"
 			}
@@ -73,7 +69,6 @@
 				"--log-mode=redis",
 				"--static-dir=${workspaceFolder}/opsiconfd_data/static"
 			],
-			"sudo": true,
 			"justMyCode": true
 		},
 		{
@@ -88,7 +83,6 @@
 				"--log-mode=redis",
 				"--static-dir=${workspaceFolder}/opsiconfd_data/static"
 			],
-			"sudo": true,
 		},
 		{
 			"name": "health-check docs",
@@ -100,7 +94,6 @@
 				"--documentation",
 				"--static-dir=${workspaceFolder}/opsiconfd_data/static"
 			],
-			"sudo": true,
 		},
 		{
 			"name": "Debug Unit Test",

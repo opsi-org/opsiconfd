@@ -26,7 +26,7 @@
 		{
 			"label": "Restore Backup",
 			"type": "shell",
-			"command": "sudo opsi-backup restore --force --backends=${input:opsi-backends} --new-server-id=${OPSI_HOSTNAME} ${input:opsi-backup}",
+			"command": "opsi-backup restore --force --backends=${input:opsi-backends} --new-server-id=${OPSI_HOSTNAME} ${input:opsi-backup}",
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
@@ -36,7 +36,7 @@
 		{
 			"label": "PyInstaller build",
 			"type": "shell",
-			"command": "sudo uv run opsi-dev-cli -l debug pyinstaller build --skip-transifex",
+			"command": "uv run opsi-dev-cli -l debug pyinstaller build --skip-transifex",
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"

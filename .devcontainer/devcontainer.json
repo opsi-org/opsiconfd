@@ -6,7 +6,7 @@
 	"postCreateCommand": ".devcontainer/post_create.sh",
 	"postStartCommand": ".devcontainer/post_start.sh",
 	"workspaceFolder": "/workspace",
-	"remoteUser": "${localEnv:USER}",
+	"remoteUser": "root",
 	"overrideCommand": false,
 	"customizations": {
 		"vscode": {

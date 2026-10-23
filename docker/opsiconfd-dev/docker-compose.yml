@@ -30,9 +30,6 @@ services:
       - grafana-dev
     build:
       context: .
-      args:
-        DEV_USER: $DEV_USER
-        DEV_UID: $DEV_UID
     volumes:
       - ${LOCAL_WORKSPACE_DIR}:/workspace
     ports:
@@ -91,9 +88,6 @@ services:
       - grafana-cs
     build:
       context: .
-      args:
-        DEV_USER: $DEV_USER
-        DEV_UID: $DEV_UID
     volumes:
       - ${LOCAL_WORKSPACE_DIR}:/workspace
     ports:

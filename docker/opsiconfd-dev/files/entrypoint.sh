@@ -29,17 +29,10 @@ opsi-dev-cli self upgrade --system || true
 
 opsi-set-rights
 
-if [ -n "$DEV_USER" ]; then
-	if [ -z "$SSH_AUTH_SOCK" ]; then
-		VSCODE_AUTH_SOCK=$(ls -t /tmp/vscode-ssh-auth-*.sock 2> /dev/null | head -n1)
-		[ -n "$VSCODE_AUTH_SOCK" ] && export SSH_AUTH_SOCK=$VSCODE_AUTH_SOCK
-	fi
-	ssh-add -L
-
-	echo "* Git config"
-	chown -R $DEV_USER /workspace
-	su - $DEV_USER -c "git config --global --replace-all core.editor \"${EDITOR} --wait\""
-fi
+echo "* Git config"
+git config --global --replace-all core.editor "${EDITOR} --wait"
+# /workspace is a bind mount owned by the host user
+git config --global --replace-all safe.directory /workspace
 
 OPSICONFD_BASE_DIR=/workspace
 if [ -d $OPSICONFD_BASE_DIR ]; then
@@ -99,7 +92,6 @@ if [ -d $OPSICONFD_BASE_DIR ]; then
 			exit 1
 		)
 		echo "uv completed"
-		[ -n "$DEV_USER" ] && chown -R $DEV_USER $OPSICONFD_BASE_DIR
 		sleep 3
 		echo -n "ready" > $state_file
 		sync

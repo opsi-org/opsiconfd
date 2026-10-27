@@ -27,6 +27,7 @@ from pyzsync import (
 	patch_file,
 	read_zsync_file,
 )
+from wsgidav.dav_error import DAVError
 
 from opsiconfd.application.webdav import OpsiconfdFilesystemProvider, webdav_setup
 from opsiconfd.config import get_depotserver_id
@@ -212,7 +213,7 @@ def test_webdav_new_folder_and_file_permissions(
 	"filename, path, exception",
 	(
 		("/filename.txt", "/filename.TXT", None),
-		("/outside.root", "../outside.root", RuntimeError),
+		("/outside.root", "../outside.root", DAVError),
 		("/tEsT/TesT2/fileNaME1.TXt", "/test/test2/filename1.txt", None),
 		("/Test/test/filename1.bin", "/test/teST/fileName1.bin", None),
 		("/tEßT/TäsT2/陰陽_Üß.TXt", "/tEßT/täsT2/陰陽_üß.txt", None),
@@ -292,11 +293,28 @@ def test_webdav_symlink(
 			"/dav/depot/symlink_test/forbidden_link",
 		):
 			res = test_client.get(url=path)
-			assert res.status_code == 500
-			assert f"Access to &#x27;{path}&#x27; denied" in res.content.decode("utf-8")
+			assert res.status_code == 403
 	finally:
 		if base_dir.exists():
 			shutil.rmtree(base_dir)
+
+
+def test_webdav_loc_to_file_path_ignore_case_new_file(tmp_path: Path) -> None:
+	(tmp_path / "foo").mkdir()
+	prov = OpsiconfdFilesystemProvider(str(tmp_path), fs_opts={"ignore_case": True})
+	root = tmp_path.resolve()
+	# Existing directory with different case, new file name
+	assert prov._loc_to_file_path("/FOO/New.txt") == f"{root}/foo/New.txt"
+	# File in path instead of directory
+	(tmp_path / "foo" / "file.txt").write_text("x")
+	assert prov._loc_to_file_path("/foo/file.txt/sub") == f"{root}/foo/file.txt/sub"
+
+
+def test_webdav_loc_to_file_path_invalid(tmp_path: Path) -> None:
+	prov = OpsiconfdFilesystemProvider(str(tmp_path), fs_opts={"ignore_case": True})
+	for path in ("/../outside", "/foo/../../outside", "/foo\x00bar"):
+		with pytest.raises(DAVError):
+			prov._loc_to_file_path(path)
 
 
 def test_webdav_virtual_folder(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

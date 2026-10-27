@@ -176,6 +176,25 @@ def get_header_auth(headers: Headers) -> BasicAuth | BearerAuth:
 	)
 
 
+def path_startswith(path: str, prefix: str, case_sensitive: bool = True) -> bool:
+	"""
+	Check if a path is equal to a prefix or located below it (matches whole path segments only).
+
+	Args:
+		path: The request path.
+		prefix: The path prefix without trailing slash.
+		case_sensitive: Whether to compare case-sensitive.
+
+	Returns:
+		`True` if the path is equal to or below the prefix.
+	"""
+	if not case_sensitive:
+		path = path.lower()
+		prefix = prefix.lower()
+	prefix = prefix.rstrip("/")
+	return path == prefix or path.startswith(f"{prefix}/")
+
+
 class SessionMiddleware:
 	def __init__(self, app: FastAPI, public_path: list[str] | None = None) -> None:
 		self.app = app
@@ -253,13 +272,13 @@ class SessionMiddleware:
 				if path == "/":
 					required_access_role = access_role_public
 				for pub_path in self._public_path:
-					if path.startswith(pub_path):
+					if path_startswith(path, pub_path):
 						required_access_role = access_role_public
 						break
 			if (
 				required_access_role != ACCESS_ROLE_PUBLIC
 				and path.startswith(("/rpc", "/messagebus", "/file-transfer", "/auth"))
-				or (path.startswith(("/depot",)) and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
+				or (path_startswith(path, "/depot") and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
 			):
 				required_access_role = ACCESS_ROLE_AUTHENTICATED
 			scope["required_access_role"] = required_access_role
@@ -325,7 +344,8 @@ class SessionMiddleware:
 
 				if (
 					not session.host_id
-					and path.startswith("/depot")
+					# wsgidav matches share names case-insensitive
+					and (path_startswith(path, "/depot", False) or path_startswith(path, "/dav/depot", False))
 					and opsi_config.get("groups", "fileadmingroup") not in session.user_groups
 				):
 					raise OpsiServicePermissionError(f"Not a file admin user '{scope['session'].username}'")

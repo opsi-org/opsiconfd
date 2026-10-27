@@ -10,37 +10,88 @@ opsiconfd.wsgi
 import asyncio
 import os
 import sys
+import threading
 from collections.abc import Callable
-from queue import Queue
+from queue import Empty, Full, Queue
 from typing import Any
 
 from starlette.concurrency import run_in_threadpool
 from starlette.types import Receive, Scope, Send
 
+# Marks the end of the request body in the input queue
+_END_OF_DATA = object()
+
+
+class _Stopped(ConnectionAbortedError):
+	"""Raised in the WSGI thread if the response can no longer be delivered."""
+
 
 class InputBuffer:
-	"""Input buffer"""
+	"""
+	Input buffer connecting the ASGI receiver (event loop) with the WSGI application (thread).
+
+	The number of buffered chunks is limited to apply backpressure to the client.
+	"""
 
 	def __init__(self, allow_memory_view: bool = True) -> None:
 		self._allow_memory_view = allow_memory_view
-		self._queue: Queue[bytes] = Queue(5)
+		self._queue: Queue[Any] = Queue(5)
 		self._buffer = b""
 		self._read_pos = 0
-		self._end_of_data = False
+		self._eof = False
+		self._aborted = threading.Event()
+		self._closed = threading.Event()
 
-	def end_of_data(self) -> None:
-		self._end_of_data = True
+	def _put(self, item: Any) -> None:
+		"""Put an item into the queue (blocking). Discards the item if the buffer is closed."""
+		while not self._closed.is_set():
+			try:
+				self._queue.put(item, timeout=0.5)
+				return
+			except Full:
+				continue
 
-	def write(self, data: bytes) -> int:
+	async def _aput(self, item: Any) -> None:
+		"""Put an item into the queue without blocking the event loop."""
+		if self._closed.is_set():
+			return
+		try:
+			self._queue.put_nowait(item)
+		except Full:
+			await run_in_threadpool(self._put, item)
+
+	async def write(self, data: bytes) -> int:
+		"""Add a chunk of the request body."""
 		if len(data) > 0:
-			self._queue.put(data)
+			await self._aput(data)
 		return len(data)
+
+	async def end_of_data(self) -> None:
+		"""Mark the end of the request body."""
+		await self._aput(_END_OF_DATA)
+
+	def abort(self) -> None:
+		"""Abort the request body (e.g. client disconnected). Pending and future reads will fail."""
+		self._aborted.set()
+
+	def _get(self) -> Any:
+		while True:
+			if self._aborted.is_set():
+				raise ConnectionAbortedError("Request body incomplete, client disconnected")
+			try:
+				return self._queue.get(timeout=0.5)
+			except Empty:
+				continue
 
 	def read(self, size: int) -> bytes | memoryview:
 		if self._read_pos == 0:
-			if self._end_of_data and self._queue.empty():
+			if self._eof:
 				return b""
-			self._buffer = self._queue.get()
+			item = self._get()
+			if item is _END_OF_DATA:
+				self._eof = True
+				return b""
+			self._buffer = item
 
 		start = self._read_pos
 		end = start + size
@@ -59,7 +110,8 @@ class InputBuffer:
 		return self.read(16 * 1024)
 
 	def close(self) -> None:
-		pass
+		"""Close the buffer. Data written afterwards is discarded."""
+		self._closed.set()
 
 
 ENC, ESC = sys.getfilesystemencoding(), "surrogateescape"
@@ -87,7 +139,7 @@ def build_environ(scope: Scope) -> dict:
 		"REQUEST_METHOD": scope["method"],
 		"SCRIPT_NAME": script_name,
 		"PATH_INFO": path_info,
-		"QUERY_STRING": scope["query_string"].decode("ascii"),
+		"QUERY_STRING": scope["query_string"].decode("latin1"),
 		"SERVER_PROTOCOL": f"HTTP/{scope['http_version']}",
 		"wsgi.version": (1, 0),
 		"wsgi.url_scheme": scope.get("scheme", "http"),
@@ -121,6 +173,11 @@ def build_environ(scope: Scope) -> dict:
 		# HTTPbis say only ASCII chars are allowed in headers, but we latin1 just in case
 		value = value.decode("latin1")
 		if val := environ.get(corrected_name):
+			if corrected_name == "CONTENT_LENGTH":
+				# Never merge, conflicting values are a sign of request smuggling attempts
+				if val != value.strip():
+					raise ValueError("Conflicting Content-Length headers")
+				continue
 			value = f"{val},{value}"
 		environ[corrected_name] = value
 
@@ -131,6 +188,8 @@ def build_environ(scope: Scope) -> dict:
 
 
 class WSGIMiddleware:
+	"""ASGI middleware running a WSGI application in a thread pool."""
+
 	def __init__(self, app: Callable) -> None:
 		self.app = app
 
@@ -141,6 +200,8 @@ class WSGIMiddleware:
 
 
 class WSGIResponder:
+	"""Handles a single request / response cycle of a WSGI application."""
+
 	def __init__(self, app: Callable, scope: Scope) -> None:
 		self.app = app
 		self.scope = scope
@@ -151,33 +212,55 @@ class WSGIResponder:
 		# which should be the case most of the time, the send queue will not fill up endlessly.
 		# The original implementation from uvicorn uses a list, which eats up a lot of memory.
 		self.send_queue: Queue = Queue(5)
+		# Set if the response can no longer be delivered (client disconnected or sender stopped)
+		self._stopped = threading.Event()
 		self.loop = asyncio.get_running_loop()
 		self.response_started = False
 		self.exc_info = None  # type: Any
 
 	async def __call__(self, receive: Receive, send: Send) -> None:
 		environ = build_environ(self.scope)
-		receiver = self.loop.create_task(self.receiver(receive, environ["wsgi.input"]))
-		sender = None
+		wsgi_input: InputBuffer = environ["wsgi.input"]
+		receiver = self.loop.create_task(self.receiver(receive, wsgi_input))
+		sender = self.loop.create_task(self.sender(send))
+		# Unblock the WSGI thread if the sender terminates (normally or by an error)
+		sender.add_done_callback(lambda _: self._stopped.set())
 		try:
-			sender = self.loop.create_task(self.sender(send))
 			await run_in_threadpool(self.wsgi, environ, self.start_response)
-			await asyncio.wait_for(receiver, None)
-			await asyncio.wait_for(sender, None)
+			if not self._stopped.is_set() or sender.done():
+				await asyncio.wait_for(sender, None)
 			if self.exc_info is not None:
 				raise self.exc_info[0].with_traceback(self.exc_info[1], self.exc_info[2])
 		finally:
-			environ["wsgi.input"].close()
-			if sender and not sender.done():
-				sender.cancel()  # pragma: no cover
+			# The WSGI application may not have consumed the whole request body.
+			# Further body data is discarded and the receiver is stopped.
+			wsgi_input.close()
+			tasks = [task for task in (receiver, sender) if not task.done()]
+			for task in tasks:
+				task.cancel()
+			if tasks:
+				await asyncio.gather(*tasks, return_exceptions=True)
 
 	async def receiver(self, receive: Receive, wsgi_input: InputBuffer) -> None:
-		more_body = True
-		while more_body:
-			message = await receive()
-			wsgi_input.write(message.get("body", b""))
-			more_body = message.get("more_body", False)
-		wsgi_input.end_of_data()
+		"""Feed the request body into the input buffer and watch for client disconnects."""
+		body_complete = False
+		try:
+			while True:
+				message = await receive()
+				if message["type"] == "http.disconnect":
+					self._stopped.set()
+					if not body_complete:
+						wsgi_input.abort()
+					return
+				if body_complete:
+					continue
+				await wsgi_input.write(message.get("body", b""))
+				if not message.get("more_body", False):
+					body_complete = True
+					await wsgi_input.end_of_data()
+		except Exception:
+			wsgi_input.abort()
+			raise
 
 	async def sender(self, send: Send) -> None:
 		while True:
@@ -201,21 +284,49 @@ class WSGIResponder:
 			self.response_started = True
 			status_code_string, _ = status.split(" ", 1)
 			status_code = int(status_code_string)
-			headers = [(name.strip().encode("ascii").lower(), value.strip().encode("ascii")) for name, value in response_headers]
-			self.send_queue.put(
+			headers = [
+				(name.strip().encode("ascii").lower(), value.strip().encode("latin1", "replace")) for name, value in response_headers
+			]
+			self._put(
 				{
 					"type": "http.response.start",
 					"status": status_code,
 					"headers": headers,
 				}
 			)
-			self.loop.call_soon_threadsafe(self.send_event.set)
+
+	def _put(self, message: dict | None) -> None:
+		"""
+		Put a message into the send queue (called from the WSGI thread).
+
+		Raises:
+			_Stopped: If the response can no longer be delivered.
+		"""
+		while True:
+			if self._stopped.is_set():
+				raise _Stopped("Response can not be delivered")
+			try:
+				self.send_queue.put(message, timeout=0.5)
+				break
+			except Full:
+				continue
+		self.loop.call_soon_threadsafe(self.send_event.set)
 
 	def wsgi(self, environ: dict, start_response: Callable) -> None:
-		for chunk in self.app(environ, start_response):
-			self.send_queue.put({"type": "http.response.body", "body": chunk, "more_body": True})
-			self.loop.call_soon_threadsafe(self.send_event.set)
+		"""Run the WSGI application in a thread and pass the response to the sender."""
+		result = None
+		try:
+			result = self.app(environ, start_response)
+			for chunk in result:
+				self._put({"type": "http.response.body", "body": chunk, "more_body": True})
 
-		self.send_queue.put({"type": "http.response.body", "body": b""})
-		self.send_queue.put(None)
-		self.loop.call_soon_threadsafe(self.send_event.set)
+			self._put({"type": "http.response.body", "body": b""})
+			self._put(None)
+		except ConnectionError:
+			# Client disconnected or response can no longer be delivered
+			if not self._stopped.is_set():
+				raise
+		finally:
+			# Required by the WSGI specification, releases resources (e.g. open files)
+			if result is not None and hasattr(result, "close"):
+				result.close()

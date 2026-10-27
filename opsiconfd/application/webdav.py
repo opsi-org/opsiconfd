@@ -16,7 +16,7 @@ from typing import Any
 import wsgidav.fs_dav_provider
 from fastapi import FastAPI
 from wsgidav import util
-from wsgidav.dav_error import HTTP_FORBIDDEN, DAVError
+from wsgidav.dav_error import HTTP_BAD_REQUEST, HTTP_CONFLICT, HTTP_FORBIDDEN, HTTP_METHOD_NOT_ALLOWED, DAVError
 from wsgidav.dav_provider import (
 	DAVCollection,
 	DAVProvider,
@@ -59,22 +59,100 @@ class OpsiconfdFolderResource(FolderResource):
 	provider: OpsiconfdFilesystemProvider  # ty: ignore[invalid-mutable-override]
 
 	def create_empty_resource(self, name: str) -> FileResource:
-		# Override to set permissions for new files
-		resource: FileResource = super().create_empty_resource(name)
-		assert isinstance(resource._file_path, str)
-		# Remove all permissions for others, add write permissions for group
-		os.chmod(resource._file_path, (os.stat(resource._file_path).st_mode & 0o770) | 0o020)
-		return resource
+		"""
+		Create an empty file with permissions 0660 (no access for others, write access for group).
 
-	def create_collection(self, name: str) -> None:
-		# Override to set permissions for new directories
+		The file is created exclusively and without following symlinks.
+
+		Args:
+			name: Name of the new file.
+
+		Returns:
+			The new file resource.
+
+		Raises:
+			DAVError: If the provider is read-only or the file cannot be created.
+		"""
 		assert "/" not in name
 		if self.provider.readonly:
 			raise DAVError(HTTP_FORBIDDEN)
 		path = util.join_uri(self.path, name)
 		fp = self.provider._loc_to_file_path(path, self.environ)
-		os.mkdir(fp)
+		try:
+			# Create with restrictive permissions, O_EXCL | O_NOFOLLOW prevents writing through (dangling) symlinks
+			fd = os.open(fp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+		except FileExistsError as err:
+			raise DAVError(HTTP_FORBIDDEN) from err
+		except FileNotFoundError as err:
+			raise DAVError(HTTP_CONFLICT) from err
+		try:
+			os.fchmod(fd, 0o660)
+		finally:
+			os.close(fd)
+
+		resource = self.provider.get_resource_inst(path, self.environ)
+		assert isinstance(resource, FileResource)
+		return resource
+
+	def create_collection(self, name: str) -> None:
+		"""
+		Create a new directory with permissions 0770.
+
+		Args:
+			name: Name of the new directory.
+
+		Raises:
+			DAVError: If the provider is read-only or the directory cannot be created.
+		"""
+		assert "/" not in name
+		if self.provider.readonly:
+			raise DAVError(HTTP_FORBIDDEN)
+		path = util.join_uri(self.path, name)
+		fp = self.provider._loc_to_file_path(path, self.environ)
+		try:
+			# Create restrictive first, the umask would remove group permissions
+			os.mkdir(fp, 0o700)
+		except FileExistsError as err:
+			raise DAVError(HTTP_METHOD_NOT_ALLOWED) from err
+		except FileNotFoundError as err:
+			raise DAVError(HTTP_CONFLICT) from err
 		os.chmod(fp, 0o770)
+
+
+def _find_case_insensitive(root_path: Path, relative_path: Path) -> Path:
+	"""
+	Resolve a relative path below root_path, matching each missing part case-insensitively.
+
+	Parts that cannot be matched (e.g. the name of a file to be created) are appended unchanged.
+	If multiple entries match case-insensitively, the first one in sorted order is used.
+
+	Args:
+		root_path: The root directory.
+		relative_path: The path relative to root_path. Must not contain "..".
+
+	Returns:
+		The path below root_path.
+	"""
+	current = root_path
+	parts = relative_path.parts
+	for idx, part in enumerate(parts):
+		candidate = current / part
+		if os.path.lexists(candidate):
+			current = candidate
+			continue
+
+		part_lower = part.lower()
+		try:
+			with os.scandir(current) as entries:
+				matches = sorted(entry.name for entry in entries if entry.name.lower() == part_lower)
+		except OSError:
+			# Not a directory or not readable
+			matches = []
+
+		if not matches:
+			return current.joinpath(*parts[idx:])
+		current = current / matches[0]
+	return current
 
 
 class OpsiconfdFilesystemProvider(FilesystemProvider):
@@ -92,41 +170,30 @@ class OpsiconfdFilesystemProvider(FilesystemProvider):
 			The absolute unicode file path.
 
 		Raises:
-			RuntimeError: If access is denied.
+			DAVError: If the path is invalid or access is denied.
 		"""
 
-		assert util.is_str(self.root_folder_path)
+		assert self.root_folder_path
 		assert util.is_str(path)
+		if "\x00" in path:
+			raise DAVError(HTTP_BAD_REQUEST)
+
 		root_path = Path(self.root_folder_path).resolve()
 		file_path = root_path / path.strip("/")
 
-		if self.fs_opts.get("ignore_case") and not file_path.exists():
-			alt_path = root_path
-			alt_found = False
-			for part in file_path.relative_to(root_path).parts:
-				test_path = alt_path / part
-				alt_found = test_path.exists()
-				if alt_found:
-					alt_path = test_path
-					continue
+		try:
+			# ".." is not resolved here, it is rejected by the check below.
+			# Do not scan directories outside the root folder.
+			if self.fs_opts.get("ignore_case") and ".." not in file_path.parts and not file_path.exists():
+				file_path = _find_case_insensitive(root_path, file_path.relative_to(root_path))
+			allowed = file_path.resolve().is_relative_to(root_path)
+		except OSError, RuntimeError, ValueError:
+			allowed = False
 
-				part_lower = part.lower()
-				for entry in alt_path.iterdir():
-					if entry.name.lower() == part_lower:
-						alt_found = True
-						alt_path = alt_path / entry.name
-						break
-
-				if not alt_found:
-					# Give up
-					break
-
-			if alt_found:
-				file_path = alt_path
-
-		if not file_path.resolve().is_relative_to(root_path):
-			full_path = (environ.get("asgi.scope") or {}).get("path") if environ else path or path
-			raise RuntimeError(f"Access to '{util.to_unicode_safe(full_path)}' denied")
+		if not allowed:
+			full_path = ((environ or {}).get("asgi.scope") or {}).get("path") or path
+			logger.warning("Access to '%s' denied", util.to_unicode_safe(full_path))
+			raise DAVError(HTTP_FORBIDDEN, f"Access to '{util.to_unicode_safe(full_path)}' denied")
 
 		return util.to_unicode_safe(file_path.as_posix())
 
@@ -153,11 +220,11 @@ class VirtualRootFilesystemCollection(DAVCollection):
 		self.provider: VirtualRootFilesystemProvider = provider  # ty: ignore[invalid-mutable-override]
 
 	def get_member_names(self) -> list[str]:
-		return [name.lstrip("/") for name in self.provider.provider_mapping if name != "/"]
+		return [name.lstrip("/") for name in self.provider.provider_mapping]
 
 	def get_member(self, name: str) -> FolderResource | None:
-		if not (provider := self.provider.provider_mapping.get(f"/{name}")):
-			raise DAVError(HTTP_FORBIDDEN)
+		if not (provider := self.provider.get_share_provider(name)):
+			return None
 		resource = FolderResource(f"/{name}", self.environ, provider.root_folder_path)
 		resource.name = name
 		return resource
@@ -166,18 +233,33 @@ class VirtualRootFilesystemCollection(DAVCollection):
 class VirtualRootFilesystemProvider(DAVProvider):
 	def __init__(self, provider_mapping: dict[str, FilesystemProvider]) -> None:
 		super().__init__()
-		self.provider_mapping = provider_mapping
+		# Copy to make sure the mapping never contains this provider itself
+		self.provider_mapping = dict(provider_mapping)
 		self.readonly = True
 		# wsgidav >= 4.3 accesses provider.fs_opts in FolderResource.get_member_names()
 		self.fs_opts = {"follow_symlinks": True}
+
+	def get_share_provider(self, share: str) -> FilesystemProvider | None:
+		"""
+		Get the provider of a share.
+
+		Args:
+			share: Name of the share (without slashes).
+
+		Returns:
+			The provider or `None` if there is no such share.
+		"""
+		if not share or "/" in share:
+			return None
+		return self.provider_mapping.get(f"/{share}")
 
 	def get_resource_inst(self, path: str, environ: dict) -> _DAVResource | None:
 		if path in ("", "/"):
 			return VirtualRootFilesystemCollection(environ, self)
 
 		share, _, sub_path = path.strip("/").partition("/")
-		if not (provider := self.provider_mapping.get(f"/{share}")):
-			raise DAVError(HTTP_FORBIDDEN)
+		if not (provider := self.get_share_provider(share)):
+			return None
 
 		fp = provider._loc_to_file_path(f"/{sub_path}", environ)
 		if not os.path.exists(fp):
@@ -187,15 +269,22 @@ class VirtualRootFilesystemProvider(DAVProvider):
 		return FileResource(path, environ, fp)
 
 
-def webdav_setup(app: FastAPI) -> None:
-	try:
-		depot_id = get_depotserver_id()
-	except Exception as err:
-		logger.warning("%s, WebDAV disabled.", err)
-		return
+def _get_app_config(mount_path: str, provider_mapping: dict[str, DAVProvider], allow_origin: str | None = None) -> dict[str, Any]:
+	"""
+	Create a new WsgiDAV configuration.
 
-	app_config_template: dict[str, Any] = {
-		"simple_dc": {"user_mapping": {"*": True}},  # Anonymous access
+	A new configuration is created for every app, because wsgidav may keep references to the nested dicts.
+
+	Args:
+		mount_path: The path the app is mounted at.
+		provider_mapping: Mapping of share paths to providers.
+		allow_origin: Value for the CORS `allow_origin` option. CORS is disabled if `None`.
+
+	Returns:
+		The WsgiDAV configuration.
+	"""
+	return {
+		"simple_dc": {"user_mapping": {"*": True}},  # Anonymous access, authentication is done by the SessionMiddleware
 		"hotfixes": {
 			"re_encode_path_info": True,
 		},
@@ -214,81 +303,67 @@ def webdav_setup(app: FastAPI) -> None:
 		"dir_browser": {
 			"response_trailer": f"opsiconfd {__version__} (uvicorn/WsgiDAV)",
 			"davmount": True,
-			"davmount_links": False,
+			"davmount_links": True,
 			"htdocs_path": os.path.join(config.static_dir, "wsgidav"),
 		},
-		"cors": {"allow_origin": "*"},
-		"provider_mapping": {},
-		"mount_path": None,
+		"cors": {"allow_origin": allow_origin},
+		"provider_mapping": provider_mapping,
+		"mount_path": mount_path,
 	}
 
-	filesystems = {}
+
+def webdav_setup(app: FastAPI) -> None:
+	"""
+	Mount the WebDAV shares and the virtual root `/dav`.
+
+	Args:
+		app: The FastAPI app.
+	"""
 	try:
-		path = REPOSITORY_DIR
-		logger.info("Running on depot server %r, exporting repository directory %r", depot_id, path)
-		if not os.path.isdir(path):
-			raise RuntimeError(f"Cannot add webdav content 'repository': directory '{path}' does not exist.")
-		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
-			raise RuntimeError(f"Cannot add webdav content 'repository': permissions on directory '{path}' not sufficient.")
+		depot_id = get_depotserver_id()
+	except Exception as err:
+		logger.warning("%s, WebDAV disabled.", err)
+		return
 
-		filesystems["repository"] = {"path": path, "ignore_case": False, "read_only": False}
-	except Exception as exc:
-		logger.error(exc, exc_info=True)
-
-	try:
-		path = DEPOT_DIR
-		logger.info("Running on depot server %r, exporting depot directory %r", depot_id, path)
-		if not os.path.isdir(path):
-			raise RuntimeError(f"Cannot add webdav content 'depot': directory '{path}' does not exist.")
-		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
-			raise RuntimeError(f"Cannot add webdav content 'depot': permissions on directory '{path}' not sufficient.")
-
-		filesystems["depot"] = {"path": path, "ignore_case": True, "read_only": False}
-	except Exception as exc:
-		logger.error(exc, exc_info=True)
-
-	try:
-		path = WORKBENCH_DIR
-		logger.info("Running on depot server %r, exporting workbench directory %r", depot_id, path)
-		if not os.path.isdir(path):
-			raise RuntimeError(f"Cannot add webdav content 'workbench': directory '{path}' does not exist.")
-		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
-			raise RuntimeError(f"Cannot add webdav content 'workbench': permissions on directory '{path}' not sufficient.")
-
-		filesystems["workbench"] = {"path": path, "ignore_case": False, "read_only": False}
-	except Exception as exc:
-		logger.error(exc, exc_info=True)
-
+	# name, path, ignore_case, read_only
+	shares: list[tuple[str, str, bool, bool]] = [
+		("repository", REPOSITORY_DIR, False, False),
+		("depot", DEPOT_DIR, True, False),
+		("workbench", WORKBENCH_DIR, False, False),
+	]
 	if "public-folder" not in config.disabled_features:
-		try:
-			path = PUBLIC_DIR
-			logger.info("Running on depot server %r, exporting public directory %r", depot_id, path)
-			if not os.path.isdir(path):
-				raise RuntimeError(f"Cannot add webdav content 'public': directory '{path}' does not exist.")
-			if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
-				raise RuntimeError(f"Cannot add webdav content 'public': permissions on directory '{path}' not sufficient.")
+		shares.append(("public", PUBLIC_DIR, False, True))
 
-			filesystems["public"] = {"path": path, "ignore_case": False, "read_only": True}
+	filesystems: dict[str, dict[str, Any]] = {}
+	for name, path, ignore_case, read_only in shares:
+		try:
+			logger.info("Running on depot server %r, exporting %s directory %r", depot_id, name, path)
+			if not os.path.isdir(path):
+				raise RuntimeError(f"Cannot add webdav content '{name}': directory '{path}' does not exist.")
+			# Write access is not needed for read-only shares
+			access = os.R_OK | os.X_OK if read_only else os.R_OK | os.W_OK | os.X_OK
+			if not os.access(path, access):
+				raise RuntimeError(f"Cannot add webdav content '{name}': permissions on directory '{path}' not sufficient.")
+
+			filesystems[name] = {"path": path, "ignore_case": ignore_case, "read_only": read_only}
 		except Exception as exc:
 			logger.error(exc, exc_info=True)
 
-	for name, conf in filesystems.items():
-		app_config = app_config_template.copy()
-		app_config["dir_browser"]["davmount_links"] = True
-		app_config["provider_mapping"]["/"] = OpsiconfdFilesystemProvider(
+	def create_provider(name: str) -> OpsiconfdFilesystemProvider:
+		"""Create a new provider for the share."""
+		conf = filesystems[name]
+		return OpsiconfdFilesystemProvider(
 			conf["path"], readonly=conf["read_only"], fs_opts={"follow_symlinks": True, "ignore_case": conf["ignore_case"]}
 		)
-		app_config["mount_path"] = f"/{name}"
+
+	for name in filesystems:
+		# CORS only for the public (anonymous, read-only) share
+		app_config = _get_app_config(
+			mount_path=f"/{name}", provider_mapping={"/": create_provider(name)}, allow_origin="*" if name == "public" else None
+		)
 		app.mount(f"/{name}", WSGIMiddleware(WsgiDAVApp(app_config)))
 
 	# Virtual filesystem /dav
-	app_config = app_config_template.copy()
-	for name, conf in filesystems.items():
-		app_config["dir_browser"]["davmount_links"] = True
-		app_config["provider_mapping"][f"/{name}"] = OpsiconfdFilesystemProvider(
-			conf["path"], readonly=conf["read_only"], fs_opts={"follow_symlinks": True, "ignore_case": conf["ignore_case"]}
-		)
-	virt_root_provider = VirtualRootFilesystemProvider(app_config["provider_mapping"])
-	app_config["provider_mapping"]["/"] = virt_root_provider
-	app_config["mount_path"] = "/dav"
-	app.mount("/dav", WSGIMiddleware(WsgiDAVApp(app_config)))
+	shares_mapping: dict[str, FilesystemProvider] = {f"/{name}": create_provider(name) for name in filesystems}
+	provider_mapping: dict[str, DAVProvider] = {**shares_mapping, "/": VirtualRootFilesystemProvider(shares_mapping)}
+	app.mount("/dav", WSGIMiddleware(WsgiDAVApp(_get_app_config(mount_path="/dav", provider_mapping=provider_mapping))))

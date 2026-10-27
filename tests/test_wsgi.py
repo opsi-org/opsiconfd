@@ -8,7 +8,7 @@ wsgi tests
 """
 
 import asyncio
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, MutableMapping
 from typing import Any
 
 import pytest
@@ -74,8 +74,8 @@ async def run_asgi(app: Callable, messages: list[dict[str, Any]], scope: dict[st
 		await response_complete.wait()
 		return {"type": "http.disconnect"}
 
-	async def send(message: dict[str, Any]) -> None:
-		sent.append(message)
+	async def send(message: MutableMapping[str, Any]) -> None:
+		sent.append(dict(message))
 		if message["type"] == "http.response.body" and not message.get("more_body"):
 			response_complete.set()
 
@@ -146,7 +146,7 @@ def test_wsgi_middleware_client_disconnect_during_upload() -> None:
 		async def receive() -> dict[str, Any]:
 			return messages.pop(0) if messages else {"type": "http.disconnect"}
 
-		async def send(message: dict[str, Any]) -> None:
+		async def send(message: MutableMapping[str, Any]) -> None:
 			pass
 
 		# Must not hang and must not raise

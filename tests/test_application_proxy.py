@@ -170,7 +170,10 @@ def test_grafana_reverse_proxy(test_client: OpsiconfdTestClient, config: Config)
 		assert client.cookies.get("grafana_session") is not None
 		assert client.cookies.get("grafana_session_expiry") is not None
 
-		print("requesting home dashboard")
-		res = client.get("/grafana/api/dashboards/home")
+		# Newer Grafana versions no longer ship a default home dashboard (/api/dashboards/home => 404).
+		# Use an endpoint which requires an authenticated session instead.
+		print("requesting current user")
+		res = client.get("/grafana/api/user")
 		print(res)
 		assert res.status_code == 200
+		assert res.json()["login"] == grafana_internal_url.username

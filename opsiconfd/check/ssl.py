@@ -21,6 +21,7 @@ from opsiconfd.ssl import (
 	get_not_before_and_not_after,
 	get_opsi_ca_subject,
 	get_server_cn,
+	hostname_matches_cert_name,
 	load_local_server_cert,
 	load_local_server_key,
 	load_opsi_ca_cert,
@@ -202,7 +203,7 @@ class ServerKeyCheck(Check):
 				cert_cn = srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 				if not isinstance(cert_cn, str):
 					cert_cn = cert_cn.decode("utf-8")
-				if server_cn != cert_cn:
+				if not hostname_matches_cert_name(server_cn, cert_cn):
 					result.check_status = CheckStatus.ERROR
 					result.message = f"Server CN has changed from '{server_cn}' to '{cert_cn}'"
 				elif ca_certs:

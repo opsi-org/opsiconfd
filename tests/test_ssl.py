@@ -43,6 +43,7 @@ from opsiconfd.ssl import (
 	get_server_cert_info,
 	get_server_cn,
 	get_trusted_certs,
+	hostname_matches_cert_name,
 	hostname_permitted_by_ca,
 	is_self_signed,
 	load_cert,
@@ -1154,6 +1155,74 @@ def test_setup_server_cert_letsencrypt(tmp_path: Path) -> None:
 		mock.patch("opsiconfd.letsencrypt.LETSENCRYPT_DATA_DIR", str(letsecrypt_data_dir)),
 	):
 		with pytest.raises(RuntimeError, match="The provided contact URI was invalid"):
+			setup_server_cert()
+
+
+@pytest.mark.parametrize(
+	"hostname, cert_name, expected",
+	[
+		("host.example.org", "host.example.org", True),
+		("Host.Example.org", "host.example.org", True),
+		("host.example.org", "*.example.org", True),
+		("a.b.example.org", "*.example.org", False),
+		("example.org", "*.example.org", False),
+		("host.example.com", "*.example.org", False),
+		("host.example.org", "other.example.org", False),
+	],
+)
+def test_hostname_matches_cert_name(hostname: str, cert_name: str, expected: bool) -> None:
+	assert hostname_matches_cert_name(hostname, cert_name) is expected
+
+
+def test_setup_server_cert_custom_ca_wildcard(tmp_path: Path) -> None:
+	ssl_ca_cert = tmp_path / "opsi-ca-cert.pem"
+	ssl_ca_key = tmp_path / "opsi-ca-key.pem"
+	ssl_server_cert = tmp_path / "opsi-server-cert.pem"
+	ssl_server_key = tmp_path / "opsi-server-key.pem"
+	with (
+		get_config(
+			{
+				"ssl_ca_cert": str(ssl_ca_cert),
+				"ssl_ca_key": str(ssl_ca_key),
+				"ssl_ca_key_passphrase": "secret",
+				"ssl_server_cert": str(ssl_server_cert),
+				"ssl_server_key": str(ssl_server_key),
+				"ssl_server_key_passphrase": "secret",
+				"ssl_server_cert_type": "custom-ca",
+			}
+		),
+		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
+		mock.patch("opsiconfd.ssl.get_server_cn", lambda: "opsiconfd.example.org"),
+		mock.patch("opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)),
+	):
+		(ca_crt, ca_key) = create_ca(subject={"CN": "Some CA", "emailAddress": "ca@acme.org"}, valid_days=1000)
+		store_opsi_ca_cert(ca_crt)
+
+		(srv_crt, srv_key) = create_server_cert(
+			subject={"CN": "*.example.org", "emailAddress": "ca@acme.org"},
+			valid_days=1000,
+			ip_addresses=get_ips(),
+			hostnames={"*.example.org"},
+			ca_key=ca_key,
+			ca_cert=ca_crt,
+		)
+		store_local_server_key(srv_key)
+		store_local_server_cert(srv_crt)
+		validate_cert(srv_crt, ca_crt)
+		assert setup_server_cert() is False
+
+		# Wildcard does not cover the server CN
+		(srv_crt, srv_key) = create_server_cert(
+			subject={"CN": "*.example.com", "emailAddress": "ca@acme.org"},
+			valid_days=1000,
+			ip_addresses=get_ips(),
+			hostnames={"*.example.com"},
+			ca_key=ca_key,
+			ca_cert=ca_crt,
+		)
+		store_local_server_key(srv_key)
+		store_local_server_cert(srv_crt)
+		with pytest.raises(RuntimeError, match=r"Server CN has changed"):
 			setup_server_cert()
 
 

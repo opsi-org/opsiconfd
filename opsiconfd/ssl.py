@@ -143,6 +143,29 @@ def hostname_permitted_by_ca(hostname: str) -> bool:
 	return False
 
 
+def hostname_matches_cert_name(hostname: str, cert_name: str) -> bool:
+	"""
+	Check if a hostname matches a certificate name (CN or DNS SAN).
+
+	A wildcard name (`*.example.org`) matches exactly one label (`host.example.org`).
+
+	Args:
+		hostname: The hostname to check.
+		cert_name: The certificate name, optionally a wildcard name.
+
+	Returns:
+		`True` if the hostname matches the certificate name, `False` otherwise.
+	"""
+	hostname = hostname.lower()
+	cert_name = cert_name.lower()
+	if hostname == cert_name:
+		return True
+	if not cert_name.startswith("*."):
+		return False
+	label, _, domain = hostname.partition(".")
+	return bool(label) and domain == cert_name[2:]
+
+
 def setup_ssl_file_permissions() -> None:
 	"""
 	Set the permissions for the SSL files.
@@ -764,6 +787,9 @@ def validate_cert(cert: x509.Certificate, ca_certs: list[x509.Certificate] | x50
 	common_name = cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 	if not isinstance(common_name, str):
 		common_name = common_name.decode("utf-8")
+	if common_name.startswith("*."):
+		# Wildcard names are not valid DNS names for the verifier, use a concrete name matched by the wildcard
+		common_name = f"opsiconfd{common_name[1:]}"
 	verifier = builder.build_server_verifier(x509.DNSName(common_name))
 	verifier.verify(cert, [])
 
@@ -922,7 +948,7 @@ def setup_server_cert(force_new: bool = False) -> bool:
 
 	if not create and srv_crt:
 		common_name = srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
-		if server_cn != common_name:
+		if not hostname_matches_cert_name(server_cn, str(common_name)):
 			crt_err = f"Server CN has changed from '{common_name!s}' to '{server_cn}'"
 			logger.notice("%s, new server cert needed", crt_err)
 			create = True
@@ -938,10 +964,11 @@ def setup_server_cert(force_new: bool = False) -> bool:
 		if config.ssl_server_cert_type == "letsencrypt":
 			hns = {server_cn}
 		elif config.ssl_server_cert_type == "custom-ca":
-			hns = {server_cn}
-			for hn in get_hostnames():
-				if hn in cert_hns:
-					hns.add(hn)
+			# Keep cert names which are local hostnames or (wildcard) names covering the server CN
+			local_hostnames = get_hostnames()
+			hns = {hn for hn in cert_hns if hn in local_hostnames or hostname_matches_cert_name(server_cn, hn)}
+			if not any(hostname_matches_cert_name(server_cn, hn) for hn in hns):
+				hns.add(server_cn)
 		else:
 			hns = get_hostnames()
 

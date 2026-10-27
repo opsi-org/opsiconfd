@@ -232,10 +232,16 @@ def dump(redis_key: str, *, excludes: Iterable[str] | None = None) -> Generator[
 			continue
 
 		value = client.dump(key)
+		if value is None:
+			# Key expired or was deleted after scan (e.g. session)
+			continue
 		if not isinstance(value, bytes):
 			raise TypeError(f"Invalid value type '{type(value)}' of key '{key}' (value={value!r})")
 
 		pttl = client.pttl(key)
+		if pttl == -2:
+			# Key expired or was deleted after dump
+			continue
 		expires = None
 		if pttl >= 0:
 			expires = int(unix_timestamp(millis=True)) + pttl

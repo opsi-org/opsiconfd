@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import secrets
 import ssl
+import threading
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -33,6 +34,11 @@ from . import Downtime, MonitoringClient, MonitoringConfig
 # so the created downtimes are looked up afterwards.
 LOOKUP_ATTEMPTS = 5
 LOOKUP_INTERVAL = 0.5
+
+# Checkmk processes downtime commands sequentially.
+# Concurrent write requests (a client is created per RPC call) pile up there and run into read timeouts,
+# therefore all write operations of this process are serialized.
+_WRITE_LOCK = threading.Lock()
 
 
 def _format_time(value: datetime) -> str:
@@ -152,22 +158,24 @@ class CheckmkClient(MonitoringClient):
 		}
 		if services:
 			body["service_descriptions"] = services
-		self._request("POST", f"/domain-types/downtime/collections/{body['downtime_type']}", json=body)
+		with _WRITE_LOCK:
+			self._request("POST", f"/domain-types/downtime/collections/{body['downtime_type']}", json=body)
 
-		for attempt in range(LOOKUP_ATTEMPTS):
-			downtimes = [downtime for downtime in self.get_downtimes(host) if downtime.comment == comment]
-			if downtimes:
-				return downtimes
-			if attempt < LOOKUP_ATTEMPTS - 1:
-				time.sleep(LOOKUP_INTERVAL)
+			for attempt in range(LOOKUP_ATTEMPTS):
+				downtimes = [downtime for downtime in self.get_downtimes(host) if downtime.comment == comment]
+				if downtimes:
+					return downtimes
+				if attempt < LOOKUP_ATTEMPTS - 1:
+					time.sleep(LOOKUP_INTERVAL)
 
 		logger.warning("Could not determine the ids of the downtimes created for host %r in checkmk", host)
 		return []
 
 	def delete_downtimes(self, downtimes: list[Downtime]) -> None:
 		"""Delete downtimes by id."""
-		for downtime in downtimes:
-			body: dict[str, Any] = {"delete_type": "by_id", "downtime_id": downtime.id}
-			if downtime.site_id:
-				body["site_id"] = downtime.site_id
-			self._request("POST", "/domain-types/downtime/actions/delete/invoke", json=body)
+		with _WRITE_LOCK:
+			for downtime in downtimes:
+				body: dict[str, Any] = {"delete_type": "by_id", "downtime_id": downtime.id}
+				if downtime.site_id:
+					body["site_id"] = downtime.site_id
+				self._request("POST", "/domain-types/downtime/actions/delete/invoke", json=body)

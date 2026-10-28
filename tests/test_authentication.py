@@ -3,11 +3,13 @@
 # All rights reserved.
 # License: AGPL-3.0-only
 
+import asyncio
 import base64
 import threading
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Literal, cast
 from unittest.mock import patch
 
@@ -31,6 +33,7 @@ from opsi.opsi.service.model.object import (
 )
 
 from opsiconfd import contextvar_client_session
+from opsiconfd.audit_log import audit_authentication_event
 from opsiconfd.auth._pam import PAMAuthentication
 from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.saml import check_if_saml_available
@@ -184,6 +187,29 @@ def test_authentication_audit_log_login_failed(
 	assert audit_log.clientAddress == "192.0.2.12"
 	assert audit_log.userAgent == "audit-test"
 	assert audit_log.authentication == AuditLogAuthentication(failureReason=AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS)
+
+
+def test_authentication_audit_log_login_failed_without_username(
+	backend: UnprotectedBackend,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	# The session username is an empty string if the authentication failed before a user was identified (e.g. SAML)
+	session = SimpleNamespace(username="", user_type=None, client_addr="192.0.2.13", user_agent=None, auth_methods=set())
+	with get_config({"audit_log_enabled": True}), test_client:
+		asyncio.run(
+			audit_authentication_event(
+				scope={"session": session},  # ty: ignore[invalid-argument-type]
+				event_type=AuditLogEventType.AUTHENTICATION_LOGIN_FAILED,
+				failure_reason=AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS,
+			)
+		)
+
+	audit_logs = _wait_for_audit_logs(backend, AuditLogEventType.AUTHENTICATION_LOGIN_FAILED)
+	assert len(audit_logs) == 1
+	audit_log = audit_logs[0]
+	assert not audit_log.username
+	assert audit_log.message == "Authentication failed"
+	assert audit_log.clientAddress == "192.0.2.13"
 
 
 def test_x_opsi_user_id_header(

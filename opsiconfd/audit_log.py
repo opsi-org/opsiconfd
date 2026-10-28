@@ -133,7 +133,8 @@ async def audit_authentication_event(
 		return
 	try:
 		session: OPSISession | None = scope.get("session")
-		username = session.username if session else None
+		# The username is an empty string if the authentication failed before a user was identified
+		username = (session.username if session else None) or None
 		actor_type = session.user_type if session else None
 		message = None
 		if event_type == AuditLogEventType.AUTHENTICATION_LOGIN_FAILED:

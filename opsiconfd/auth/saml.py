@@ -131,6 +131,9 @@ def get_saml_settings(
 		"want_assertions_or_response_signed": True,
 		# Like python3-saml (non strict mode): InResponseTo is not checked
 		"allow_unsolicited": True,
+		# PySAML2 reads these from the service section, otherwise it falls back to RSA-SHA1 (not supported by Entra ID)
+		"signing_algorithm": SIG_RSA_SHA256,
+		"digest_algorithm": DIGEST_SHA256,
 	}
 	if config.saml_idp_slo_url:
 		sp_settings["endpoints"]["single_logout_service"] = [(get_sp_url(logout_callback_path), http_redirect_binding)]
@@ -145,8 +148,6 @@ def get_saml_settings(
 		"debug": 0,
 		# Allowed clock drift in seconds like python3-saml
 		"accepted_time_diff": 300,
-		"signing_algorithm": SIG_RSA_SHA256,
-		"digest_algorithm": DIGEST_SHA256,
 		"allow_unknown_attributes": True,
 		"metadata": {"inline": [ElementTree.tostring(entity_descriptor, encoding="unicode")]},
 		"metadata_key_usage": "both" if config.saml_encrypted_assertions else "signing",

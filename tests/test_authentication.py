@@ -198,7 +198,7 @@ def test_authentication_audit_log_login_failed_without_username(
 	with get_config({"audit_log_enabled": True}), test_client:
 		asyncio.run(
 			audit_authentication_event(
-				scope={"session": session},  # ty: ignore[invalid-argument-type]
+				scope={"session": session},
 				event_type=AuditLogEventType.AUTHENTICATION_LOGIN_FAILED,
 				failure_reason=AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS,
 			)

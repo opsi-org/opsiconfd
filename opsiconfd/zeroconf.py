@@ -11,7 +11,7 @@ import asyncio
 import ipaddress
 import socket
 
-import netifaces  # ty: ignore[unresolved-import]
+import netifaces
 from aiozeroconf import ServiceInfo, Zeroconf
 
 from opsiconfd import __version__

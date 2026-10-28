@@ -1525,4 +1525,19 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 		# AUDIT_CONFIG added
 		# AUDIT_PRODUCT_PROPERTY_STATE added
 
+		# schema_version 26
+		# AUDIT_LOG created by versions before 4.3.56.10 has no column hostId and different indexes
+		if "hostId" not in mysql.tables["AUDIT_LOG"]:
+			logger.info("Adding column 'hostId' on table AUDIT_LOG.")
+			session.execute("ALTER TABLE `AUDIT_LOG` ADD `hostId` varchar(255) DEFAULT NULL AFTER `userAgent`")
+		for column in ("created", "eventType", "actorType", "hostId", "username"):
+			create_index(
+				session=session,
+				database=mysql.database,
+				table="AUDIT_LOG",
+				index=f"index_audit_log_{column}",
+				columns=[column],
+			)
+		remove_index(session=session, database=mysql.database, table="AUDIT_LOG", index="index_audit_log_created_eventType")
+
 		# Be sure to update MySQLConnection.schema_version as well when changing this function.

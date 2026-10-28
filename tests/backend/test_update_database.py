@@ -412,3 +412,52 @@ def test_update_database() -> None:
 		finally:
 			with mysql.session() as session:
 				session.execute(f"DROP DATABASE IF EXISTS `{database}`")
+
+
+def test_update_database_audit_log_without_host_id() -> None:
+	# AUDIT_LOG created by versions before 4.3.56.10 has no column hostId
+	database = "opsiupgradetest"
+	mysql = MySQLConnection()
+	mysql.database = database
+
+	with mysql.connection():
+		with mysql.session() as session:
+			session.execute(f"DROP DATABASE IF EXISTS `{database}`")
+			session.execute(f"CREATE DATABASE IF NOT EXISTS `{database}`")
+			session.execute(f"USE `{database}`")
+			session.execute(CREATE_TABLES_SQL)
+			session.execute(
+				"""
+				CREATE TABLE `AUDIT_LOG` (
+					`auditLogId` bigint unsigned NOT NULL AUTO_INCREMENT,
+					`created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+					`eventType` varchar(64) NOT NULL,
+					`username` varchar(200) DEFAULT NULL,
+					`actorType` varchar(32) DEFAULT NULL,
+					`actorId` varchar(255) DEFAULT NULL,
+					`clientAddress` varchar(45) DEFAULT NULL,
+					`userAgent` varchar(512) DEFAULT NULL,
+					`message` varchar(1024) DEFAULT NULL,
+					PRIMARY KEY (`auditLogId`),
+					KEY `index_audit_log_created_eventType` (`created`, `eventType`)
+				) ENGINE=InnoDB DEFAULT CHARSET=utf8
+				"""
+			)
+
+		try:
+			update_database(mysql)
+
+			with mysql.session() as session:
+				assert session.execute("SHOW COLUMNS FROM `AUDIT_LOG` LIKE 'hostId'").fetchone()
+				indexes = {row[2] for row in session.execute("SHOW INDEX FROM `AUDIT_LOG`").fetchall()}
+				assert indexes == {
+					"PRIMARY",
+					"index_audit_log_created",
+					"index_audit_log_eventType",
+					"index_audit_log_actorType",
+					"index_audit_log_hostId",
+					"index_audit_log_username",
+				}
+		finally:
+			with mysql.session() as session:
+				session.execute(f"DROP DATABASE IF EXISTS `{database}`")

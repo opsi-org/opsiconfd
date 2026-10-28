@@ -125,8 +125,10 @@ def get_saml_settings(
 		"authn_requests_signed": sign_messages,
 		"logout_requests_signed": sign_messages,
 		"logout_responses_signed": sign_messages,
-		"want_response_signed": sign_messages,
-		"want_assertions_signed": sign_messages,
+		# Do not require both the response and the assertion to be signed.
+		# Entra ID signs only the assertion by default, other IdPs only the response.
+		"want_response_signed": False,
+		"want_assertions_signed": False,
 		# Like python3-saml: At least the response or the assertion has to be signed
 		"want_assertions_or_response_signed": True,
 		# Like python3-saml (non strict mode): InResponseTo is not checked
@@ -307,6 +309,8 @@ def get_sp_metadata_xml(
 	sp_config.valid_for = 48
 
 	metadata_descriptor = saml2_metadata.entity_descriptor(sp_config)
+	# Advertise that signed assertions are preferred, although it is not enforced (see get_saml_settings)
+	metadata_descriptor.spsso_descriptor.want_assertions_signed = str(config.saml_sp_client_signature).lower()
 
 	if config.saml_sp_x509_cert and (config.saml_sp_client_signature or config.saml_encrypted_assertions):
 		certificate = "".join(line.strip() for line in config.saml_sp_x509_cert.splitlines() if not line.startswith("-----"))

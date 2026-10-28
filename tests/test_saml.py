@@ -21,6 +21,7 @@ from opsi.testing.helper import http_test_server
 from saml2 import BINDING_HTTP_POST, samlp
 from saml2.s_utils import UnsupportedBinding
 from saml2.sigver import RSA_1_5, XmlsecError, pre_encryption_part
+from saml2.xmldsig import SIG_RSA_SHA256
 
 from opsiconfd.auth.saml import (
 	XmlSec1CryptoBackend,
@@ -81,10 +82,13 @@ def test_get_saml_settings(slo_url: str | None, sign_messages: bool) -> None:
 		"authn_requests_signed",
 		"logout_requests_signed",
 		"logout_responses_signed",
-		"want_response_signed",
-		"want_assertions_signed",
 	):
 		assert settings.getattr(setting, "sp") is sign_messages
+	# Entra ID signs only the assertion by default, so neither is required individually
+	assert settings.getattr("want_response_signed", "sp") is False
+	assert settings.getattr("want_assertions_signed", "sp") is False
+	assert settings.getattr("want_assertions_or_response_signed", "sp") is True
+	assert settings.getattr("signing_algorithm", "sp") == SIG_RSA_SHA256
 
 	metadata = settings.metadata
 	assert metadata is not None

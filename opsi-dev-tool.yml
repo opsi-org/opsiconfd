@@ -73,6 +73,10 @@ package:
   name: opsiconfd
   type: binary
   systemd: yes
+  # The package contains a PyInstaller bundle with many bundled binaries.
+  # rpmlint warnings/errors would exceed the badness threshold and abort the build.
+  rpmlintrc: |
+    addFilter(".*")
   depends:
     - xmlsec1 | xmlsec1-openssl | xmlsec
     - libmariadb3 | mariadb-connector-c

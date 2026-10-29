@@ -1427,6 +1427,19 @@ class Config:
 			),
 		)
 		self._parser.add_argument(
+			"--saml-check-client-address",
+			env_var="OPSICONFD_SAML_CHECK_CLIENT_ADDRESS",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=True,
+			help=self._help(
+				"opsiconfd",
+				"Only accept the SAML login callback from the client address that started the login (protection against session fixation).\n"
+				"Disable this if the client address changes during the login, e.g. because of load balanced outgoing proxies.\n",
+			),
+		)
+		self._parser.add_argument(
 			"--saml-sp-x509-cert",
 			env_var="OPSICONFD_SAML_SP_X509_CERT",
 			default=None,

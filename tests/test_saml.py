@@ -266,6 +266,7 @@ def test_saml_client_decrypt_encrypted_assertion(tmp_path: Path, saml_encrypted_
 		(360000, None, "192.168.1.1", 401, "Authentication failure"),
 	),
 )
+@pytest.mark.parametrize("check_client_address", (True, False))
 def test_saml_login(
 	config: Config,  # noqa: F811
 	test_client: OpsiconfdTestClient,  # noqa: F811
@@ -274,7 +275,13 @@ def test_saml_login(
 	callback_client_address: str | None,
 	expected_status_code: int,
 	expected_text: str,
+	check_client_address: bool,
 ) -> None:
+	if callback_client_address and not check_client_address:
+		# Callback from another client address is accepted if saml-check-client-address is disabled
+		expected_status_code = 200
+		expected_text = '<meta http-equiv="refresh" content="0; url=/admin">'
+
 	now = datetime.now(tz=UTC)
 	not_before = now - timedelta(seconds=10)
 	not_on_or_after = now + timedelta(seconds=expiration_seconds)
@@ -359,6 +366,7 @@ def test_saml_login(
 				"saml-idp-entity-id": "https://keycloak.opsi.test/realms/master",
 				"saml-idp-x509-cert": "==",
 				"saml-idp-sso-url": saml_idp_sso_url,
+				"saml-check-client-address": check_client_address,
 				"saml-role-group-mappings": [" view-profile=map-view-profile  ", " offline_access =  group_offline_access"],
 			}
 		),

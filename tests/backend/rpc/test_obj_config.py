@@ -7,6 +7,8 @@
 test opsiconfd.backend.rpc.obj_config
 """
 
+from __future__ import annotations
+
 import asyncio
 import time
 from collections.abc import Generator
@@ -57,6 +59,35 @@ def acl_file(tmp_path: Path) -> Generator[Path]:
 	finally:
 		# Restore original ACL
 		protected_backend._read_acl_file()
+
+
+def test_config_createUser(
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	"""Test creating user configurations via RPC and preserving existing values."""
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	name = "test-backend-rpc-config-user"
+	prefix = f"user.{{{name}}}"
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "config_createUser", "params": {"name": name}}
+	try:
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+		assert res["result"] is None
+		configs = {config.id: config for config in backend.config_getObjects(id=f"{prefix}.*")}
+		assert configs[f"{prefix}.has_role"].defaultValues == [""]
+		assert configs[f"{prefix}.privilege.host.createclient"].defaultValues == [True]
+		assert configs[f"{prefix}.privilege.host.all.registered_readonly"].defaultValues == [False]
+
+		backend.config_updateObject(BoolConfig(id=f"{prefix}.privilege.host.createclient", defaultValues=[False]))
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+		updated_configs = {config.id: config for config in backend.config_getObjects(id=f"{prefix}.*")}
+		assert updated_configs.keys() == configs.keys()
+		assert updated_configs[f"{prefix}.privilege.host.createclient"].defaultValues == [False]
+	finally:
+		backend.config_delete(id=f"{prefix}.*")
 
 
 def test_config_insertObject(

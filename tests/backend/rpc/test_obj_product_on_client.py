@@ -941,3 +941,94 @@ def test_productOnClients_removed_product(
 	assert "error" not in res
 	assert len(res["result"]) == 1
 	assert res["result"][0]["productId"] == product1.id
+
+
+# client1 is assigned to depot1 (product1 installed), client2 is assigned to the configserver (product2 installed)
+@pytest.mark.parametrize(
+	"product_id, expected_remaining",
+	(
+		(None, [("client1", "product1"), ("client2", "product2")]),
+		([], [("client1", "product1"), ("client2", "product2")]),
+		("product2", [("client1", "product1"), ("client2", "product1"), ("client2", "product2")]),
+		(["product1"], [("client1", "product1"), ("client1", "product2"), ("client2", "product2")]),
+		(["product1", "product2"], [("client1", "product1"), ("client2", "product2")]),
+		("product3", [("client1", "product1"), ("client1", "product2"), ("client2", "product1"), ("client2", "product2")]),
+	),
+)
+def test_product_on_client_purge_not_on_depot(
+	backend: UnprotectedBackend,  # noqa: F811
+	product_id: list[str] | str | None,
+	expected_remaining: list[tuple[str, str]],
+) -> None:
+	"""Test that only ProductOnClients of products missing on the depot of the client are purged."""
+	prefix = "test-backend-rpc-purge-"
+	depot1 = OpsiDepotserver(id=f"{prefix}depot1.opsi.test")
+	client1 = OpsiClient(id=f"{prefix}client1.opsi.test")
+	client2 = OpsiClient(id=f"{prefix}client2.opsi.test")
+	product1 = LocalbootProduct(id=f"{prefix}product1", productVersion="1", packageVersion="1")
+	product2 = LocalbootProduct(id=f"{prefix}product2", productVersion="1", packageVersion="1")
+
+	backend.host_createObjects([depot1, client1, client2])
+	backend.configState_createObjects([ConfigState(configId="clientconfig.depot.id", objectId=client1.id, values=[depot1.id])])
+	backend.product_createObjects([product1, product2])
+	backend.productOnDepot_createObjects(
+		[
+			ProductOnDepot(
+				productId=product.id,
+				productType=product.getType(),
+				productVersion=product.productVersion,
+				packageVersion=product.packageVersion,
+				depotId=depot_id,
+			)
+			for product, depot_id in ((product1, depot1.id), (product2, get_depotserver_id()))
+		]
+	)
+	backend.productOnClient_createObjects(
+		[
+			ProductOnClient(
+				productId=product.id,
+				productType=product.getType(),
+				clientId=client.id,
+				installationStatus="installed",
+				actionRequest="setup",
+			)
+			for client in (client1, client2)
+			for product in (product1, product2)
+		]
+	)
+
+	if isinstance(product_id, str):
+		product_id = f"{prefix}{product_id}"
+	elif product_id is not None:
+		product_id = [f"{prefix}{pid}" for pid in product_id]
+	backend.productOnClient_purgeNotOnDepot(product_id)
+
+	remaining = sorted(
+		(poc.clientId.removeprefix(prefix).removesuffix(".opsi.test"), poc.productId.removeprefix(prefix))
+		for poc in backend.productOnClient_getObjects()
+	)
+	assert remaining == expected_remaining
+
+
+def test_product_on_client_purge_not_on_depot_admin_only(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	"""Test that purging ProductOnClients is denied for non-admin users."""
+	client = OpsiClient(id="test-backend-rpc-purge-client.opsi.test", opsiHostKey="4587dec5913c501a28560d576768924e")
+	backend.host_createObjects([client])
+	backend.productOnClient_createObjects(
+		[ProductOnClient(productId="test-backend-rpc-purge-product", productType="LocalbootProduct", clientId=client.id)]
+	)
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_purgeNotOnDepot", "params": []}
+
+	test_client.auth = (client.id, client.opsiHostKey or "")
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "Insufficient permissions" in res["error"]["message"]
+	assert len(backend.productOnClient_getObjects(clientId=client.id)) == 1
+
+	test_client.reset_cookies()
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	assert backend.productOnClient_getObjects(clientId=client.id) == []

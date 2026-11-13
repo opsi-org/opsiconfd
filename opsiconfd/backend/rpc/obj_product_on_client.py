@@ -265,6 +265,50 @@ class RPCProductOnClientMixin(Protocol):
 			self.productOnClient_deleteObjects(idents)
 
 	@rpc_method(check_acl=False)
+	def productOnClient_purgeNotOnDepot(self: BackendProtocol, productId: list[str] | str | None = None) -> None:
+		"""
+		Delete ProductOnClients whose product is not installed on the depot the client is assigned to.
+
+		ProductOnClients of clients whose depot cannot be determined are kept.
+		Requires admin permissions.
+
+		Args:
+			productId: Only delete ProductOnClients referencing these products. All products are processed if omitted.
+
+		Raises:
+			BackendPermissionDeniedError: If the caller is not an admin.
+		"""
+		self._check_role("admin")
+		product_ids = productId or []
+		product_on_clients = self.productOnClient_getObjects(productId=product_ids)
+		if not product_on_clients:
+			return
+
+		depot_id_by_client_id: dict[str, str] = {
+			client_to_depot["clientId"]: client_to_depot["depotId"]
+			for client_to_depot in self.configState_getClientToDepotserver(clientIds=list({poc.clientId for poc in product_on_clients}))
+		}
+		if not depot_id_by_client_id:
+			return
+
+		products_on_depots = {
+			(pod.depotId, pod.productId)
+			for pod in self.productOnDepot_getObjects(
+				attributes=["depotId", "productId"], productId=product_ids, depotId=list(set(depot_id_by_client_id.values()))
+			)
+		}
+		purge_product_on_clients = [
+			poc
+			for poc in product_on_clients
+			if (depot_id := depot_id_by_client_id.get(poc.clientId)) and (depot_id, poc.productId) not in products_on_depots
+		]
+		if not purge_product_on_clients:
+			return
+
+		logger.notice("Purging %d ProductOnClients referencing products not installed on depot", len(purge_product_on_clients))
+		self.productOnClient_deleteObjects(purge_product_on_clients)
+
+	@rpc_method(check_acl=False)
 	def productOnClient_updateObjectsWithDependencies(
 		self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
 	) -> list[ProductOnClient]:

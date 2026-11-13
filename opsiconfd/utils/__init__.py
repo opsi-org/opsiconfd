@@ -943,8 +943,8 @@ def timed_lru_cache(timeout: float, maxsize: int = 128) -> Callable:
 			return cached_func(*args, **kwargs)
 
 		# Expose cache control methods
-		wrapped.cache_clear = cached_func.cache_clear  # ty: ignore[unresolved-attribute]
-		wrapped.cache_info = cached_func.cache_info  # ty: ignore[unresolved-attribute]
+		wrapped.cache_clear = cached_func.cache_clear  # ty: ignore[missing-attribute]
+		wrapped.cache_info = cached_func.cache_info  # ty: ignore[missing-attribute]
 		return wrapped
 
 	return wrapper

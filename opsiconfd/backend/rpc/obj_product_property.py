@@ -48,7 +48,7 @@ class RPCProductPropertyMixin(Protocol):
 					""",
 					params=data,
 				)
-				if session.execute(query, params=data).rowcount > 0:  # ty: ignore[unresolved-attribute]
+				if session.execute(query, params=data).rowcount > 0:  # ty: ignore[missing-attribute]
 					for value in data["possibleValues"] or []:
 						session.execute(
 							"""
@@ -188,7 +188,7 @@ class RPCProductPropertyMixin(Protocol):
 		**filter: Any,
 	) -> list[ProductProperty]:
 		ace = self._get_ace("productProperty_getObjects")
-		return self._product_property_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # ty: ignore[invalid-return-type]
+		return self._product_property_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # ty: ignore[invalid-explicit-return]
 
 	@rpc_method(deprecated=True, alternative_method="productProperty_getObjects", check_acl=False)
 	def productProperty_getHashes(
@@ -197,7 +197,7 @@ class RPCProductPropertyMixin(Protocol):
 		**filter: Any,
 	) -> list[dict]:
 		ace = self._get_ace("productProperty_getObjects")
-		return self._product_property_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # ty: ignore[invalid-return-type]
+		return self._product_property_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # ty: ignore[invalid-explicit-return]
 
 	@rpc_method(check_acl=False)
 	def productProperty_getIdents(

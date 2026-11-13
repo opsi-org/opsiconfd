@@ -226,14 +226,14 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 		ace = self._get_ace("auditHardwareOnHost_getObjects")
 		return self._audit_hardware_on_host_get(
 			ace=ace, return_hardware_ids=False, return_type="object", attributes=attributes, filter=filter
-		)  # ty: ignore[invalid-return-type]
+		)  # ty: ignore[invalid-explicit-return]
 
 	@rpc_method(deprecated=True, alternative_method="auditHardwareOnHost_getObjects", check_acl=False)
 	def auditHardwareOnHost_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:
 		ace = self._get_ace("auditHardwareOnHost_getObjects")
 		return self._audit_hardware_on_host_get(
 			ace=ace, return_hardware_ids=False, return_type="dict", attributes=attributes, filter=filter
-		)  # ty: ignore[invalid-return-type]
+		)  # ty: ignore[invalid-explicit-return]
 
 	@rpc_method(check_acl=False)
 	def auditHardwareOnHost_getIdents(
@@ -244,7 +244,7 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 		ace = self._get_ace("auditHardwareOnHost_getObjects")
 		return self._audit_hardware_on_host_get(
 			ace=ace, return_hardware_ids=False, return_type="ident", ident_type=returnType, filter=filter
-		)  # ty: ignore[invalid-return-type]
+		)  # ty: ignore[invalid-explicit-return]
 
 	@rpc_method(check_acl=False)
 	def auditHardwareOnHost_deleteObjects(

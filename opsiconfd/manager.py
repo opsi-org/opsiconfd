@@ -166,13 +166,13 @@ class WorkerManager:
 							if mem >= self.worker_restart_mem:
 								if not hasattr(worker, "max_mem_exceeded_since"):
 									worker.max_mem_exceeded_since = now  # ty: ignore[invalid-assignment]
-								if now - worker.max_mem_exceeded_since >= self.worker_restart_mem_interval:  # ty: ignore[unresolved-attribute]
+								if now - worker.max_mem_exceeded_since >= self.worker_restart_mem_interval:  # ty: ignore[missing-attribute]
 									logger.notice(
 										"%s is using more than %0.2f MB of memory (currently %0.2f MB) since %d seconds",
 										worker,
 										self.worker_restart_mem / 1000000,
 										mem / 1000000,
-										now - worker.max_mem_exceeded_since,  # ty: ignore[unresolved-attribute]
+										now - worker.max_mem_exceeded_since,  # ty: ignore[missing-attribute]
 									)
 									auto_restart.append(worker)
 							elif hasattr(worker, "max_mem_exceeded_since"):

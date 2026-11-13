@@ -312,7 +312,7 @@ class CheckResult:
 		return self.monitoring_details(prefix, newline="\n")
 
 
-def get_json_result(results: Iterator[CheckResult]) -> dict[str, CheckResult]:
+def get_json_result(results: Iterator[CheckResult]) -> dict[str, Any]:
 	summary = {CheckStatus.OK: 0, CheckStatus.WARNING: 0, CheckStatus.ERROR: 0}
 	json_result: dict[str | CheckStatus, Any] = {}
 	json_result["check_status"] = CheckStatus.OK

@@ -16,7 +16,7 @@ import socket
 import sys
 import threading
 import warnings
-from _colorize import ANSIColors, Theme, can_colorize  # ty: ignore[unresolved-import]
+from _colorize import ANSIColors, Argparse, can_colorize
 from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, Action, ArgumentTypeError, HelpFormatter
 from functools import lru_cache
 from pathlib import Path
@@ -275,17 +275,17 @@ def str2version(value: str) -> Version:
 
 
 def format_help_without_msg(parser: configargparse.ArgumentParser) -> str:
-	return parser.orig_format_help().rsplit("\n\n", 1)[0]  # ty: ignore[unresolved-attribute]
+	return parser.orig_format_help().rsplit("\n\n", 1)[0]  # ty: ignore[missing-attribute]
 
 
-configargparse.ArgumentParser.orig_format_help = configargparse.ArgumentParser.format_help  # ty: ignore[unresolved-attribute]
+configargparse.ArgumentParser.orig_format_help = configargparse.ArgumentParser.format_help  # ty: ignore[missing-attribute]
 configargparse.ArgumentParser.format_help = format_help_without_msg  # ty: ignore[invalid-assignment]
 
 
 class OpsiconfdHelpFormatter(HelpFormatter):
 	RE_DEFAULT = re.compile(r"\(default: (.*)\)")
 	RE_ENV_VAR: re.Pattern = re.compile(r"\[env var: ([^\]]*)\]")
-	_theme: Theme
+	_theme: Argparse
 
 	def __init__(self, sub_command: str | None = None) -> None:
 		super().__init__("opsiconfd", max_help_position=10, width=100)
@@ -685,9 +685,9 @@ class Config:
 
 				try:
 					if isinstance(value, list):
-						value = [action.type(v) for v in value]  # ty: ignore[call-non-callable]
+						value = [action.type(v) for v in value]  # ty: ignore[not-callable]
 					else:
-						value = action.type(value) if action.type else str(value)  # ty: ignore[call-non-callable]
+						value = action.type(value) if action.type else str(value)  # ty: ignore[not-callable]
 				except ValueError as err:
 					raise ValueError(f"Option {option!r}: {err}") from err
 				options[option] = value

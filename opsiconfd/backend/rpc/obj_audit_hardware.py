@@ -309,14 +309,14 @@ class RPCAuditHardwareMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def auditHardware_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[AuditHardware]:
 		ace = self._get_ace("auditHardware_getObjects")
-		return self._audit_hardware_get(  # ty: ignore[invalid-return-type]
+		return self._audit_hardware_get(  # ty: ignore[invalid-explicit-return]
 			ace=ace, return_hardware_ids=False, return_type="object", attributes=attributes, filter=filter
 		)
 
 	@rpc_method(deprecated=True, alternative_method="auditHardware_getObjects", check_acl=False)
 	def auditHardware_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:
 		ace = self._get_ace("auditHardware_getObjects")
-		return self._audit_hardware_get(  # ty: ignore[invalid-return-type]
+		return self._audit_hardware_get(  # ty: ignore[invalid-explicit-return]
 			ace=ace, return_hardware_ids=False, return_type="dict", attributes=attributes, filter=filter
 		)
 
@@ -327,7 +327,7 @@ class RPCAuditHardwareMixin(Protocol):
 		**filter: Any,
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("auditHardware_getObjects")
-		return self._audit_hardware_get(  # ty: ignore[invalid-return-type]
+		return self._audit_hardware_get(  # ty: ignore[invalid-explicit-return]
 			ace=ace, return_hardware_ids=False, return_type="ident", ident_type=returnType, filter=filter
 		)
 

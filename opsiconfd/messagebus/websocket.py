@@ -115,9 +115,8 @@ def _check_message_type_access(message_type: str, is_admin: bool, is_service_cha
 	elif message_type == MessageType.JSONRPC_REQUEST:
 		if not is_admin and not is_service_channel:
 			return False
-	elif message_type in (MessageType.FILE_DOWNLOAD_REQUEST, MessageType.FILE_UPLOAD_REQUEST):
-		if not is_admin:
-			return False
+	elif message_type in (MessageType.FILE_DOWNLOAD_REQUEST, MessageType.FILE_UPLOAD_REQUEST) and not is_admin:
+		return False
 	return True
 
 

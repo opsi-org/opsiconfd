@@ -103,7 +103,7 @@ class RPCConfigMixin(Protocol):
 			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}) if lock else nullcontext():
 				if modify_values:
 					session.execute("DELETE FROM `CONFIG_VALUE` WHERE configId = :id", params=data)
-				if session.execute(query, params=data).rowcount > 0 and modify_values:  # ty: ignore[unresolved-attribute]
+				if session.execute(query, params=data).rowcount > 0 and modify_values:  # ty: ignore[missing-attribute]
 					for value in data["possibleValues"] or []:
 						session.execute(
 							"INSERT INTO `CONFIG_VALUE` (configId, value, isDefault) VALUES (:configId, :value, :isDefault)",
@@ -190,7 +190,7 @@ class RPCConfigMixin(Protocol):
 		**filter: Any,
 	) -> list[Config]:
 		ace = self._get_ace("config_getObjects")
-		return self._config_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # ty: ignore[invalid-return-type]
+		return self._config_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # ty: ignore[invalid-explicit-return]
 
 	@rpc_method(deprecated=True, alternative_method="config_getObjects", check_acl=False)
 	def config_getHashes(
@@ -199,7 +199,7 @@ class RPCConfigMixin(Protocol):
 		**filter: Any,
 	) -> list[dict]:
 		ace = self._get_ace("config_getObjects")
-		return self._config_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # ty: ignore[invalid-return-type]
+		return self._config_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # ty: ignore[invalid-explicit-return]
 
 	@rpc_method(check_acl=False)
 	def config_getIdents(

@@ -37,8 +37,8 @@ def test_extender_loading(tmp_path: Path) -> None:
 				count_rpc_methods += 1
 		assert count_rpc_methods == 3
 
-		assert extender.extend1() == 1  # ty: ignore[unresolved-attribute]
-		assert extender.extend2("a") == 2  # ty: ignore[unresolved-attribute]
-		assert extender.extend3("b") == 3  # ty: ignore[unresolved-attribute]
+		assert extender.extend1() == 1  # ty: ignore[missing-attribute]
+		assert extender.extend2("a") == 2  # ty: ignore[missing-attribute]
+		assert extender.extend3("b") == 3  # ty: ignore[missing-attribute]
 
 		assert extender.ace_called == ["extend1", "extend2", "extend3"]

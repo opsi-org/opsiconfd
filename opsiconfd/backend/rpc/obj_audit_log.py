@@ -149,7 +149,7 @@ class RPCAuditLogMixin(Protocol):
 					+ ",".join(values),
 					params=params,
 				)
-				first_audit_log_id = result.lastrowid  # ty: ignore[unresolved-attribute]
+				first_audit_log_id = result.lastrowid  # ty: ignore[missing-attribute]
 				if not first_audit_log_id:
 					raise RuntimeError("Failed to determine first auditLogId after bulk insert")
 				for idx, audit_log in enumerate(chunk):

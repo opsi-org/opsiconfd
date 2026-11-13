@@ -190,7 +190,7 @@ def setup_depotserver(interactive: bool = True, unattended_configuration: dict[s
 					inp = Prompt.ask("Enter ID of the depot", default=depot.id, show_default=True) or ""
 				depot.setId(inp)
 
-				hosts = service.host_getObjects(id=depot.id)  # ty: ignore[unresolved-attribute]
+				hosts = service.host_getObjects(id=depot.id)  # ty: ignore[missing-attribute]
 				if hosts:
 					depot = hosts[0]
 					if depot.getType() != "OpsiDepotserver":
@@ -218,7 +218,7 @@ def setup_depotserver(interactive: bool = True, unattended_configuration: dict[s
 					logger.debug(err)
 
 				rich_print("[b]Registering depot[/b]")
-				service.host_createObjects([depot])  # ty: ignore[unresolved-attribute]
+				service.host_createObjects([depot])  # ty: ignore[missing-attribute]
 				service.fetch_ca_certs(force_write_ca_cert_file=True)
 				(srv_crt, srv_key) = fetch_server_cert(service, server_id=depot.id)
 				store_local_server_key(srv_key)
@@ -226,7 +226,7 @@ def setup_depotserver(interactive: bool = True, unattended_configuration: dict[s
 
 				rich_print("[b][green]Depot succesfully registered[/green][/b]")
 
-				depot = service.host_getObjects(id=depot.id)[0]  # ty: ignore[unresolved-attribute]
+				depot = service.host_getObjects(id=depot.id)[0]  # ty: ignore[missing-attribute]
 
 				opsi_config.set("host", "server-role", "depotserver")
 				opsi_config.set("host", "id", depot.id)
@@ -234,10 +234,10 @@ def setup_depotserver(interactive: bool = True, unattended_configuration: dict[s
 				opsi_config.set("service", "url", service.base_url)
 				opsi_config.write_config_file()
 
-				configs = service.config_getObjects(id="clientconfig.depot.id")  # ty: ignore[unresolved-attribute]
+				configs = service.config_getObjects(id="clientconfig.depot.id")  # ty: ignore[missing-attribute]
 				if configs and depot.id not in configs[0].defaultValues:
 					configs[0].defaultValues.append(depot.id)
-					service.config_updateObjects(configs)  # ty: ignore[unresolved-attribute]
+					service.config_updateObjects(configs)  # ty: ignore[missing-attribute]
 
 				return True
 			except KeyboardInterrupt:

@@ -377,7 +377,7 @@ def test_server_overload(
 		session_middleware = None
 		middleware = app.middleware_stack
 		while True:
-			middleware = middleware.app  # ty: ignore[unresolved-attribute]
+			middleware = middleware.app  # ty: ignore[missing-union-attribute]
 			if isinstance(middleware, SessionMiddleware):
 				session_middleware = middleware
 				break

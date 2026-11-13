@@ -44,12 +44,12 @@ REDIS_MAX_CONNECTIONS = 2**31
 
 def __con_del__(self: AbstractConnection) -> None:
 	try:
-		self._close()  # ty: ignore[unresolved-attribute]
+		self._close()  # ty: ignore[missing-attribute]
 	except RuntimeError:
 		pass
 
 
-AbstractConnection.__del__ = __con_del__  # ty: ignore[unresolved-attribute]
+AbstractConnection.__del__ = __con_del__  # ty: ignore[missing-attribute]
 
 
 @lru_cache
@@ -78,9 +78,9 @@ def reset_redis_pools() -> None:
 def get_redis_connections() -> list[Connection | AsyncConnection]:
 	connections = []
 	for spool in redis_connection_pool.values():
-		connections.extend(spool._get_in_use_connections())  # ty: ignore[unresolved-attribute]
+		connections.extend(spool._get_in_use_connections())  # ty: ignore[missing-attribute]
 	for apool in async_redis_connection_pool.values():
-		connections.extend(apool._in_use_connections)  # ty: ignore[unresolved-attribute]
+		connections.extend(apool._in_use_connections)  # ty: ignore[missing-attribute]
 	return connections
 
 
@@ -420,7 +420,7 @@ async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:
 					matched_key_type = key_type
 					break
 		matched_key_type = matched_key_type or "misc"
-		key_info[matched_key_type]["keys"].append(key)  # ty: ignore[unresolved-attribute]
+		key_info[matched_key_type]["keys"].append(key)  # ty: ignore[missing-union-attribute]
 		try:
 			command = f"MEMORY USAGE {key}"
 			key_info[matched_key_type]["memory"] += (  # ty: ignore[unsupported-operator]

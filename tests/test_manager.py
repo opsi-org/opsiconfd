@@ -69,19 +69,19 @@ def test_manager_signals() -> None:
 
 		with patch("opsiconfd.manager.Manager.reload", reload), patch("opsiconfd.manager.WorkerManager.stop", stop):
 			manager._last_reload = 0
-			manager.orig_signal_handler(signal.SIGHUP, None)  # ty: ignore[unresolved-attribute]
+			manager.orig_signal_handler(signal.SIGHUP, None)  # ty: ignore[missing-attribute]
 			assert test_reload is True
 
 			test_reload = False
 			manager._last_reload = int(time.time())
-			manager.orig_signal_handler(signal.SIGHUP, None)  # ty: ignore[unresolved-attribute]
+			manager.orig_signal_handler(signal.SIGHUP, None)  # ty: ignore[missing-attribute]
 			assert test_reload is False
 
-			manager.orig_signal_handler(signal.SIGKILL, None)  # ty: ignore[unresolved-attribute]
+			manager.orig_signal_handler(signal.SIGKILL, None)  # ty: ignore[missing-attribute]
 			assert manager._should_stop is True
 			assert test_stop == "normal"
 			time.sleep(0.1)
-			manager.orig_signal_handler(signal.SIGKILL, None)  # ty: ignore[unresolved-attribute]
+			manager.orig_signal_handler(signal.SIGKILL, None)  # ty: ignore[missing-attribute]
 			assert manager._should_stop is True
 			assert test_stop == "force"
 
@@ -142,7 +142,7 @@ def test_worker_manager_and_workers() -> None:
 	redis = redis_client()
 	with get_config({"port": 4444, "workers": 2}) as config:
 		worker_manager = WorkerManager()
-		worker_manager.init_logging = lambda *args: None  # ty: ignore[invalid-assignment]
+		worker_manager.init_logging = lambda *args: None
 		worker_manager.worker_restart_gap = 0.0
 		worker_manager.worker_check_interval = 2.0
 		worker_manager_thread = threading.Thread(target=worker_manager.run, daemon=True)

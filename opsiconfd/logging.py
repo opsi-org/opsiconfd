@@ -278,7 +278,7 @@ class AsyncRedisLogAdapter:
 		assert isinstance(self._stderr_handler, AsyncStreamHandler)
 		self._stderr_handler.formatter = ContextSecretFormatter(console_formatter)  # ty: ignore[invalid-assignment]
 		# Secrets are filtered before records are written to redis
-		self._stderr_handler.formatter.secret_filter_enabled = False  # ty: ignore[unresolved-attribute]
+		self._stderr_handler.formatter.secret_filter_enabled = False  # ty: ignore[missing-attribute]
 		self._stderr_handler.add_filter(context_filter.filter)  # ty: ignore[invalid-argument-type]
 
 	def _log_format_no_color(self, log_format: str) -> str:
@@ -528,7 +528,7 @@ def enable_slow_callback_logging(slow_callback_duration: float | None = None) ->
 		if slow_callback_duration and time_diff >= slow_callback_duration:
 			logger.warning(
 				"Slow asyncio callback: %s took %.3f seconds",
-				asyncio.base_events._format_handle(self),  # ty: ignore[unresolved-attribute]
+				asyncio.base_events._format_handle(self),  # ty: ignore[missing-attribute]
 				time_diff,
 			)
 		return retval

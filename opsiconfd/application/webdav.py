@@ -56,7 +56,7 @@ wsgidav.dc.base_dc.BaseDomainController.is_share_anonymous = is_share_anonymous 
 
 
 class OpsiconfdFolderResource(FolderResource):
-	provider: OpsiconfdFilesystemProvider  # ty: ignore[invalid-mutable-override]
+	provider: OpsiconfdFilesystemProvider  # ty: ignore[incompatible-mutable-override]
 
 	def create_empty_resource(self, name: str) -> FileResource:
 		"""
@@ -197,7 +197,7 @@ class OpsiconfdFilesystemProvider(FilesystemProvider):
 
 		return util.to_unicode_safe(file_path.as_posix())
 
-	def get_resource_inst(self, path: str, environ: dict) -> FileResource | OpsiconfdFolderResource | None:  # ty: ignore[invalid-method-override]
+	def get_resource_inst(self, path: str, environ: dict) -> FileResource | OpsiconfdFolderResource | None:  # ty: ignore[incompatible-method-override]
 		"""Return info dictionary for path.
 
 		See DAVProvider.get_resource_inst()
@@ -217,7 +217,7 @@ class OpsiconfdFilesystemProvider(FilesystemProvider):
 class VirtualRootFilesystemCollection(DAVCollection):
 	def __init__(self, environ: dict[str, str], provider: VirtualRootFilesystemProvider) -> None:
 		DAVCollection.__init__(self, "/", environ)
-		self.provider: VirtualRootFilesystemProvider = provider  # ty: ignore[invalid-mutable-override]
+		self.provider: VirtualRootFilesystemProvider = provider  # ty: ignore[incompatible-mutable-override]
 
 	def get_member_names(self) -> list[str]:
 		return [name.lstrip("/") for name in self.provider.provider_mapping]

@@ -42,7 +42,7 @@ class RPCLicensePoolMixin(Protocol):
 					"DELETE FROM `PRODUCT_ID_TO_LICENSE_POOL` WHERE licensePoolId = :id",
 					params=data,
 				)
-				if session.execute(query, params=data).rowcount > 0:  # ty: ignore[unresolved-attribute]
+				if session.execute(query, params=data).rowcount > 0:  # ty: ignore[missing-attribute]
 					for value in data["productIds"] or []:
 						session.execute(
 							"""
@@ -122,7 +122,7 @@ class RPCLicensePoolMixin(Protocol):
 		**filter: Any,
 	) -> list[LicensePool]:
 		ace = self._get_ace("licensePool_getObjects")
-		return self._license_pool_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # ty: ignore[invalid-return-type]
+		return self._license_pool_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # ty: ignore[invalid-explicit-return]
 
 	@rpc_method(deprecated=True, alternative_method="licensePool_getObjects", check_acl=False)
 	def licensePool_getHashes(
@@ -131,7 +131,7 @@ class RPCLicensePoolMixin(Protocol):
 		**filter: Any,
 	) -> list[dict]:
 		ace = self._get_ace("licensePool_getObjects")
-		return self._license_pool_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # ty: ignore[invalid-return-type]
+		return self._license_pool_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # ty: ignore[invalid-explicit-return]
 
 	@rpc_method(check_acl=False)
 	def licensePool_getIdents(

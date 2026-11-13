@@ -92,7 +92,7 @@ class MySQLSession(Session):
 	retry_on_lock_wait_timeout = 10
 	query_log: Callable | None = None
 
-	def execute(self, statement: str, params: Any | None = None) -> Result:  # ty: ignore[invalid-method-override]
+	def execute(self, statement: str, params: Any | None = None) -> Result:  # ty: ignore[incompatible-method-override]
 		attempt = 0
 		retry_wait = 0.01
 		with server_timing("database") as timing:
@@ -1152,7 +1152,7 @@ class MySQLConnection:
 		if query:
 			with self.session(session) as session:  # noqa: PLR1704
 				result = session.execute(query, params=params)
-				return result.lastrowid  # ty: ignore[unresolved-attribute]
+				return result.lastrowid  # ty: ignore[missing-attribute]
 		return None
 
 	def bulk_insert_objects(

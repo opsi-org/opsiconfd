@@ -134,7 +134,7 @@ def console_health_check() -> int:
 		status = json_result.get("check_status", CheckStatus.ERROR)
 		if isinstance(status, str):
 			status = CheckStatus(status)
-		return status.return_code()  # ty: ignore[unresolved-attribute]
+		return status.return_code()
 
 	styles = STYLES
 	register_checks()

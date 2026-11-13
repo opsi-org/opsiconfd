@@ -238,9 +238,8 @@ class StatisticsMiddleware:
 				headers.append("Server-Timing", ",".join([f"{k};dur={v:.3f}" for k, v in server_timing.items()]))
 				if self._profiler_enabled:
 					self.yappi(scope)
-			elif scope_type == "websocket" and message_type == "websocket.accept":
-				if self._profiler_enabled:
-					self.yappi(scope)
+			elif scope_type == "websocket" and message_type == "websocket.accept" and self._profiler_enabled:
+				self.yappi(scope)
 
 			logger.trace(message)
 			await send(message)

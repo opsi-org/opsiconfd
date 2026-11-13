@@ -99,7 +99,7 @@ async def test_metrics_collector_add_value() -> None:
 		nonlocal cmds
 		cmds.extend(cmd)
 
-	metrics_collector._execute_redis_command = _execute_redis_command  # ty: ignore[invalid-assignment]
+	metrics_collector._execute_redis_command = _execute_redis_command
 
 	await metrics_collector.add_value("metric1", 1)
 	await metrics_collector.add_value("metric2", 1)
@@ -278,7 +278,7 @@ def test_depot_metrics_collector(config: Config, test_client: OpsiconfdTestClien
 		nonlocal cmds
 		cmds.extend(cmd)
 
-	metrics_collector._execute_redis_command = _execute_redis_command  # ty: ignore[invalid-assignment]
+	metrics_collector._execute_redis_command = _execute_redis_command
 
 	async def _test_add_values() -> None:
 		await metrics_collector.add_value("depot:avg_product_data_transfer_slots", 5)

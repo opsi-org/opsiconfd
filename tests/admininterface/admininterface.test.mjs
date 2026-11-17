@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { JSDOM } from "jsdom";
+
+const admininterfaceScriptPath = fileURLToPath(new URL("../../opsiconfd_data/static/javascript/admininterface.js", import.meta.url));
 
 function loadAdmininterface() {
 	const dom = new JSDOM(`<!DOCTYPE html><html><body>
@@ -54,7 +57,7 @@ function loadAdmininterface() {
 			return new Promise(() => {});
 		};
 	`);
-	dom.window.eval(`${readFileSync("../opsiconfd_data/static/javascript/admininterface.js", "utf8")}
+	dom.window.eval(`${readFileSync(admininterfaceScriptPath, "utf8")}
 		Object.assign(window, {
 			renderUserTable,
 			showDialogOverlay,

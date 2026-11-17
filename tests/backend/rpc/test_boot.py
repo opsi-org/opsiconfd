@@ -17,6 +17,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
+from opsi.crypt.hash import hash_password
 from opsi.opsi.service.model.object import (
 	BoolConfig,
 	NetbootProduct,
@@ -25,6 +26,7 @@ from opsi.opsi.service.model.object import (
 	ProductOnClient,
 	ProductOnDepot,
 	UnicodeConfig,
+	User,
 )
 
 from opsiconfd.backend.rpc.boot import (
@@ -34,8 +36,18 @@ from opsiconfd.backend.rpc.boot import (
 	TemplateContextConfigState,
 	TemplateContextConfigStates,
 )
+from opsiconfd.backend.rpc.main import ProtectedBackend
 from opsiconfd.config import get_depotserver_id
-from tests.utils import UnprotectedBackend, backend, clean_mysql  # noqa: F401
+from tests.utils import (  # noqa: F401
+	ADMIN_PASS,
+	ADMIN_USER,
+	OpsiconfdTestClient,
+	UnprotectedBackend,
+	backend,
+	clean_mysql,
+	get_config,
+	test_client,
+)
 
 TESTDIR = Path("tests/data/workbench/test_dir")
 TESTFILE = TESTDIR / "testfile"
@@ -334,6 +346,121 @@ def test_TemplateContext_product_property_state_cmdline(
 		assert context.product_property_states.cmdline(["*smp", "nobench", "screen.*"]) == 'nosmp screen.mode="1024 x 768" screen.rhs-up'
 		assert context.product_property_states.cmdline("screen.*") == 'screen.mode="1024 x 768" screen.rhs-up'
 		assert context.product_property_states.cmdline("screen.*", "screen.") == 'mode="1024 x 768" rhs-up'
+
+
+def test_boot_getConfig_roles(
+	backend: UnprotectedBackend,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	tmp_path: Path,
+) -> None:
+	product_id = "test-boot-product1"
+	client_id = "test-boot-client1.opsi.test"
+	depot_id = get_depotserver_id()
+	grub_cfg = tmp_path / "grub.cfg"
+	shutil.copy("tests/data/boot/grub.cfg", grub_cfg)
+
+	# There are deliberately no entries for the agent except boot_getConfig
+	acl_file = tmp_path / "acl.conf"
+	acl_file.write_text(
+		data=(f"boot_getConfig : sys_user({ADMIN_USER}); opsi_agent; opsi_client\n.* : sys_user({ADMIN_USER})\n"),
+		encoding="utf-8",
+	)
+
+	backend.config_createObjects(
+		[
+			UnicodeConfig(
+				id="clientconfig.configserver.url",
+				description="URL(s) of OPSI config service(s) to use",
+				possibleValues=["https://opsiservice.opsi.test:4447/rpc"],
+				defaultValues=["https://opsiservice.opsi.test:4447/rpc"],
+				editable=True,
+				multiValue=True,
+			),
+			BoolConfig(id="netboot.use_host_onetime_password", description="Use a one-time password?", defaultValues=[False]),
+			BoolConfig(id="netboot.pxe_boot_unknown_devices", description="Allow unknown devices?", defaultValues=[False]),
+		]
+	)
+	client = OpsiClient(id=client_id, opsiHostKey="fe5e2020410d947c58508cdcd29d9ec0", hardwareAddress="01:02:03:04:05:06")
+	product = NetbootProduct(
+		id=product_id,
+		productVersion="1",
+		packageVersion="1",
+		pxeConfigTemplate="menuentry 'Start netboot installation' {\n	linux kernel.x64 {{ opsi_linux_bootimage.cmdline() }}\n}\n",
+	)
+	backend.host_createObjects([client])
+	backend.product_createObjects([product])
+	backend.productOnDepot_createObjects(
+		[
+			ProductOnDepot(
+				productId=product_id,
+				productType=product.getType(),
+				productVersion=product.productVersion,
+				packageVersion=product.packageVersion,
+				depotId=depot_id,
+			)
+		]
+	)
+	backend.configState_create(configId="clientconfig.depot.id", objectId=client_id, values=[depot_id])
+	backend.productOnClient_createObjects(
+		[ProductOnClient(productId=product_id, productType=product.getType(), clientId=client_id, actionRequest="setup")]
+	)
+	agent_password = "securepassword"
+	backend.user_createObjects([User(id="bootagent1", passwordHash=hash_password(agent_password), groups=["{agent}"])])
+
+	def boot_getConfig(usage: str | None = None) -> dict:
+		params = ["x64", "UEFI", 4, "TFTP", "10.10.1.1", None, client_id, None, None, usage]
+		return test_client.post("/rpc", json={"jsonrpc": "2.0", "id": 1, "method": "boot_getConfig", "params": params}).json()
+
+	protected_backend = ProtectedBackend()
+	try:
+		with (
+			mock.patch("opsiconfd.backend.rpc.boot.GRUB_CFG_TEMPLATE", str(grub_cfg)),
+			get_config({"acl_file": str(acl_file), "auth_allowed_groups": []}),
+		):
+			protected_backend._read_acl_file()
+
+			test_client.auth = (ADMIN_USER, ADMIN_PASS)
+			admin_res = boot_getConfig()
+			assert "error" not in admin_res
+			assert admin_res["result"]["client_id"] == client_id
+			assert admin_res["result"]["product_id"] == product_id
+			assert f"pckey={client.opsiHostKey}" in admin_res["result"]["grub_config"]
+
+			# Agent gets the same result, but has no other permissions
+			test_client.reset_cookies()
+			test_client.auth = ("bootagent1", agent_password)
+			agent_res = boot_getConfig()
+			assert "error" not in agent_res
+			assert agent_res["result"] == admin_res["result"]
+			for method in ("host_getObjects", "config_getObjects", "productOnClient_getObjects"):
+				res = test_client.post("/rpc", json={"jsonrpc": "2.0", "id": 1, "method": method, "params": []}).json()
+				assert "error" in res
+				assert "No permission for method" in res["error"]["message"]
+
+			# One-time password is created and handed out, but not readable for the agent
+			backend.configState_create(configId="netboot.use_host_onetime_password", objectId=client_id, values=[True])
+			agent_res = boot_getConfig()
+			assert "error" not in agent_res
+			otp = backend.host_getObjects(id=client_id)[0].oneTimePassword
+			assert otp
+			assert f"otp={otp}" in agent_res["result"]["grub_config"]
+			assert "pckey" not in agent_res["result"]["grub_config"]
+
+			# Reading the boot configuration file resets the action request
+			agent_res = boot_getConfig("FILE_LOAD")
+			assert "error" not in agent_res
+			product_on_client = backend.productOnClient_getObjects(productId=[product_id], clientId=[client_id])[0]
+			assert product_on_client.actionRequest == "none"
+			assert product_on_client.actionProgress == "pxe boot configuration read"
+
+			# Clients are denied by the role check although the ACL allows the method
+			test_client.reset_cookies()
+			test_client.auth = (client_id, client.opsiHostKey)
+			res = boot_getConfig()
+			assert "error" in res
+			assert "Insufficient permissions" in res["error"]["message"]
+	finally:
+		protected_backend._read_acl_file()
 
 
 def test_boot_getConfig(

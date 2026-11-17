@@ -50,7 +50,7 @@ from opsiconfd.logging import logger
 from opsiconfd.messagebus.redis import CHANNEL_INFO_SUFFIX, get_websocket_connected_users
 from opsiconfd.redis import async_redis_client, decode_redis_result, ip_address_from_redis_key, ip_address_to_redis_key, redis_client
 from opsiconfd.rest import RESTErrorResponse, RESTResponse, rest_api
-from opsiconfd.session import OPSISession
+from opsiconfd.session import AGENT_GROUP_PLACEHOLDER, OPSISession
 from opsiconfd.ssl import get_ca_certs_info, get_server_cert_info
 from opsiconfd.utils import get_manager_process
 from opsiconfd.utils.cryptography import encrypt
@@ -613,7 +613,14 @@ async def get_user_list() -> RESTResponse:
 		user_dict["groups"] = [
 			g
 			for g in (user.groups or [])
-			if g in ("{admingroup}", "{readonly}", opsi_config.get("groups", "admingroup"), opsi_config.get("groups", "readonly"))
+			if g
+			in (
+				"{admingroup}",
+				"{readonly}",
+				AGENT_GROUP_PLACEHOLDER,
+				opsi_config.get("groups", "admingroup"),
+				opsi_config.get("groups", "readonly"),
+			)
 		]
 		user_list.append(user_dict)
 	return RESTResponse(user_list)
@@ -704,6 +711,9 @@ async def create_user(request: Request) -> RESTResponse:
 	if not params.get("user_id"):
 		return RESTErrorResponse(message="Invalid request", http_status=status.HTTP_400_BAD_REQUEST)
 
+	if params.get("agent") and (params.get("admin") or params.get("readonly")):
+		return RESTErrorResponse(message="An agent cannot be admin or readonly", http_status=status.HTTP_400_BAD_REQUEST)
+
 	backend = get_unprotected_backend()
 	users: list[User] = await backend.async_call("user_getObjects", id=params.get("user_id"))
 	if users:
@@ -716,7 +726,9 @@ async def create_user(request: Request) -> RESTResponse:
 			return RESTErrorResponse(message=str(err), http_status=status.HTTP_422_UNPROCESSABLE_CONTENT)
 
 	groups = []
-	if params.get("admin"):
+	if params.get("agent"):
+		groups.append(AGENT_GROUP_PLACEHOLDER)
+	elif params.get("admin"):
 		groups.append("{admingroup}")
 	elif params.get("readonly"):
 		groups.append("{readonly}")

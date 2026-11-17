@@ -37,7 +37,7 @@ from opsiconfd.messagebus import get_user_id_for_service_worker
 from opsiconfd.messagebus.redis import sync_send_message
 from opsiconfd.worker import Worker
 
-from ..auth import RPCACE, RPCACE_ALLOW_ALL, read_acl_file
+from ..auth import RPCACE, RPCACE_ALLOW_ALL, acl_bypassed, read_acl_file
 from ..mysql import MySQLConnection
 from .boot import RPCBootMixin
 from .depot import RPCDepotserverMixin
@@ -333,7 +333,7 @@ class Backend(
 	def _get_ace(self, method: str) -> list[RPCACE]:
 		return []
 
-	def _check_role(self, required_role: str) -> None:
+	def _check_role(self, *required_roles: str) -> None:
 		return None
 
 	def _get_client_id(self) -> str | None:
@@ -399,7 +399,7 @@ class UnprotectedBackend(Backend):
 	def _get_ace(self, method: str) -> list[RPCACE]:
 		return [RPCACE_ALLOW_ALL]
 
-	def _check_role(self, required_role: str) -> None:
+	def _check_role(self, *required_roles: str) -> None:
 		return None
 
 	def _get_client_id(self) -> str | None:
@@ -435,6 +435,9 @@ class ProtectedBackend(Backend):
 		"""
 		Get list of ACEs.
 		"""
+		if acl_bypassed():
+			return []
+
 		if not self._acl:
 			return []
 
@@ -460,6 +463,9 @@ class ProtectedBackend(Backend):
 						ace_list.append(ace)
 				elif ace.type == "sys_group" and (not ace.id or ace.id in session.user_groups):
 					ace_list.append(ace)
+			elif user_type == "agent":
+				if ace.type == "opsi_agent" and (not ace.id or ace.id == session.username):
+					ace_list.append(ace)
 			elif ace.type == "self" and user_type in ("client", "depot"):
 				# Create a copy, the ACE is shared between concurrent requests and must not be modified
 				ace_list.append(replace(ace, id=session.username))
@@ -474,17 +480,21 @@ class ProtectedBackend(Backend):
 		logger.info("No macthing ACEs for method %r (username=%r, acl-file=%r)", method, session.username, config.acl_file)
 		raise BackendPermissionDeniedError(f"No permission for method {method!r}")
 
-	def _check_role(self, required_role: str) -> None:
+	def _check_role(self, *required_roles: str) -> None:
+		"""Succeed if the session has at least one of the roles `admin` or `agent`."""
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Invalid session")
 
-		if required_role == "admin":
-			if session.is_admin:
-				return
-			raise BackendPermissionDeniedError("Insufficient permissions")
+		for role in required_roles:
+			if role not in ("admin", "agent"):
+				raise ValueError(f"Invalid role {role!r}")
 
-		raise ValueError(f"Invalid role {required_role!r}")
+		if "admin" in required_roles and session.is_admin:
+			return
+		if "agent" in required_roles and session.user_type == "agent":
+			return
+		raise BackendPermissionDeniedError("Insufficient permissions")
 
 	def _get_client_id(self) -> str | None:
 		session = contextvar_client_session.get()

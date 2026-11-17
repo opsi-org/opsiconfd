@@ -10,6 +10,7 @@ test opsiconfd.auth
 from pathlib import Path
 
 import pytest
+from opsi.exception import BackendPermissionDeniedError
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.backend.auth import read_acl_file
@@ -164,6 +165,29 @@ def test_read_acl_file(tmp_path: Path) -> None:
 		protected_backend._read_acl_file()
 
 
+def test_read_acl_file_opsi_agent(tmp_path: Path) -> None:
+	acl_file = tmp_path / "acl.conf"
+	acl_file.write_text(
+		data=(
+			"boot_getConfig : sys_group(admingrp1); opsi_depotserver; opsi_agent\n"
+			"host_get.*     : opsi_agent(attributes(!opsiHostKey,!oneTimePassword))\n"
+			"log_.*         : opsi_agent(agent1,agent2)\n"
+		),
+		encoding="utf-8",
+	)
+	acl = read_acl_file(acl_file)
+	assert [(ace.method_re.pattern, ace.type, ace.id) for ace in acl] == [
+		("boot_getConfig", "sys_group", "admingrp1"),
+		("boot_getConfig", "opsi_depotserver", None),
+		("boot_getConfig", "opsi_agent", None),
+		("host_get.*", "opsi_agent", None),
+		("log_.*", "opsi_agent", "agent1"),
+		("log_.*", "opsi_agent", "agent2"),
+	]
+	assert acl[3].denied_attributes == {"opsiHostKey", "oneTimePassword"}
+	assert not acl[3].allowed_attributes
+
+
 def test_get_ace_self_does_not_modify_shared_ace(tmp_path: Path) -> None:
 	acl_file = tmp_path / "acl.conf"
 	acl_file.write_text(data="host_getObjects : self\n", encoding="utf-8")
@@ -193,6 +217,139 @@ def test_get_ace_self_does_not_modify_shared_ace(tmp_path: Path) -> None:
 	finally:
 		contextvar_client_session.set(contextvar_client_session_org)
 		protected_backend._read_acl_file()
+
+
+def _make_session(
+	username: str,
+	*,
+	host_type: str | None = None,
+	is_agent: bool = False,
+	is_admin: bool = False,
+	groups: set[str] | None = None,
+) -> OPSISession:
+	session = OPSISession("127.0.0.1")
+	session.authenticated = True
+	session.username = username
+	if host_type:
+		session.host_id = username
+		session.host_type = host_type  # ty: ignore[invalid-assignment]
+	session.is_agent = is_agent
+	session.is_admin = is_admin
+	session.user_groups = groups or set()
+	return session
+
+
+def test_get_ace_agent(tmp_path: Path) -> None:
+	acl_file = tmp_path / "acl.conf"
+	acl_file.write_text(
+		data=(
+			"backend_.*      : all\n"
+			"boot_getConfig  : sys_group(admingrp1); sys_user(user1); opsi_depotserver; opsi_client; self; opsi_agent\n"
+			"log_write       : opsi_agent(agent2)\n"
+			"host_getObjects : sys_group(admingrp1); opsi_depotserver; self; opsi_client\n"
+		),
+		encoding="utf-8",
+	)
+	protected_backend = ProtectedBackend()
+	contextvar_client_session_org = contextvar_client_session.get()
+	agent = _make_session("agent1", is_agent=True)
+	try:
+		with get_config({"acl_file": str(acl_file)}):
+			protected_backend._read_acl_file()
+
+			contextvar_client_session.set(agent)
+			assert [ace.type for ace in protected_backend._get_ace("boot_getConfig")] == ["opsi_agent"]
+			assert [ace.type for ace in protected_backend._get_ace("backend_getInterface")] == ["all"]
+			# Entries of other types do not apply to agents
+			with pytest.raises(BackendPermissionDeniedError):
+				protected_backend._get_ace("host_getObjects")
+			# Entries for another agent id do not apply
+			with pytest.raises(BackendPermissionDeniedError):
+				protected_backend._get_ace("log_write")
+
+			contextvar_client_session.set(_make_session("agent2", is_agent=True))
+			assert [(ace.type, ace.id) for ace in protected_backend._get_ace("log_write")] == [("opsi_agent", "agent2")]
+
+			# opsi_agent entries do not apply to other session types
+			for session, expected in (
+				(_make_session("client1.opsi.test", host_type="OpsiClient"), ["opsi_client", "self"]),
+				(_make_session("depot1.opsi.test", host_type="OpsiDepotserver"), ["opsi_depotserver", "self"]),
+				(_make_session("user1"), ["sys_user"]),
+				(_make_session("user2", is_admin=True, groups={"admingrp1"}), ["sys_group"]),
+			):
+				contextvar_client_session.set(session)
+				assert [ace.type for ace in protected_backend._get_ace("boot_getConfig")] == expected
+				with pytest.raises(BackendPermissionDeniedError):
+					protected_backend._get_ace("log_write")
+	finally:
+		contextvar_client_session.set(contextvar_client_session_org)
+		protected_backend._read_acl_file()
+
+
+@pytest.mark.parametrize(
+	"acl_path",
+	(
+		"opsiconfd_data/etc/backendManager/acl.conf",
+		"docker/opsiconfd-dev/files/etc/opsi/backendManager/acl.conf",
+		"tests/data/opsi-config/backendManager/acl.conf",
+	),
+)
+def test_default_acl_agent(acl_path: str) -> None:
+	protected_backend = ProtectedBackend()
+	try:
+		with get_config({"acl_file": acl_path}):
+			protected_backend._read_acl_file()
+			acl = protected_backend._acl
+
+			assert {ace.type for ace in acl["boot_getConfig"]} == {"sys_group", "opsi_depotserver", "opsi_agent"}
+
+			agent_host_aces = [ace for ace in acl["host_getObjects"] if ace.type == "opsi_agent"]
+			assert len(agent_host_aces) == 1
+			assert agent_host_aces[0].denied_attributes == {"opsiHostKey", "oneTimePassword"}
+			assert not agent_host_aces[0].allowed_attributes
+
+			# Agents are not allowed to call anything else
+			for method in (
+				"config_getObjects",
+				"productOnClient_getObjects",
+				"user_getObjects",
+				"host_updateObjects",
+				"host_deleteObjects",
+			):
+				assert not [ace for ace in acl[method] if ace.type == "opsi_agent"], method
+	finally:
+		protected_backend._read_acl_file()
+
+
+def test_check_role() -> None:
+	protected_backend = ProtectedBackend()
+	contextvar_client_session_org = contextvar_client_session.get()
+	try:
+		contextvar_client_session.set(_make_session("agent1", is_agent=True))
+		protected_backend._check_role("agent")
+		protected_backend._check_role("admin", "agent")
+		with pytest.raises(BackendPermissionDeniedError):
+			protected_backend._check_role("admin")
+
+		contextvar_client_session.set(_make_session("admin1", is_admin=True, groups={"admingrp1"}))
+		protected_backend._check_role("admin")
+		protected_backend._check_role("admin", "agent")
+		with pytest.raises(BackendPermissionDeniedError):
+			protected_backend._check_role("agent")
+
+		contextvar_client_session.set(_make_session("client1.opsi.test", host_type="OpsiClient"))
+		with pytest.raises(BackendPermissionDeniedError):
+			protected_backend._check_role("admin", "agent")
+
+		for roles in (("unknown",), ("admin", "unknown")):
+			with pytest.raises(ValueError, match="Invalid role 'unknown'"):
+				protected_backend._check_role(*roles)
+
+		contextvar_client_session.set(None)
+		with pytest.raises(BackendPermissionDeniedError):
+			protected_backend._check_role("admin")
+	finally:
+		contextvar_client_session.set(contextvar_client_session_org)
 
 
 def test_acl_file_errors(tmp_path: Path) -> None:

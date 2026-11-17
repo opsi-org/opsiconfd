@@ -15,6 +15,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
+from opsi.crypt.hash import hash_password
 from opsi.opsi.service.model.object import (
 	AuditHardware,
 	AuditSoftware,
@@ -35,6 +36,7 @@ from opsi.opsi.service.model.object import (
 	SoftwareLicenseToLicensePool,
 	UnicodeConfig,
 	UnicodeProductProperty,
+	User,
 	deserialize,
 )
 
@@ -771,6 +773,80 @@ def test_host_getObjects_default_acl(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	_test_host_getObjects(test_client)
+
+
+def test_host_get_agent_only_clients(
+	tmp_path: Path,
+	backend: UnprotectedBackend,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	acl_file = tmp_path / "acl.conf"
+	acl_file.write_text(
+		data=(
+			f"host_getObjects : sys_user({ADMIN_USER}); opsi_agent(attributes(!opsiHostKey,!oneTimePassword))\n"
+			f".*              : sys_user({ADMIN_USER})\n"
+		),
+		encoding="utf-8",
+	)
+	client1 = OpsiClient(id="test-agent-host-1.opsi.test", opsiHostKey="4587dec5913c501a28560d576768924e", oneTimePassword="secret")
+	client2 = OpsiClient(id="test-agent-host-2.opsi.test", opsiHostKey="7dec5913c501a28545860d576768924e")
+	depot1 = OpsiDepotserver(id="test-agent-depot-1.opsi.test", opsiHostKey="3d58924c50167a2ec547de0976855861")
+	backend.host_createObjects([client1, client2, depot1])
+	password = "securepassword"
+	backend.user_createObjects([User(id="hostagent1", passwordHash=hash_password(password), groups=["{agent}"])])
+
+	protected_backend = ProtectedBackend()
+	try:
+		with get_config({"acl_file": str(acl_file), "auth_allowed_groups": []}):
+			protected_backend._read_acl_file()
+
+			def rpc(method: str, params: list) -> dict:
+				return test_client.post("/rpc", json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).json()
+
+			# Admins see all host types
+			test_client.auth = (ADMIN_USER, ADMIN_PASS)
+			res = rpc("host_getObjects", [])
+			assert "error" not in res
+			assert depot1.id in {host["id"] for host in res["result"]}
+
+			test_client.reset_cookies()
+			test_client.auth = ("hostagent1", password)
+
+			for params in (
+				[],
+				[None, {"type": "OpsiClient"}],
+				[None, {"type": "Opsi*"}],
+				[None, {"type": ["OpsiDepotserver", "OpsiClient"]}],
+			):
+				res = rpc("host_getObjects", params)
+				assert "error" not in res
+				assert {host["id"] for host in res["result"]} == {client1.id, client2.id}
+				for host in res["result"]:
+					assert host["type"] == "OpsiClient"
+					assert not host["opsiHostKey"]
+					assert not host["oneTimePassword"]
+
+			for params in ([None, {"type": "OpsiDepotserver"}], [None, {"id": depot1.id}], [None, {"type": "OpsiConfigserver"}]):
+				res = rpc("host_getObjects", params)
+				assert "error" not in res
+				assert res["result"] == []
+
+			res = rpc("host_getIdents", ["str"])
+			assert "error" not in res
+			assert set(res["result"]) == {client1.id, client2.id}
+			res = rpc("host_getIdents", ["str", {"type": "OpsiDepotserver"}])
+			assert "error" not in res
+			assert res["result"] == []
+
+			res = rpc("host_getHashes", [])
+			assert "error" not in res
+			assert {host["id"] for host in res["result"]} == {client1.id, client2.id}
+
+			# Secrets cannot be probed with a filter
+			res = rpc("host_getObjects", [None, {"opsiHostKey": client2.opsiHostKey}])
+			assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
+	finally:
+		protected_backend._read_acl_file()
 
 
 def test_host_getIdents(

@@ -1563,3 +1563,152 @@ def test_migrate_hashing_algorithm(
 			assert verify_password("secret123", user.passwordHash)
 			test_client.reset_cookies()
 			time.sleep(1)
+
+
+def test_database_agent_authentication(
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	password = "securepassword"
+	token, token_hash = create_auth_token()
+	user = User(id="agent1", passwordHash=hash_password(password), tokenHash=token_hash, groups=["{agent}"])
+	backend.user_createObjects([user])
+	with get_config({"disabled_auth_methods": ["pam", "ldap", "saml"], "auth_allowed_groups": []}):
+		res = test_client.post("/auth/login", json={"username": user.id, "password": password})
+		assert res.status_code == 200
+		assert res.json()["is_admin"] is False
+		assert res.headers.get("X-opsi-user-id") == "agent:agent1"
+		session_data = _get_session_data_from_redis(config, delete_sessions=True)
+		assert session_data
+		assert session_data["is_agent"] is True
+		assert session_data["is_admin"] is False
+
+		test_client.reset_cookies()
+		test_client.auth = ("", "")
+		res = test_client.get("/auth/authenticated", headers={"Authorization": f"Bearer {token}"})
+		assert res.status_code == 200
+		assert res.headers.get("X-opsi-user-id") == "agent:agent1"
+
+
+def test_database_user_without_agent_marker_is_no_agent(
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	password = "securepassword"
+	user = User(id="notanagent1", passwordHash=hash_password(password), groups=["other-group"])
+	backend.user_createObjects([user])
+	with get_config({"disabled_auth_methods": ["pam", "ldap", "saml"], "auth_allowed_groups": []}):
+		res = test_client.post("/auth/login", json={"username": user.id, "password": password})
+		assert res.status_code == 200
+		assert res.headers.get("X-opsi-user-id") == "user:notanagent1"
+		session_data = _get_session_data_from_redis(config, delete_sessions=True)
+		assert session_data
+		assert not session_data.get("is_agent")
+
+
+@pytest.mark.parametrize("other_group", ("{admingroup}", "{readonly}", "opsi-admin-group", "opsi-readonly-group"))
+def test_database_agent_with_admin_or_readonly_group_is_rejected(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+	other_group: str,
+) -> None:
+	password = "securepassword"
+	user = User(id="agent2", passwordHash=hash_password(password), groups=["{agent}", other_group])
+	backend.user_createObjects([user])
+	with (
+		get_opsi_config(
+			[
+				{"category": "groups", "config": "admingroup", "value": "opsi-admin-group"},
+				{"category": "groups", "config": "readonly", "value": "opsi-readonly-group"},
+			]
+		),
+		get_config({"disabled_auth_methods": ["pam", "ldap", "saml"], "auth_allowed_groups": []}),
+	):
+		res = test_client.post("/auth/login", json={"username": user.id, "password": password})
+		assert res.status_code == 401
+		assert "must not be member of the admin or read-only group" in res.json()["message"]
+
+
+def test_database_agent_authentication_audit_log(
+	backend: UnprotectedBackend,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	password = "securepassword"
+	user = User(id="agent3", passwordHash=hash_password(password), groups=["{agent}"])
+	backend.user_createObjects([user])
+	with get_config({"audit_log_enabled": True, "disabled_auth_methods": ["pam", "ldap", "saml"], "auth_allowed_groups": []}), test_client:
+		res = test_client.post("/auth/login", json={"username": user.id, "password": password})
+	assert res.status_code == 200
+
+	audit_logs = _wait_for_audit_logs(backend, AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED)
+	assert len(audit_logs) == 1
+	assert audit_logs[0].username == user.id
+	assert audit_logs[0].actorType == "agent"
+
+
+@pytest.mark.parametrize("licensed", (True, False))
+def test_database_agent_authentication_requires_license(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+	licensed: bool,
+) -> None:
+	password = "securepassword"
+	user = User(id="agent4", passwordHash=hash_password(password), groups=["{agent}"])
+	backend.user_createObjects([user])
+	with (
+		patch("opsiconfd.session.module_available", return_value=licensed),
+		get_config({"disabled_auth_methods": ["pam", "ldap", "saml"], "auth_allowed_groups": []}),
+	):
+		res = test_client.post("/auth/login", json={"username": user.id, "password": password})
+		assert res.status_code == (200 if licensed else 401)
+
+
+def test_database_agent_authentication_ignores_allowed_groups(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	password = "securepassword"
+	agent = User(id="agent5", passwordHash=hash_password(password), groups=["{agent}"])
+	other = User(id="notanagent2", passwordHash=hash_password(password), groups=["other-group"])
+	admin = User(id="dbadmin2", passwordHash=hash_password(password), groups=["{admingroup}"])
+	backend.user_createObjects([agent, other, admin])
+	with (
+		get_opsi_config([{"category": "groups", "config": "admingroup", "value": "opsi-admin-group"}]),
+		get_config({"disabled_auth_methods": ["pam", "ldap", "saml"], "auth_allowed_groups": ["{admingroup}"]}),
+	):
+		res = test_client.post("/auth/login", json={"username": agent.id, "password": password})
+		assert res.status_code == 200
+		assert res.json()["is_admin"] is False
+
+		test_client.reset_cookies()
+		res = test_client.post("/auth/login", json={"username": other.id, "password": password})
+		assert res.status_code == 401
+		assert res.json()["message"] == f"User '{other.id}' not in allowed groups"
+
+		test_client.reset_cookies()
+		res = test_client.post("/auth/login", json={"username": admin.id, "password": password})
+		assert res.status_code == 200
+
+
+def test_agent_marker_from_external_groups_is_ignored(
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	user = User(id="externaluser1", groups=[])
+	backend.user_createObjects([user])
+	with (
+		patch("opsiconfd.auth._pam.PAMAuthentication.authenticate", return_value=True),
+		patch("opsiconfd.auth._pam.PAMAuthentication.get_groupnames", return_value={"{agent}", "other-group"}),
+		get_config({"auth_allowed_groups": []}),
+	):
+		res = test_client.post("/auth/login", json={"username": user.id, "password": "secret123"})
+		assert res.status_code == 200
+		assert res.headers.get("X-opsi-user-id") == "user:externaluser1"
+		session_data = _get_session_data_from_redis(config, delete_sessions=True)
+		assert session_data
+		assert not session_data.get("is_agent")
+		# The marker must not be stored in the database user
+		assert backend.user_getObjects(id=user.id)[0].groups == ["other-group"]

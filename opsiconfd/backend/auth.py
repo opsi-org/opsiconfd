@@ -9,6 +9,9 @@ auth
 
 import re
 import shutil
+from collections.abc import Generator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -16,13 +19,33 @@ from typing import Literal
 from opsiconfd.config import opsi_config
 from opsiconfd.logging import logger
 
+_acl_bypass: ContextVar[bool] = ContextVar("acl_bypass", default=False)
+
+
+@contextmanager
+def bypass_acl() -> Generator[None]:
+	"""Evaluate no ACL entries within the block.
+
+	Only for backend code that was authorized as a whole, e.g. by an ACL entry and a role check for the RPC method.
+	"""
+	token = _acl_bypass.set(True)
+	try:
+		yield
+	finally:
+		_acl_bypass.reset(token)
+
+
+def acl_bypassed() -> bool:
+	"""Return True if the code is running within `bypass_acl`."""
+	return _acl_bypass.get()
+
 
 @dataclass(frozen=True, kw_only=True)
 class RPCACE:
 	"""RPC Access Control Entry"""
 
 	method_re: re.Pattern
-	type: Literal["all", "self", "opsi_depotserver", "opsi_client", "sys_group", "sys_user"]
+	type: Literal["all", "self", "opsi_depotserver", "opsi_client", "opsi_agent", "sys_group", "sys_user"]
 	id: str | None = None
 	allowed_attributes: set[str] = field(default_factory=set)
 	denied_attributes: set[str] = field(default_factory=set)
@@ -64,7 +87,7 @@ def read_acl_file(acl_file: Path | str) -> list[RPCACE]:
 			if not ace_type:
 				# Ignore empty string
 				continue
-			if ace_type not in ("all", "self", "opsi_depotserver", "opsi_client", "sys_group", "sys_user"):
+			if ace_type not in ("all", "self", "opsi_depotserver", "opsi_client", "opsi_agent", "sys_group", "sys_user"):
 				raise ValueError(f"Unhandled acl type: '{ace_type}' {position_text}")
 
 			ace = RPCACE(method_re=method_re, type=ace_type)
@@ -109,7 +132,7 @@ def read_acl_file(acl_file: Path | str) -> list[RPCACE]:
 									ace.denied_attributes.add(val[1:].strip())
 								else:
 									ace.allowed_attributes.add(val.strip())
-						elif ace_type in ("sys_group", "sys_user", "opsi_depotserver", "opsi_client"):
+						elif ace_type in ("sys_group", "sys_user", "opsi_depotserver", "opsi_client", "opsi_agent"):
 							val = ace_type_param.strip()
 							if ace_type == "sys_group":
 								val = val.replace("{admingroup}", opsi_config.get("groups", "admingroup"))

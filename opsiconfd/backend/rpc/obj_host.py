@@ -10,6 +10,7 @@ opsiconfd.backend.rpc.host
 from __future__ import annotations
 
 import asyncio
+import re
 import socket
 from copy import deepcopy
 from dataclasses import dataclass
@@ -27,6 +28,7 @@ from opsi.opsi.service.model.object import ConfigState, Host, OpsiClient, OpsiCo
 from opsi.opsi.service.model.type import to_host_id, to_list, to_object_class, to_object_class_list
 
 from opsiconfd import contextvar_client_session
+from opsiconfd.backend.auth import acl_bypassed
 from opsiconfd.backend.rpc import rpc_method
 from opsiconfd.config import LOG_DIR, config
 from opsiconfd.logging import logger
@@ -71,6 +73,31 @@ def auto_fill_depotserver_urls(depot: OpsiDepotserver) -> bool:
 		depot.setWorkbenchRemoteUrl(f"smb://{address}/opsi_workbench")
 		changed = True
 	return changed
+
+
+def restrict_host_filter_for_agent(filter: dict[str, Any]) -> dict[str, Any] | None:
+	"""Limit a host filter to OpsiClient for agent sessions.
+
+	Args:
+		filter: The filter given by the caller.
+
+	Returns:
+		The filter to use, or None if no host can match.
+	"""
+	session = contextvar_client_session.get()
+	if acl_bypassed() or not session or session.user_type != "agent":
+		return filter
+
+	requested = filter.get("type")
+	if requested:
+		values = requested if isinstance(requested, (list, tuple, set)) else [requested]
+		# Only "*" is a wildcard in type filters
+		if not any(
+			isinstance(val, str) and re.fullmatch(".*".join(re.escape(p) for p in val.split("*")), "OpsiClient", re.IGNORECASE)
+			for val in values
+		):
+			return None
+	return {**filter, "type": "OpsiClient"}
 
 
 OPERATING_SYSTEM_TYPE = Literal["windows", "linux", "macos"]
@@ -263,12 +290,18 @@ class RPCHostMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def host_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[Host]:
 		ace = self._get_ace("host_getObjects")
-		return self._mysql.get_objects(table="HOST", object_type=Host, ace=ace, return_type="object", attributes=attributes, filter=filter)
+		filter_ = restrict_host_filter_for_agent(filter)
+		if filter_ is None:
+			return []
+		return self._mysql.get_objects(table="HOST", object_type=Host, ace=ace, return_type="object", attributes=attributes, filter=filter_)
 
 	@rpc_method(deprecated=True, alternative_method="host_getObjects", check_acl=False)
 	def host_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:
 		ace = self._get_ace("host_getObjects")
-		return self._mysql.get_objects(table="HOST", object_type=Host, ace=ace, return_type="dict", attributes=attributes, filter=filter)
+		filter_ = restrict_host_filter_for_agent(filter)
+		if filter_ is None:
+			return []
+		return self._mysql.get_objects(table="HOST", object_type=Host, ace=ace, return_type="dict", attributes=attributes, filter=filter_)
 
 	@rpc_method(check_acl=False)
 	def host_getIdents(
@@ -277,7 +310,10 @@ class RPCHostMixin(Protocol):
 		**filter: Any,
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("host_getObjects")
-		return self._mysql.get_idents(table="HOST", object_type=Host, ace=ace, ident_type=returnType, filter=filter)
+		filter_ = restrict_host_filter_for_agent(filter)
+		if filter_ is None:
+			return []
+		return self._mysql.get_idents(table="HOST", object_type=Host, ace=ace, ident_type=returnType, filter=filter_)
 
 	@rpc_method(check_acl=False)
 	def host_deleteObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:

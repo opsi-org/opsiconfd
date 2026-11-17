@@ -883,3 +883,55 @@ def test_create_depot(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	res = test_client.post("/admin/depot-create", auth=(ADMIN_USER, ADMIN_PASS), json={"id": "test-depot.uib.local"})
 	assert res.status_code == 422
 	assert res.json()["message"] == "Depot already exists"
+
+
+def test_create_agent_user(
+	backend: UnprotectedBackend,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	password = "Secret123!"
+	res = test_client.post(
+		"/admin/create-user", auth=(ADMIN_USER, ADMIN_PASS), json={"user_id": "agent-user1", "password": password, "agent": True}
+	)
+	assert res.status_code == 200
+	user = backend.user_getObjects(id="agent-user1")[0]
+	assert user.groups == ["{agent}"]
+	assert user.passwordHash
+
+	res = test_client.get("/admin/user-list", auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == 200
+	entries = {entry["id"]: entry for entry in res.json()}
+	assert entries["agent-user1"]["groups"] == ["{agent}"]
+	assert entries["agent-user1"]["internal_auth"] is True
+	for secret in ("otpSecret", "tokenHash", "passwordHash", "encryptedPassword"):
+		assert secret not in entries["agent-user1"]
+
+
+@pytest.mark.parametrize("other", ("admin", "readonly"))
+def test_create_agent_user_with_admin_or_readonly_is_rejected(
+	backend: UnprotectedBackend,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	other: str,
+) -> None:
+	res = test_client.post(
+		"/admin/create-user",
+		auth=(ADMIN_USER, ADMIN_PASS),
+		json={"user_id": "agent-user2", "password": "Secret123!", "agent": True, other: True},
+	)
+	assert res.status_code == 400
+	assert res.json()["message"] == "An agent cannot be admin or readonly"
+	assert not backend.user_getObjects(id="agent-user2")
+
+
+@pytest.mark.parametrize("params, expected_groups", (({"admin": True}, ["{admingroup}"]), ({"readonly": True}, ["{readonly}"]), ({}, [])))
+def test_create_user_without_agent(
+	backend: UnprotectedBackend,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	params: dict[str, bool],
+	expected_groups: list[str],
+) -> None:
+	res = test_client.post(
+		"/admin/create-user", auth=(ADMIN_USER, ADMIN_PASS), json={"user_id": "normal-user1", "password": "Secret123!", **params}
+	)
+	assert res.status_code == 200
+	assert backend.user_getObjects(id="normal-user1")[0].groups == expected_groups

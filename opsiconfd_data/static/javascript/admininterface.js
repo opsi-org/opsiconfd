@@ -950,7 +950,7 @@ function updateUserTokenAuth(userId, enable) {
 }
 
 
-function showCreateUserDialog(userId, admin, readonly, errorMessage = null) {
+function showCreateUserDialog(userId, admin, readonly, agent, errorMessage = null) {
 	let html = "";
 	if (errorMessage) {
 		html += `<p style="color:red;">${errorMessage}</p>`;
@@ -962,8 +962,9 @@ function showCreateUserDialog(userId, admin, readonly, errorMessage = null) {
 	html += `<input type="password" id="new-user-new-password" autocomplete="new-password" /><br/>`;
 	html += `<label for="new-user-confirm-password" style="width: 150px; display: inline-block;">Confirm password:</label>`;
 	html += `<input type="password" id="new-user-confirm-password" autocomplete="new-password" /><br/>`;
-	html += `<input type="checkbox" id="new-user-admin" ${admin ? "checked" : ""} onchange="document.getElementById('new-user-readonly').checked = !this.checked;" /> Admin<br/>`;
-	html += `<input type="checkbox" id="new-user-readonly" ${readonly ? "checked" : ""} onchange="document.getElementById('new-user-admin').checked = !this.checked;" /> Readonly<br/>`;
+	html += `<input type="radio" name="new-user-role" id="new-user-admin" ${admin ? "checked" : ""} /> Admin<br/>`;
+	html += `<input type="radio" name="new-user-role" id="new-user-readonly" ${readonly ? "checked" : ""} /> Readonly<br/>`;
+	html += `<input type="radio" name="new-user-role" id="new-user-agent" ${agent ? "checked" : ""} /> Agent<br/>`;
 	html += `</form>`;
 
 	showDialogOverlay({
@@ -976,27 +977,28 @@ function showCreateUserDialog(userId, admin, readonly, errorMessage = null) {
 			document.getElementById('new-user-new-password').value,
 			document.getElementById('new-user-confirm-password').value,
 			document.getElementById('new-user-admin').checked,
-			document.getElementById('new-user-readonly').checked
+			document.getElementById('new-user-readonly').checked,
+			document.getElementById('new-user-agent').checked
 		)
 	});
 }
 
-function createUser(userId = null, password = null, confirmPassword = null, admin = true, readonly = false) {
+function createUser(userId = null, password = null, confirmPassword = null, admin = true, readonly = false, agent = false) {
 	if (!userId || password !== confirmPassword) {
 		let errorMessage = null;
 		if (password !== confirmPassword) {
 			errorMessage = "The provided passwords do not match. Please try again.";
 		}
-		showCreateUserDialog(userId, admin, readonly, errorMessage);
+		showCreateUserDialog(userId, admin, readonly, agent, errorMessage);
 	}
 	else {
-		let req = ajaxRequest("POST", "/admin/create-user", { "user_id": userId, "password": password, "admin": admin, "readonly": readonly });
+		let req = ajaxRequest("POST", "/admin/create-user", { "user_id": userId, "password": password, "admin": admin, "readonly": readonly, "agent": agent });
 		req.then((result) => {
 			showNotification("New user successfully created", "user-edit", "success", 3);
 			loadUserTable();
 		}, (error) => {
 			let errorMessage = `Failed to create user: ${error.message || error.detail || JSON.stringify(error)}`;
-			showCreateUserDialog(userId, admin, readonly, errorMessage);
+			showCreateUserDialog(userId, admin, readonly, agent, errorMessage);
 			showNotification(errorMessage, "user-edit", "error", 10);
 			loadUserTable();
 		});

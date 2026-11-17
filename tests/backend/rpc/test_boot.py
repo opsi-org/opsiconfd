@@ -380,7 +380,8 @@ def test_boot_getConfig_roles(
 			BoolConfig(id="netboot.pxe_boot_unknown_devices", description="Allow unknown devices?", defaultValues=[False]),
 		]
 	)
-	client = OpsiClient(id=client_id, opsiHostKey="fe5e2020410d947c58508cdcd29d9ec0", hardwareAddress="01:02:03:04:05:06")
+	host_key = "fe5e2020410d947c58508cdcd29d9ec0"
+	client = OpsiClient(id=client_id, opsiHostKey=host_key, hardwareAddress="01:02:03:04:05:06")
 	product = NetbootProduct(
 		id=product_id,
 		productVersion="1",
@@ -424,7 +425,7 @@ def test_boot_getConfig_roles(
 			assert "error" not in admin_res
 			assert admin_res["result"]["client_id"] == client_id
 			assert admin_res["result"]["product_id"] == product_id
-			assert f"pckey={client.opsiHostKey}" in admin_res["result"]["grub_config"]
+			assert f"pckey={host_key}" in admin_res["result"]["grub_config"]
 
 			# Agent gets the same result, but has no other permissions
 			test_client.reset_cookies()
@@ -455,7 +456,7 @@ def test_boot_getConfig_roles(
 
 			# Clients are denied by the role check although the ACL allows the method
 			test_client.reset_cookies()
-			test_client.auth = (client_id, client.opsiHostKey)
+			test_client.auth = (client_id, host_key)
 			res = boot_getConfig()
 			assert "error" in res
 			assert "Insufficient permissions" in res["error"]["message"]

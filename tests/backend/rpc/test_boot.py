@@ -463,6 +463,58 @@ def test_boot_getConfig_roles(
 		protected_backend._read_acl_file()
 
 
+def test_boot_getConfig_depot_of_client(
+	backend: UnprotectedBackend,  # noqa: F811
+	tmp_path: Path,
+) -> None:
+	depot1_id = get_depotserver_id()
+	depot2_id = "test-boot-depot2.opsi.test"
+	grub_cfg = tmp_path / "grub.cfg"
+	shutil.copy("tests/data/boot/grub.cfg", grub_cfg)
+
+	backend.config_createObjects(
+		[
+			UnicodeConfig(
+				id="clientconfig.configserver.url",
+				description="URL(s) of OPSI config service(s) to use",
+				possibleValues=["https://opsiservice.opsi.test:4447/rpc"],
+				defaultValues=["https://opsiservice.opsi.test:4447/rpc"],
+				editable=True,
+				multiValue=True,
+			),
+			BoolConfig(id="netboot.use_host_onetime_password", description="Use a one-time password?", defaultValues=[False]),
+			BoolConfig(id="netboot.pxe_boot_unknown_devices", description="Allow unknown devices?", defaultValues=[False]),
+		]
+	)
+	client1 = OpsiClient(
+		id="test-boot-client1.opsi.test",
+		opsiHostKey="fe5e2020410d947c58508cdcd29d9ec0",
+		hardwareAddress="01:02:03:04:05:06",
+		systemUUID="6a6fa111-a6a6-42da-bb96-f1401ab95a06",
+	)
+	client2 = OpsiClient(
+		id="test-boot-client2.opsi.test",
+		opsiHostKey="7dec5913c501a28545860d576768924e",
+		hardwareAddress="01:02:03:04:05:07",
+		systemUUID="1b2c3d4e-a6a6-42da-bb96-f1401ab95a07",
+	)
+	backend.host_createObjects([OpsiDepotserver(id=depot2_id, opsiHostKey="3d58924c50167a2ec547de0976855861"), client1, client2])
+	# Client 1 is created first and uses another depot than client 2
+	backend.configState_create(configId="clientconfig.depot.id", objectId=client1.id, values=[depot1_id])
+	backend.configState_create(configId="clientconfig.depot.id", objectId=client2.id, values=[depot2_id])
+
+	with mock.patch("opsiconfd.backend.rpc.boot.GRUB_CFG_TEMPLATE", str(grub_cfg)):
+		for client, depot_id in ((client1, depot1_id), (client2, depot2_id)):
+			for client_args in (
+				{"client_id": client.id},
+				{"system_uuid": client.systemUUID},
+				{"hardware_address": client.hardwareAddress},
+			):
+				boot_config: BootConfig = backend.boot_getConfig(ip_version=4, **client_args)
+				assert boot_config.client_id == client.id
+				assert boot_config.depot_id == depot_id
+
+
 def test_boot_getConfig(
 	backend: UnprotectedBackend,  # noqa: F811
 	tmp_path: Path,

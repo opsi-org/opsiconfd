@@ -515,7 +515,7 @@ class RPCBootMixin(Protocol):
 
 		product_on_client: ProductOnClient | None = None
 		if client:
-			depot_id = self.configState_getClientToDepotserver(clientIds=client_id)[0]["depotId"]
+			depot_id = self.configState_getClientToDepotserver(clientIds=[client.id])[0]["depotId"]
 			try:
 				product_on_client = self.productOnClient_getObjects(
 					productType="NetbootProduct",

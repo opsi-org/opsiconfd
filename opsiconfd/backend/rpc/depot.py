@@ -10,6 +10,8 @@ opsiconfd.backend.rpc.depot
 from __future__ import annotations
 
 import base64
+import ctypes
+import errno
 import grp
 import os
 import random
@@ -52,6 +54,9 @@ from opsiconfd.redis import decode_redis_result, redis_client, redis_lock
 from opsiconfd.utils import get_disk_usage, get_file_md5sum
 
 if TYPE_CHECKING:
+	from types import TracebackType
+	from typing import Self
+
 	from opsiconfd.backend.rpc.protocol import BackendProtocol
 ALLOWED_SERVER_DATA = (
 	Path("/tmp"),
@@ -71,6 +76,115 @@ TRANSFER_SLOT_CONFIGS = {
 }
 TRANSFER_SLOT_MAX = 1000
 TRANSFER_SLOT_RETENTION_TIME = 60
+AT_FDCWD = -100
+RENAME_EXCHANGE = 2
+
+
+def exchange_paths(path_a: Path, path_b: Path) -> bool:
+	"""
+	Atomically exchange two existing paths using renameat2(RENAME_EXCHANGE).
+
+	Args:
+		path_a: First path.
+		path_b: Second path.
+
+	Returns:
+		True if the paths were exchanged, False if the platform or file system does not support it.
+
+	Raises:
+		OSError: If the exchange failed for any other reason.
+	"""
+	try:
+		renameat2 = ctypes.CDLL(None, use_errno=True).renameat2
+	except OSError, AttributeError:
+		return False
+
+	if renameat2(AT_FDCWD, os.fsencode(path_a), AT_FDCWD, os.fsencode(path_b), RENAME_EXCHANGE) == 0:
+		return True
+
+	err = ctypes.get_errno()
+	if err in (errno.ENOSYS, errno.EINVAL, errno.ENOTSUP):
+		return False
+	raise OSError(err, os.strerror(err), str(path_a))
+
+
+def replace_directory(new_dir: Path, target: Path, old_dir: Path) -> None:
+	"""
+	Replace a directory with another one without a moment in which the target is missing.
+
+	The previous content of the target is moved to `old_dir`.
+	If the file system does not support exchanging paths, two renames are used as fallback.
+
+	Args:
+		new_dir: Directory to put in place of the target. Must be on the same file system as the target.
+		target: Directory to replace.
+		old_dir: Destination for the previous content of the target. Must not exist.
+	"""
+	if not target.exists():
+		os.rename(new_dir, target)
+		return
+
+	if exchange_paths(new_dir, target):
+		# new_dir now holds the previous content of target
+		os.rename(new_dir, old_dir)
+		return
+
+	os.rename(target, old_dir)
+	os.rename(new_dir, target)
+
+
+class ClientDataReplacement:
+	"""
+	Context manager to replace the client data directory of a product atomically.
+
+	The new data is staged next to the target directory and swapped in with `replace`.
+	The previous data is kept until the context exits without an error and is restored otherwise.
+
+	Attributes:
+		target: The client data directory of the product.
+	"""
+
+	def __init__(self, target: Path) -> None:
+		"""
+		Args:
+			target: The client data directory of the product.
+		"""
+		self.target = target
+		self._staging_dir = target.with_name(f".{target.name}.new")
+		self._backup_dir = target.with_name(f".{target.name}.old")
+
+	def __enter__(self) -> Self:
+		"""Remove leftovers of an interrupted installation."""
+		shutil.rmtree(self._staging_dir, ignore_errors=True)
+		shutil.rmtree(self._backup_dir, ignore_errors=True)
+		return self
+
+	def replace(self, new_data: Path) -> None:
+		"""
+		Replace the target directory with new data.
+
+		Args:
+			new_data: Directory containing the new client data.
+		"""
+		# Moving to the staging directory may copy the data if it is on another file system.
+		# This does not affect the target, the final swap is a rename.
+		shutil.move(new_data, self._staging_dir)
+		replace_directory(self._staging_dir, self.target, self._backup_dir)
+
+	def __exit__(self, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: TracebackType | None) -> None:
+		"""Discard the previous data on success, restore it on error."""
+		if exc_type is None or not self._backup_dir.exists():
+			shutil.rmtree(self._staging_dir, ignore_errors=True)
+			shutil.rmtree(self._backup_dir, ignore_errors=True)
+			return
+
+		logger.warning("Installation error. Restoring previous client data dir '%s'", self.target)
+		try:
+			replace_directory(self._backup_dir, self.target, self._staging_dir)
+		except Exception as err:
+			logger.error("Failed to restore client data dir '%s': %s", self.target, err, exc_info=True)
+			return
+		shutil.rmtree(self._staging_dir, ignore_errors=True)
 
 
 def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data_dir: Path, env: dict[str, str] | None = None) -> list[str]:
@@ -745,7 +859,10 @@ class DepotserverPackageManager:
 					self.backend.product_createObjects(product)
 					product_path = Path(DEPOT_DIR) / product_id
 
-					with lock_product(product, self._depot_id, force) as product_on_depot:
+					with (
+						lock_product(product, self._depot_id, force) as product_on_depot,
+						ClientDataReplacement(product_path) as client_data,
+					):
 						logger.info("Checking package dependencies")
 						self.check_dependencies(opsi_package)
 
@@ -756,12 +873,8 @@ class DepotserverPackageManager:
 							"BOOT_DIR": BOOT_DIR,
 						}
 						with run_package_scripts(opsi_package, tmp_unpack_dir, product_path, env=env):
-							logger.info("Deleting old client-data dir")
-							if (product_path).exists():
-								shutil.rmtree(product_path)
-
-							logger.info("Unpacking package files")
-							shutil.move(tmp_unpack_dir / "CLIENT_DATA", product_path)
+							logger.info("Replacing client-data dir")
+							client_data.replace(tmp_unpack_dir / "CLIENT_DATA")
 
 							if (tmp_unpack_dir / "SERVER_DATA").exists():
 								logger.info("Unpacking SERVER_DATA")

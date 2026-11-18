@@ -19,7 +19,7 @@ from starlette.concurrency import run_in_threadpool
 from opsiconfd import contextvar_client_session
 from opsiconfd.audit_log import audit_log_event_enabled, config_audit_log
 from opsiconfd.auth.role import Role
-from opsiconfd.auth.user import create_user_roles, get_users
+from opsiconfd.auth.user import User, create_user_roles, get_users
 from opsiconfd.logging import logger
 from opsiconfd.messagebus.redis import get_websocket_connected_users
 from opsiconfd.utils import asyncio_create_task
@@ -364,3 +364,12 @@ class RPCConfigMixin(Protocol):
 		users = get_users()
 		for user in users:
 			create_user_roles(user)
+
+	@rpc_method(check_acl=False)
+	def config_createUser(self: BackendProtocol, name: str) -> None:
+		"""Create the user-specific configuration objects.
+
+		Args:
+			name: Name of the user whose configuration should be created.
+		"""
+		User(name=name)

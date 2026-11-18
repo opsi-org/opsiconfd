@@ -542,6 +542,12 @@ class Config:
 		except AttributeError:
 			pass
 
+		try:
+			if self._config.set_depot_user_password:
+				secret_filter.add_secrets(self._config.set_depot_user_password)
+		except AttributeError:
+			pass
+
 		scheme = "http"
 		if self._config.ssl and self._config.ssl_server_key and self._config.ssl_server_cert:
 			scheme = "https"
@@ -550,6 +556,12 @@ class Config:
 
 		if self._config.redis_internal_url:
 			url = urlparse(self._config.redis_internal_url)
+			if url.password:
+				secret_filter.add_secrets(url.password)
+				secret_filter.add_secrets(unquote(url.password))
+
+		if self._config.mysql_internal_url:
+			url = urlparse(self._config.mysql_internal_url)
 			if url.password:
 				secret_filter.add_secrets(url.password)
 				secret_filter.add_secrets(unquote(url.password))
@@ -608,6 +620,10 @@ class Config:
 
 		if not self._config.database_encryption_keys:
 			self._config.database_encryption_keys = []
+		for encryption_key in self._config.database_encryption_keys:
+			secret_filter.add_secrets(encryption_key)
+			if "=" in encryption_key:
+				secret_filter.add_secrets(encryption_key.split("=", 1)[1].strip())
 
 		for attr in "networks", "admin_networks", "max_sessions_excludes":
 			conf = getattr(self._config, attr)

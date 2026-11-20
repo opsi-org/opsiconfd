@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { JSDOM } from "jsdom";
+
+const admininterfaceScriptPath = fileURLToPath(new URL("../../opsiconfd_data/static/javascript/admininterface.js", import.meta.url));
 
 function loadAdmininterface() {
 	const dom = new JSDOM(`<!DOCTYPE html><html><body>
@@ -54,10 +57,12 @@ function loadAdmininterface() {
 			return new Promise(() => {});
 		};
 	`);
-	dom.window.eval(`${readFileSync("../opsiconfd_data/static/javascript/admininterface.js", "utf8")}
+	dom.window.eval(`${readFileSync(admininterfaceScriptPath, "utf8")}
 		Object.assign(window, {
 			renderUserTable,
 			showDialogOverlay,
+			showCreateUserDialog,
+			createUser,
 			renderDepotTable,
 			renderRPCCacheInfoTable,
 			renderAuditLogTable,
@@ -97,6 +102,39 @@ test("renderUserTable renders text safely and keeps actions callable", () => {
 	assert.equal(container.querySelectorAll("img").length, 0);
 	assert.equal(container.querySelectorAll("script").length, 0);
 	assert.equal(container.querySelector(".action-menu-button").textContent, "Actions");
+});
+
+test("create user dialog offers admin, readonly and agent as exclusive roles", () => {
+	const dom = loadAdmininterface();
+	const { window } = dom;
+
+	window.showCreateUserDialog("agent1", false, false, true);
+
+	const radios = Array.from(window.document.querySelectorAll("#confirm-overlay-body input[name='new-user-role']"));
+	assert.deepEqual(radios.map(radio => radio.id), ["new-user-admin", "new-user-readonly", "new-user-agent"]);
+	assert.deepEqual(radios.map(radio => radio.checked), [false, false, true]);
+
+	// Radio buttons of one group are exclusive
+	window.document.getElementById("new-user-admin").checked = true;
+	assert.equal(window.document.getElementById("new-user-agent").checked, false);
+});
+
+test("createUser sends the selected role", () => {
+	const dom = loadAdmininterface();
+	const { window } = dom;
+
+	window.createUser("agent1", "Secret123!", "Secret123!", false, false, true);
+	assert.equal(window.__ajaxRequests[0][0], "POST");
+	assert.equal(window.__ajaxRequests[0][1], "/admin/create-user");
+	assert.deepEqual({ ...window.__ajaxRequests[0][2] }, {
+		user_id: "agent1", password: "Secret123!", admin: false, readonly: false, agent: true
+	});
+
+	window.__ajaxRequests = [];
+	window.createUser("admin1", "Secret123!", "Secret123!");
+	assert.deepEqual({ ...window.__ajaxRequests[0][2] }, {
+		user_id: "admin1", password: "Secret123!", admin: true, readonly: false, agent: false
+	});
 });
 
 test("showDialogOverlay displays message and safely accepts DOM body", () => {

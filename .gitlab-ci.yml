@@ -73,7 +73,7 @@ test:lint-and-test:
 
     - echo -e "${TXT_HEAD}Check for vulnerabilities${TXT_CLEAR}"
     - $DOCKER_COMPOSE exec opsiserver43-dev uv audit
-    - $DOCKER_COMPOSE exec opsiserver43-dev npm --prefix admininterface-tests audit
+    - $DOCKER_COMPOSE exec opsiserver43-dev npm --prefix tests/admininterface audit
 
     - echo -e "${TXT_HEAD}Run pytest${TXT_CLEAR}"
     - $DOCKER_COMPOSE exec opsiserver43-dev uv run pytest -x --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests
@@ -134,8 +134,8 @@ test:lint-and-test:
     # - $DOCKER_COMPOSE exec opsiserver43-dev ./bencher run --project opsiconfd --benchmark opsiconfd-perftest --start-point "$BRANCH" --err --adapter json --file bencher-results.json
 
     - echo -e "${TXT_HEAD}Run admininterface tests${TXT_CLEAR}"
-    - $DOCKER_COMPOSE exec opsiserver43-dev npm --prefix admininterface-tests ci
-    - $DOCKER_COMPOSE exec opsiserver43-dev npm --prefix admininterface-tests run test:static
+    - $DOCKER_COMPOSE exec opsiserver43-dev npm --prefix tests/admininterface ci
+    - $DOCKER_COMPOSE exec opsiserver43-dev npm --prefix tests/admininterface run test:static
 
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:

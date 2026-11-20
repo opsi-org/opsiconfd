@@ -60,6 +60,8 @@ MONITORING_ACL_LINES = (
 	"monitoring_.*            : sys_group({admingroup}); opsi_depotserver; self",
 )
 
+AGENT_ACL_BOOT_GETCONFIG_LINE = "boot_getConfig           : sys_group({admingroup}); opsi_depotserver; opsi_agent"
+
 
 def _get_default_dirs() -> list[str]:
 	dirs = [
@@ -153,6 +155,46 @@ def migrate_acl_conf_add_monitoring() -> None:
 	acl_file.write_text("\n".join(lines), encoding="utf-8")
 
 
+def migrate_acl_conf_add_agent() -> None:
+	"""
+	Add the acl entry for opsi agents to an existing acl.conf.
+
+	The entry for `boot_getConfig` is inserted before the first entry matching this method,
+	otherwise it would never be evaluated.
+	If the acl.conf already contains an entry for `boot_getConfig`, nothing is changed.
+	"""
+	acl_file = Path(config.acl_file)
+	if not acl_file.exists():
+		return
+
+	lines = acl_file.read_text(encoding="utf-8").split("\n")
+	patterns: dict[int, str] = {}
+	for idx, line in enumerate(lines):
+		match = re.match(r"^\s*([^#:\s][^:]*?)\s*:", line)
+		if match:
+			patterns[idx] = match.group(1)
+
+	if "boot_getConfig" in patterns.values():
+		return
+
+	insert_idx = len(lines)
+	for idx, pattern in patterns.items():
+		try:
+			if re.match(pattern, "boot_getConfig"):
+				insert_idx = idx
+				break
+		except re.error:
+			continue
+	if insert_idx == len(lines) and lines[-1] == "":
+		insert_idx -= 1
+
+	backup_file = acl_file.with_name(f"{acl_file.name}.pre-agent")
+	logger.notice("Adding agent entry to '%s' (backup: '%s')", acl_file, backup_file)
+	shutil.copy2(acl_file, backup_file)
+	lines.insert(insert_idx, AGENT_ACL_BOOT_GETCONFIG_LINE)
+	acl_file.write_text("\n".join(lines), encoding="utf-8")
+
+
 def setup_files() -> None:
 	for _dir in _get_default_dirs():
 		if _dir and not os.path.isdir(_dir) and not os.path.islink(_dir):
@@ -162,6 +204,7 @@ def setup_files() -> None:
 	cleanup_audit_hardware_config_locales_dir()
 	migrate_acl_conf_if_default()
 	migrate_acl_conf_add_monitoring()
+	migrate_acl_conf_add_agent()
 
 
 def setup_file_permissions() -> None:

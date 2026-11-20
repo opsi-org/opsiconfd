@@ -15,6 +15,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
+from opsi.crypt.hash import hash_password
 from opsi.opsi.service.model.object import (
 	AuditHardware,
 	AuditSoftware,
@@ -35,6 +36,7 @@ from opsi.opsi.service.model.object import (
 	SoftwareLicenseToLicensePool,
 	UnicodeConfig,
 	UnicodeProductProperty,
+	User,
 	deserialize,
 )
 
@@ -771,6 +773,40 @@ def test_host_getObjects_default_acl(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	_test_host_getObjects(test_client)
+
+
+def test_host_get_agent_denied(
+	default_acl: dict[str, list[RPCACE]],  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	client1 = OpsiClient(id="test-agent-host-1.opsi.test", opsiHostKey="4587dec5913c501a28560d576768924e", oneTimePassword="secret")
+	depot1 = OpsiDepotserver(id="test-agent-depot-1.opsi.test", opsiHostKey="3d58924c50167a2ec547de0976855861")
+	backend.host_createObjects([client1, depot1])
+	password = "securepassword"
+	backend.user_createObjects([User(id="hostagent1", passwordHash=hash_password(password), groups=["{agent}"])])
+
+	def rpc(method: str, params: list) -> dict:
+		return test_client.post("/rpc", json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).json()
+
+	with get_config({"auth_allowed_groups": []}):
+		# Admins still get all host types
+		test_client.auth = (ADMIN_USER, ADMIN_PASS)
+		res = rpc("host_getObjects", [])
+		assert "error" not in res
+		assert {client1.id, depot1.id} <= {host["id"] for host in res["result"]}
+
+		test_client.reset_cookies()
+		test_client.auth = ("hostagent1", password)
+		for method, params in (
+			("host_getObjects", []),
+			("host_getObjects", [None, {"type": "OpsiClient"}]),
+			("host_getHashes", []),
+			("host_getIdents", ["str"]),
+		):
+			res = rpc(method, params)
+			assert "result" not in res
+			assert res["error"]["data"]["class"] == "OpsiServicePermissionError", res
 
 
 def test_host_getIdents(

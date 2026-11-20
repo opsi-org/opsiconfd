@@ -25,6 +25,7 @@ from opsi.exception import BackendMissingDataError
 from opsi.opsi.service.model.object import NetbootProduct, OpsiClient, OpsiDepotserver, ProductOnClient, ProductOnDepot
 from opsi.opsi.service.model.type import Architecture, FirmwareType, to_hardware_address, to_host_id, to_ip_address, to_uuid_string
 
+from opsiconfd.backend.auth import bypass_acl
 from opsiconfd.config import DEFAULT_PRODUCT_GRUB_CFG_TEMPLATE, GRUB_CFG_TEMPLATE, get_configserver_id
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.utils import FileCache
@@ -429,7 +430,38 @@ class RPCBootMixin(Protocol):
 		"""
 		Get the boot configuration for a client.
 		"""
-		self._check_role("admin")
+		self._check_role("admin", "agent")
+		# The caller is authorized for the method as a whole, the data is read independent of the ACL entries of the caller
+		with bypass_acl():
+			return self._boot_get_config(
+				architecture=architecture,
+				firmware_type=firmware_type,
+				ip_version=ip_version,
+				protocol=protocol,
+				boot_server_address=boot_server_address,
+				depot_id=depot_id,
+				client_id=client_id,
+				system_uuid=system_uuid,
+				hardware_address=hardware_address,
+				usage=usage,
+			)
+
+	def _boot_get_config(
+		self: BackendProtocol,
+		architecture: Literal["x86", "x64", "arm", "arm64"] | None = None,
+		firmware_type: Literal["UEFI", "BIOS"] | None = None,
+		ip_version: int | None = None,
+		protocol: Literal["TFTP", "HTTP"] | None = None,
+		boot_server_address: str | None = None,
+		depot_id: str | None = None,
+		client_id: str | None = None,
+		system_uuid: str | None = None,
+		hardware_address: str | None = None,
+		usage: Literal["DHCP", "FILE_LOAD"] | None = None,
+	) -> BootConfig:
+		"""
+		Build the boot configuration for a client. Callers must have been authorized.
+		"""
 		if ip_version and ip_version not in (4, 6):
 			raise ValueError("ip_version must be 4, 6, or None")
 		_architecture = Architecture(architecture) if architecture else None
@@ -483,7 +515,7 @@ class RPCBootMixin(Protocol):
 
 		product_on_client: ProductOnClient | None = None
 		if client:
-			depot_id = self.configState_getClientToDepotserver(clientIds=client_id)[0]["depotId"]
+			depot_id = self.configState_getClientToDepotserver(clientIds=[client.id])[0]["depotId"]
 			try:
 				product_on_client = self.productOnClient_getObjects(
 					productType="NetbootProduct",

@@ -89,6 +89,7 @@ HOST_ID_RE = re.compile(r"^[a-z0-9][a-z0-9\-]{0,63}\.((\w+\-+)|(\w+\.))*\w{1,63}
 AUTH_TOKEN_RE = re.compile(r"^[0-9a-f]{64}$")
 USERNAME_RE = re.compile(r"^[a-zA-Z0-9@._\-:{}]{1,64}$")
 MFA_OTP_RE = re.compile(r"^\d{6}$")
+AGENT_GROUP_PLACEHOLDER = "{agent}"
 # RedHat / Alma / Rocky package manager will send "libdnf (<os-version>)".
 # openSUSE / SLES package manager will send "ZYpp <version> (curl <curl-version>)".
 # Do not keep sessions because they will never send a cookie (session id).
@@ -677,6 +678,7 @@ class OPSISession:
 		"auth_methods",
 		"is_admin",
 		"is_read_only",
+		"is_agent",
 	)
 
 	def __init__(self, client_addr: str, headers: Headers | None = None, session_id: str | None = None) -> None:
@@ -707,6 +709,7 @@ class OPSISession:
 		self._auth_methods: set[AuthenticationMethod] = set()
 		self._is_admin = False
 		self._is_read_only = False
+		self._is_agent = False
 
 		if headers and isinstance(headers, Headers):
 			self.headers = headers
@@ -901,9 +904,9 @@ class OPSISession:
 		self._set_modified("auth_methods")
 
 	@property
-	def user_type(self) -> Literal["user", "depot", "client"] | None:
+	def user_type(self) -> Literal["user", "depot", "client", "agent"] | None:
 		if not self.host_id:
-			return "user"
+			return "agent" if self._is_agent else "user"
 		if self.host_type in ("OpsiConfigserver", "OpsiDepotserver"):
 			return "depot"
 		return "client"
@@ -933,6 +936,18 @@ class OPSISession:
 		self._set_modified("is_read_only")
 
 	@property
+	def is_agent(self) -> bool:
+		return self._is_agent
+
+	@is_agent.setter
+	def is_agent(self, value: bool) -> None:
+		value = bool(value)
+		if self._is_agent == value:
+			return
+		self._is_agent = value
+		self._set_modified("is_agent")
+
+	@property
 	def max_age(self) -> int:
 		return self._max_age
 
@@ -954,6 +969,7 @@ class OPSISession:
 		self.auth_methods = set()
 		self.is_admin = False
 		self.is_read_only = False
+		self.is_agent = False
 
 	async def init_new_session(self) -> None:
 		"""Generate a new session id if number of client sessions is less than max client sessions."""
@@ -1064,7 +1080,7 @@ class OPSISession:
 				val = set(msgspec.msgpack.decode(val))  # ty: ignore
 			elif attr == "auth_methods":
 				val = {AuthenticationMethod(v) for v in msgspec.msgpack.decode(val)}  # ty: ignore
-			elif attr in ("authenticated", "is_admin", "is_read_only"):
+			elif attr in ("authenticated", "is_admin", "is_read_only", "is_agent"):
 				val = bool(int(val))
 			elif isinstance(val, bytes):
 				val = val.decode("utf-8")
@@ -1353,6 +1369,7 @@ async def authenticate_host(scope: Scope) -> None:
 
 	session.authenticated = True
 	session.is_read_only = False
+	session.is_agent = False
 	session.is_admin = session.host_type in ("OpsiConfigserver", "OpsiDepotserver")
 	if session.username != host.id:
 		session.username = host.id
@@ -1638,11 +1655,15 @@ async def _authenticate(*, scope: Scope, username: str, password: str, password_
 	admin_groupname = opsi_config.get("groups", "admingroup").lower()
 	readonly_groupname = opsi_config.get("groups", "readonly").lower()
 	groups = set()
+	is_agent = False
 	user_updated = False
 
 	if db_auth_success:
 		assert user
 		for group in user.groups or []:
+			if group == AGENT_GROUP_PLACEHOLDER:
+				is_agent = True
+				continue
 			if group == "{readonly}":
 				if readonly_groupname:
 					group = readonly_groupname
@@ -1656,12 +1677,18 @@ async def _authenticate(*, scope: Scope, username: str, password: str, password_
 			groups.add(group)
 	else:
 		assert auth_module
-		groups = auth_module.get_groupnames(session.username)
+		# The agent marker is only valid for database users
+		groups = {group for group in auth_module.get_groupnames(session.username) if group != AGENT_GROUP_PLACEHOLDER}
 		if user:
 			user.groups = list(groups)
 			user_updated = True
 
-	if config.auth_allowed_groups and not groups.intersection(config.auth_allowed_groups):
+	if is_agent and groups.intersection({admin_groupname, readonly_groupname}):
+		logger.warning("Agent user %r must not be member of the admin or read-only group", session.username)
+		raise OpsiServicePermissionError(f"Agent user {session.username!r} must not be member of the admin or read-only group")
+
+	# Agents are services, the allowed groups restrict which users may connect
+	if not is_agent and config.auth_allowed_groups and not groups.intersection(config.auth_allowed_groups):
 		logger.warning("User %r groups %r not in allowed groups %r", session.username, groups, config.auth_allowed_groups)
 		raise OpsiServicePermissionError(f"User {session.username!r} not in allowed groups")
 
@@ -1693,6 +1720,7 @@ async def _authenticate(*, scope: Scope, username: str, password: str, password_
 	session.user_groups = groups
 	session.is_admin = admin_groupname in groups
 	session.is_read_only = readonly_groupname in groups
+	session.is_agent = is_agent
 
 	logger.info(
 		"Authentication successful for user %r, groups %r, admin group is %r, admin: %r, readonly group is %r, readonly: %r",

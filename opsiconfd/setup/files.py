@@ -61,7 +61,6 @@ MONITORING_ACL_LINES = (
 )
 
 AGENT_ACL_BOOT_GETCONFIG_LINE = "boot_getConfig           : sys_group({admingroup}); opsi_depotserver; opsi_agent"
-AGENT_ACL_HOST_GET_LINE = "host_get.*               : opsi_agent(attributes(!opsiHostKey,!oneTimePassword))"
 
 
 def _get_default_dirs() -> list[str]:
@@ -158,12 +157,10 @@ def migrate_acl_conf_add_monitoring() -> None:
 
 def migrate_acl_conf_add_agent() -> None:
 	"""
-	Add the acl entries for opsi agents to an existing acl.conf.
+	Add the acl entry for opsi agents to an existing acl.conf.
 
 	The entry for `boot_getConfig` is inserted before the first entry matching this method,
 	otherwise it would never be evaluated.
-	The entry for `host_get.*` is added to the existing entry with this exact pattern,
-	an entry placed before a different pattern would hide the other entries for the method.
 	If the acl.conf already contains an entry for `boot_getConfig`, nothing is changed.
 	"""
 	acl_file = Path(config.acl_file)
@@ -191,19 +188,10 @@ def migrate_acl_conf_add_agent() -> None:
 	if insert_idx == len(lines) and lines[-1] == "":
 		insert_idx -= 1
 
-	host_get_idx = max((idx for idx, pattern in patterns.items() if pattern == "host_get.*"), default=None)
-	if host_get_idx is None:
-		logger.warning("No entry for 'host_get.*' in '%s', agents will not be able to read clients", acl_file)
-
 	backup_file = acl_file.with_name(f"{acl_file.name}.pre-agent")
-	logger.notice("Adding agent entries to '%s' (backup: '%s')", acl_file, backup_file)
+	logger.notice("Adding agent entry to '%s' (backup: '%s')", acl_file, backup_file)
 	shutil.copy2(acl_file, backup_file)
-	# Insert the later position first, so the earlier index stays valid
-	new_entries = [(insert_idx, AGENT_ACL_BOOT_GETCONFIG_LINE)]
-	if host_get_idx is not None:
-		new_entries.append((host_get_idx + 1, AGENT_ACL_HOST_GET_LINE))
-	for idx, entry in sorted(new_entries, reverse=True):
-		lines.insert(idx, entry)
+	lines.insert(insert_idx, AGENT_ACL_BOOT_GETCONFIG_LINE)
 	acl_file.write_text("\n".join(lines), encoding="utf-8")
 
 

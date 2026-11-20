@@ -29,7 +29,6 @@ from opsiconfd.setup import cleanup_log_files, setup_file_permissions, setup_lim
 from opsiconfd.setup import setup as opsiconfd_setup
 from opsiconfd.setup.files import (
 	AGENT_ACL_BOOT_GETCONFIG_LINE,
-	AGENT_ACL_HOST_GET_LINE,
 	migrate_acl_conf_add_agent,
 	migrate_acl_conf_if_default,
 )
@@ -162,11 +161,7 @@ def test_migrate_acl_conf_if_default(tmp_path: Path) -> None:
 def test_migrate_acl_conf_add_agent(tmp_path: Path) -> None:
 	default_lines = Path("opsiconfd_data/etc/backendManager/acl.conf").read_text(encoding="utf-8").split("\n")
 	# Default acl.conf of a version without agent support
-	old_lines = [
-		line.replace("; opsi_agent(attributes(!opsiHostKey,!oneTimePassword))", "")
-		for line in default_lines
-		if not line.startswith("boot_getConfig")
-	]
+	old_lines = [line for line in default_lines if not line.startswith("boot_getConfig")]
 	assert not any("opsi_agent" in line for line in old_lines if not line.startswith("#"))
 	old_acl_conf = "\n".join(old_lines)
 	acl_file = tmp_path / "acl.conf"
@@ -177,14 +172,11 @@ def test_migrate_acl_conf_add_agent(tmp_path: Path) -> None:
 		migrated = acl_file.read_text(encoding="utf-8")
 		migrated_lines = migrated.split("\n")
 		assert migrated_lines.count(AGENT_ACL_BOOT_GETCONFIG_LINE) == 1
-		assert migrated_lines.count(AGENT_ACL_HOST_GET_LINE) == 1
-		# Only inserted before the first entry matching the method, next to the other entry for the same pattern
+		# Only inserted before the first entry matching the method
 		assert migrated_lines.index(AGENT_ACL_BOOT_GETCONFIG_LINE) < next(
 			idx for idx, line in enumerate(migrated_lines) if line.startswith(".*_get.*")
 		)
-		host_get_idx = next(idx for idx, line in enumerate(migrated_lines) if line.startswith("host_get.*") and "sys_group" in line)
-		assert migrated_lines[host_get_idx + 1] == AGENT_ACL_HOST_GET_LINE
-		assert [line for line in migrated_lines if line not in (AGENT_ACL_BOOT_GETCONFIG_LINE, AGENT_ACL_HOST_GET_LINE)] == old_lines
+		assert [line for line in migrated_lines if line != AGENT_ACL_BOOT_GETCONFIG_LINE] == old_lines
 		assert (tmp_path / "acl.conf.pre-agent").read_text(encoding="utf-8") == old_acl_conf
 
 		# Second run changes nothing
@@ -206,9 +198,9 @@ def test_migrate_acl_conf_add_agent(tmp_path: Path) -> None:
 				if ace.method_re.pattern == method and ace.type == "opsi_agent"
 			)
 
-		for method in ("boot_getConfig", "host_get.*"):
-			assert agent_aces(migrated_acl, method) == agent_aces(default_acl, method)
-			assert agent_aces(migrated_acl, method)
+		assert agent_aces(migrated_acl, "boot_getConfig") == agent_aces(default_acl, "boot_getConfig")
+		assert agent_aces(migrated_acl, "boot_getConfig")
+		assert not agent_aces(migrated_acl, "host_get.*")
 
 
 def test_migrate_acl_conf_add_agent_existing_entry(tmp_path: Path) -> None:
@@ -221,12 +213,18 @@ def test_migrate_acl_conf_add_agent_existing_entry(tmp_path: Path) -> None:
 	assert not (tmp_path / "acl.conf.pre-agent").exists()
 
 
-def test_migrate_acl_conf_add_agent_without_host_get_and_catch_all(tmp_path: Path) -> None:
+def test_migrate_acl_conf_add_agent_keeps_host_get_entry(tmp_path: Path) -> None:
+	host_get_line = "host_get.* : sys_group({admingroup}); opsi_client"
 	acl_file = tmp_path / "acl.conf"
-	acl_file.write_text("log_.* : sys_group({admingroup})\n", encoding="utf-8")
+	acl_file.write_text(f"{host_get_line}\nlog_.* : sys_group({{admingroup}})\n", encoding="utf-8")
 	with get_config({"acl_file": str(acl_file)}):
 		migrate_acl_conf_add_agent()
-	assert acl_file.read_text(encoding="utf-8").split("\n") == ["log_.* : sys_group({admingroup})", AGENT_ACL_BOOT_GETCONFIG_LINE, ""]
+	assert acl_file.read_text(encoding="utf-8").split("\n") == [
+		host_get_line,
+		"log_.* : sys_group({admingroup})",
+		AGENT_ACL_BOOT_GETCONFIG_LINE,
+		"",
+	]
 
 
 def test_migrate_acl_conf_add_agent_missing_file(tmp_path: Path) -> None:

@@ -460,6 +460,23 @@ def test_boot_getConfig_roles(
 			res = boot_getConfig()
 			assert "error" in res
 			assert "Insufficient permissions" in res["error"]["message"]
+
+			# With the default acl.conf the agent gets the boot configuration with the host key and nothing else
+			backend.configState_create(configId="netboot.use_host_onetime_password", objectId=client_id, values=[False])
+			backend.productOnClient_updateObjects(
+				[ProductOnClient(productId=product_id, productType=product.getType(), clientId=client_id, actionRequest="setup")]
+			)
+			with get_config({"acl_file": "opsiconfd_data/etc/backendManager/acl.conf", "auth_allowed_groups": []}):
+				protected_backend._read_acl_file()
+				test_client.reset_cookies()
+				test_client.auth = ("bootagent1", agent_password)
+				agent_res = boot_getConfig()
+				assert "error" not in agent_res
+				assert f"pckey={host_key}" in agent_res["result"]["grub_config"]
+				for method, params in (("host_getObjects", [None, {"id": client_id}]), ("config_getObjects", [])):
+					res = test_client.post("/rpc", json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).json()
+					assert "result" not in res
+					assert "No permission for method" in res["error"]["message"]
 	finally:
 		protected_backend._read_acl_file()
 

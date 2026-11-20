@@ -170,7 +170,7 @@ def test_read_acl_file_opsi_agent(tmp_path: Path) -> None:
 	acl_file.write_text(
 		data=(
 			"boot_getConfig : sys_group(admingrp1); opsi_depotserver; opsi_agent\n"
-			"host_get.*     : opsi_agent(attributes(!opsiHostKey,!oneTimePassword))\n"
+			"product_getObjects : opsi_agent(attributes(id,name))\n"
 			"log_.*         : opsi_agent(agent1,agent2)\n"
 		),
 		encoding="utf-8",
@@ -180,12 +180,12 @@ def test_read_acl_file_opsi_agent(tmp_path: Path) -> None:
 		("boot_getConfig", "sys_group", "admingrp1"),
 		("boot_getConfig", "opsi_depotserver", None),
 		("boot_getConfig", "opsi_agent", None),
-		("host_get.*", "opsi_agent", None),
+		("product_getObjects", "opsi_agent", None),
 		("log_.*", "opsi_agent", "agent1"),
 		("log_.*", "opsi_agent", "agent2"),
 	]
-	assert acl[3].denied_attributes == {"opsiHostKey", "oneTimePassword"}
-	assert not acl[3].allowed_attributes
+	assert acl[3].allowed_attributes == {"id", "name"}
+	assert not acl[3].denied_attributes
 
 
 def test_get_ace_self_does_not_modify_shared_ace(tmp_path: Path) -> None:
@@ -303,13 +303,11 @@ def test_default_acl_agent(acl_path: str) -> None:
 
 			assert {ace.type for ace in acl["boot_getConfig"]} == {"sys_group", "opsi_depotserver", "opsi_agent"}
 
-			agent_host_aces = [ace for ace in acl["host_getObjects"] if ace.type == "opsi_agent"]
-			assert len(agent_host_aces) == 1
-			assert agent_host_aces[0].denied_attributes == {"opsiHostKey", "oneTimePassword"}
-			assert not agent_host_aces[0].allowed_attributes
-
 			# Agents are not allowed to call anything else
 			for method in (
+				"host_getObjects",
+				"host_getHashes",
+				"host_getIdents",
 				"config_getObjects",
 				"productOnClient_getObjects",
 				"user_getObjects",

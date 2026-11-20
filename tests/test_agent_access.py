@@ -51,20 +51,12 @@ def test_agent_user_access_with_default_acl(
 	assert res["result"]["client_id"] is None
 	assert res["result"]["depot_id"]
 
-	# Clients can be read, but without secrets and depots are not visible
-	res = rpc("host_getObjects")
-	assert "error" not in res
-	hosts = {host["id"]: host for host in res["result"]}
-	assert client.id in hosts
-	assert depot.id not in hosts
-	assert {host["type"] for host in hosts.values()} == {"OpsiClient"}
-	for host in hosts.values():
-		assert not host["opsiHostKey"]
-		assert not host["oneTimePassword"]
-
-	# Everything else is denied
+	# Everything else is denied, including reading hosts
 	host_params = [[{"type": "OpsiClient", "id": client.id}]]
 	for method, params in (
+		("host_getObjects", []),
+		("host_getHashes", []),
+		("host_getIdents", ["str"]),
 		("user_getObjects", []),
 		("config_getObjects", []),
 		("productOnClient_getObjects", []),

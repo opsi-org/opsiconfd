@@ -71,6 +71,7 @@ if not os.path.exists(BOOT_DIR) and os.path.exists("/var/lib/tftpboot"):
 OPSI_BOOT_DIR = BOOT_DIR + "/opsi"
 TMP_DIR = "/var/lib/opsi/tmp"
 DEPOT_DIR = "/var/lib/opsi/depot"
+PRODUCT_BOOT_DIR = "/var/lib/opsi/boot"
 BACKUP_DIR = "/var/lib/opsi/backup"
 FILE_TRANSFER_STORAGE_DIR = "/var/lib/opsi/tmp/file-transfer"
 LOG_DIR = "/var/log/opsi"

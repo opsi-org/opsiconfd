@@ -10,7 +10,7 @@ from pathlib import Path
 from opsi.system.info import is_ucs
 
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
-from opsiconfd.config import DEPOT_DIR, config, opsi_config
+from opsiconfd.config import DEPOT_DIR, PRODUCT_BOOT_DIR, config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_passwd_services, get_user_passwd_details, user_exists
 
@@ -92,10 +92,12 @@ class OpsiUserCheck(Check):
 				"Please check if this is intended."
 			)
 
-		depot_dir = Path(DEPOT_DIR)
-		if os.geteuid() == uid and depot_dir.exists() and not os.access(depot_dir, os.R_OK | os.W_OK | os.X_OK):
-			result.check_status = CheckStatus.ERROR
-			result.message = f"OPSI user '{self.user}' does not have full access to depot directory '{depot_dir}'"
+		for dir_name, dir_path in (("depot", DEPOT_DIR), ("boot", PRODUCT_BOOT_DIR)):
+			path = Path(dir_path)
+			if os.geteuid() == uid and path.exists() and not os.access(path, os.R_OK | os.W_OK | os.X_OK):
+				result.check_status = CheckStatus.ERROR
+				result.message = f"OPSI user '{self.user}' does not have full access to {dir_name} directory '{path}'"
+				break
 
 		return result
 

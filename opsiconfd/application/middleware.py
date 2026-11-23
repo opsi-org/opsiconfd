@@ -29,6 +29,7 @@ from opsiconfd.worker import Worker
 PATH_MAPPINGS = {
 	# Some WebDAV-Clients do not accept redirect on initial PROPFIND
 	"/dav": "/dav/",
+	"/boot": "/boot/",
 	"/depot": "/depot/",
 	"/public": "/public/",
 	"/repository": "/repository/",

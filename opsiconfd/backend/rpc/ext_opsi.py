@@ -19,7 +19,7 @@ from opsi.opsi.service.model.type import to_action_request, to_host_id, to_produ
 from opsi.process import ProcessError, run_command
 
 from opsiconfd import contextvar_client_session
-from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR
+from opsiconfd.config import DEPOT_DIR, PRODUCT_BOOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR
 from opsiconfd.logging import logger
 
 from . import rpc_method
@@ -101,7 +101,7 @@ class RPCExtOpsiMixin(Protocol):
 			path = DEPOT_DIR
 		path = os.path.normpath(path)
 
-		if not any(path.startswith(p) for p in [DEPOT_DIR, WORKBENCH_DIR, REPOSITORY_DIR]):
+		if not any(path.startswith(p) for p in [DEPOT_DIR, PRODUCT_BOOT_DIR, WORKBENCH_DIR, REPOSITORY_DIR]):
 			raise ValueError(f"Path {path!r} is not in a valid directory")
 
 		if not os.path.exists(path):

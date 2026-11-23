@@ -279,7 +279,10 @@ class SessionMiddleware:
 			if (
 				required_access_role != ACCESS_ROLE_PUBLIC
 				and path.startswith(("/rpc", "/messagebus", "/file-transfer", "/auth"))
-				or (path_startswith(path, "/depot") and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
+				or (
+					(path_startswith(path, "/depot") or path_startswith(path, "/boot"))
+					and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND")
+				)
 			):
 				required_access_role = ACCESS_ROLE_AUTHENTICATED
 			scope["required_access_role"] = required_access_role
@@ -346,7 +349,7 @@ class SessionMiddleware:
 				if (
 					not session.host_id
 					# wsgidav matches share names case-insensitive
-					and (path_startswith(path, "/depot", False) or path_startswith(path, "/dav/depot", False))
+					and any(path_startswith(path, prefix, False) for prefix in ("/depot", "/dav/depot", "/boot", "/dav/boot"))
 					and opsi_config.get("groups", "fileadmingroup") not in session.user_groups
 				):
 					raise OpsiServicePermissionError(f"Not a file admin user '{scope['session'].username}'")

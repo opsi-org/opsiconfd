@@ -28,6 +28,7 @@ from wsgidav.wsgidav_app import WsgiDAVApp
 from opsiconfd import __version__
 from opsiconfd.config import (
 	DEPOT_DIR,
+	PRODUCT_BOOT_DIR,
 	PUBLIC_DIR,
 	REPOSITORY_DIR,
 	WORKBENCH_DIR,
@@ -329,6 +330,7 @@ def webdav_setup(app: FastAPI) -> None:
 	shares: list[tuple[str, str, bool, bool]] = [
 		("repository", REPOSITORY_DIR, False, False),
 		("depot", DEPOT_DIR, True, False),
+		("boot", PRODUCT_BOOT_DIR, False, False),
 		("workbench", WORKBENCH_DIR, False, False),
 	]
 	if "public-folder" not in config.disabled_features:

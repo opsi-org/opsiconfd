@@ -259,6 +259,9 @@ class NodeMetricsCollector(MetricsCollector):
 			redis_cpu_time_diff: float | None = None
 			if self._last_redis_cpu_time is not None:
 				redis_cpu_time_diff = cur_redis_cpu_time - self._last_redis_cpu_time
+				if redis_cpu_time_diff < 0:
+					# Counter was reset (Redis restarted), CPU time since restart is the best estimate
+					redis_cpu_time_diff = cur_redis_cpu_time
 			self._last_redis_cpu_time = cur_redis_cpu_time
 			if redis_cpu_time_diff is not None:
 				await self.add_value("node:avg_redis_cpu_time", redis_cpu_time_diff)

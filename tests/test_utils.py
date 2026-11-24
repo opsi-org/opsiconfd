@@ -7,16 +7,30 @@
 test_utiles
 """
 
+from __future__ import annotations
+
+import ssl
 import time
 from contextlib import nullcontext
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPSServer
 from pathlib import Path
 from socket import AF_INET, AF_INET6
+from threading import Thread
 from unittest import mock
 
+import certifi
 import pytest
+import requests
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
 from opsi.crypt.blowfish import blowfish_encrypt
 from opsi.crypt.hash import verify_password
+from opsi.crypt.ssl import create_ca, create_server_cert
 from opsi.opsi.service.model.object import User
+from requests.adapters import HTTPAdapter
+from urllib3 import HTTPSConnectionPool
+from urllib3.util.ssl_ import create_urllib3_context
 
 from opsiconfd.config import opsi_config
 from opsiconfd.utils import (
@@ -26,6 +40,7 @@ from opsiconfd.utils import (
 	get_ip_interfaces,
 	get_passwd_services,
 	get_primary_ip_interface,
+	get_requests_session,
 	get_user_passwd_details,
 	is_manager,
 	running_in_docker,
@@ -44,6 +59,95 @@ from opsiconfd.utils.user import migrate_opsi_passwd_file
 from tests.utils import cleanup_checks, get_opsi_config  # noqa: F401
 
 from .utils import UnprotectedBackend, backend, get_config  # noqa: F401
+
+
+@pytest.mark.parametrize("proxy", (None, "http://proxy.test:3128", "https://proxy.test:3128"))
+def test_get_requests_session_tls_context(proxy: str | None) -> None:
+	"""Apply non-strict verification to direct and proxied HTTPS connections."""
+	with (
+		get_config({"ssl_verify_x509_strict": False}),
+		mock.patch("opsiconfd.utils.prepare_proxy_environment", return_value=requests.Session()),
+	):
+		with get_requests_session("localhost") as session:
+			request = requests.Request("GET", "https://localhost/").prepare()
+			adapter = session.get_adapter("https://localhost/")
+			assert isinstance(adapter, HTTPAdapter)
+			connection = adapter.get_connection_with_tls_context(
+				request, verify=session.verify, proxies={"https": proxy} if proxy else None
+			)
+			assert isinstance(connection, HTTPSConnectionPool)
+			context = connection.conn_kw["ssl_context"]
+			assert context.verify_flags == create_urllib3_context().verify_flags & ~ssl.VERIFY_X509_STRICT
+			assert context.verify_mode == ssl.CERT_REQUIRED
+			assert context.check_hostname
+
+
+@pytest.mark.parametrize(
+	"strict, trusted, hostname, error",
+	(
+		(True, True, "localhost", "CA cert does not include key usage extension"),
+		(False, True, "localhost", None),
+		(False, True, "wrong.test", "Hostname mismatch"),
+		(False, False, "localhost", "unable to get local issuer certificate"),
+	),
+)
+def test_get_requests_session_tls_verification(tmp_path: Path, strict: bool, trusted: bool, hostname: str, error: str | None) -> None:
+	"""Relax only strict X.509 validation, retaining trust and hostname checks."""
+	ca_cert, ca_key = create_ca(subject={"CN": "Test CA"}, valid_days=1, bits=2048)
+	builder = (
+		x509.CertificateBuilder()
+		.subject_name(ca_cert.subject)
+		.issuer_name(ca_cert.issuer)
+		.public_key(ca_key.public_key())
+		.serial_number(ca_cert.serial_number)
+		.not_valid_before(ca_cert.not_valid_before_utc)
+		.not_valid_after(ca_cert.not_valid_after_utc)
+	)
+	for extension in ca_cert.extensions:
+		if not isinstance(extension.value, x509.KeyUsage):
+			value = (
+				x509.BasicConstraints(ca=True, path_length=None) if isinstance(extension.value, x509.BasicConstraints) else extension.value
+			)
+			builder = builder.add_extension(value, extension.critical)
+	ca_cert = builder.sign(ca_key, hashes.SHA256())
+	server_cert, server_key = create_server_cert(
+		subject={"CN": hostname}, valid_days=1, ip_addresses=set(), hostnames={hostname}, ca_key=ca_key, ca_cert=ca_cert, bits=2048
+	)
+	ca_file = tmp_path / "ca.pem"
+	ca_file.write_bytes(ca_cert.public_bytes(serialization.Encoding.PEM))
+	cert_file = tmp_path / "server.pem"
+	cert_file.write_bytes(server_cert.public_bytes(serialization.Encoding.PEM))
+	key_file = tmp_path / "server-key.pem"
+	key_file.write_bytes(
+		server_key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+	)
+	server = ThreadingHTTPSServer(
+		("127.0.0.1", 0),
+		partial(SimpleHTTPRequestHandler, directory=str(tmp_path)),
+		certfile=str(cert_file),
+		keyfile=str(key_file),
+	)
+	thread = Thread(target=server.serve_forever)
+	thread.start()
+	try:
+		with (
+			get_config({"ssl_verify_x509_strict": strict, "ssl_trusted_certs": str(ca_file)}),
+			mock.patch("opsiconfd.utils.prepare_proxy_environment", return_value=requests.Session()),
+		):
+			with get_requests_session("localhost") as session:
+				session.trust_env = False
+				if not trusted:
+					session.verify = certifi.where()
+				url = f"https://localhost:{server.server_port}/"
+				if error:
+					with pytest.raises(requests.exceptions.SSLError, match=error):
+						session.get(url, timeout=5)
+				else:
+					assert session.get(url, timeout=5).status_code == 200
+	finally:
+		server.shutdown()
+		thread.join()
+		server.server_close()
 
 
 @pytest.mark.parametrize(

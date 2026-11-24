@@ -7,6 +7,8 @@
 config tests
 """
 
+from __future__ import annotations
+
 import os
 from argparse import ArgumentTypeError
 from pathlib import Path
@@ -88,6 +90,8 @@ def test_str2bool(value: Any, expected_value: bool) -> None:
 			["10.10.10.0/24", "example.org", "127.0.0.1/32"],
 		),
 		(["--symlink-logs"], "symlink_logs", True),
+		([], "ssl_verify_x509_strict", True),
+		(["--ssl-verify-x509-strict", "false"], "ssl_verify_x509_strict", False),
 	],
 )
 def test_cmdline(arguments: list[str], config_name: str, expected_value: Any) -> None:
@@ -128,6 +132,7 @@ def test_restore_cmdline_keep_users() -> None:
 		("OPSICONFD_AUDIT_LOG_ENABLED", "yes", "audit_log_enabled", True),
 		("OPSICONFD_AUDIT_LOG_RETENTION_DAYS", "90", "audit_log_retention_days", 90),
 		("OPSICONFD_SYMLINK_LOGS", "yes", "symlink_logs", True),
+		("OPSICONFD_SSL_VERIFY_X509_STRICT", "false", "ssl_verify_x509_strict", False),
 		("OPSICONFD_SSL_CA_KEY_PASSPHRASE", "", "ssl_ca_key_passphrase", None),
 		("OPSICONFD_SSL_SERVER_KEY_PASSPHRASE", "", "ssl_server_key_passphrase", None),
 	],
@@ -266,6 +271,7 @@ def test_internal_url_environment_vars_do_not_override_opsiconfd_env_vars(
 		("symlink-logs", "1", "symlink_logs", True),
 		("symlink-logs", "false", "symlink_logs", False),
 		("symlink-logs", "no", "symlink_logs", False),
+		("ssl-verify-x509-strict", "false", "ssl_verify_x509_strict", False),
 	],
 )
 def test_config_file(tmp_path: Path, varname: str, value: str, config_name: str, expected_value: Any) -> None:

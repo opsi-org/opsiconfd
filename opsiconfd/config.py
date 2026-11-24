@@ -1127,6 +1127,19 @@ class Config:
 			default=str(ca_cert_path),
 			help=self._help("opsiconfd", "Path to the database of trusted certificates"),
 		)
+		self._parser.add_argument(
+			"--ssl-verify-x509-strict",
+			env_var="OPSICONFD_SSL_VERIFY_X509_STRICT",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=True,
+			help=self._help(
+				"opsiconfd",
+				"Use strict X.509 validation for outgoing HTTPS requests made through the shared requests session. "
+				"Disable for compatibility with legacy CA certificates. Certificate trust and hostname verification remain enabled.",
+			),
+		)
 		# Cipher Strings from https://www.openssl.org/docs/man1.1.1/man1/ciphers.html
 		# iPXE 1.20.1 supports these TLS v1.2 cipher suites:
 		# AES128-SHA256 (TLS_RSA_WITH_AES_128_CBC_SHA256, 0x003c)

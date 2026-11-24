@@ -881,6 +881,8 @@ class DepotserverPackageManager:
 						}
 						with run_package_scripts(opsi_package, tmp_unpack_dir, product_path, env=env):
 							logger.info("Replacing client-data dir")
+							# Packages may contain no CLIENT_DATA (e.g. BOOT only), the product dir is then empty
+							(tmp_unpack_dir / "CLIENT_DATA").mkdir(exist_ok=True)
 							client_data.replace(tmp_unpack_dir / "CLIENT_DATA")
 
 							if (tmp_unpack_dir / "BOOT").is_dir():

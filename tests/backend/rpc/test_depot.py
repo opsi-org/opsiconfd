@@ -111,7 +111,9 @@ def test_depot_installPackage_boot_dir(
 	control = CONTROLFILE.read_text(encoding="utf-8").replace("type: localboot", "type: netboot").replace("localboot_new", "netboot_boot")
 	(package_dir / "OPSI" / "control").write_text(control, encoding="utf-8")
 
-	def build_and_install(kernel: bytes | None) -> None:
+	def build_and_install(kernel: bytes | None, client_data: bool = True) -> None:
+		if not client_data:
+			shutil.rmtree(package_dir / "CLIENT_DATA", ignore_errors=True)
 		shutil.rmtree(package_dir / "BOOT", ignore_errors=True)
 		if kernel is not None:
 			(package_dir / "BOOT").mkdir()
@@ -140,6 +142,12 @@ def test_depot_installPackage_boot_dir(
 
 		build_and_install(b"kernel-3")
 		assert (boot_path / "netboot_boot" / "kernel.x64").read_bytes() == b"kernel-3"
+
+		# Package with BOOT only
+		build_and_install(b"kernel-4", client_data=False)
+		assert (boot_path / "netboot_boot" / "kernel.x64").read_bytes() == b"kernel-4"
+		assert (depot_path / "netboot_boot").is_dir()
+		assert not any((depot_path / "netboot_boot").iterdir())
 
 		backend.depot_uninstallPackage("netboot_boot")
 		assert not (depot_path / "netboot_boot").exists()

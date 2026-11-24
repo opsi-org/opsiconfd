@@ -76,6 +76,7 @@ def _get_default_dirs() -> list[str]:
 		NTFS_IMAGES_DIR,
 		REPOSITORY_DIR,
 		PUBLIC_DIR,
+		PRODUCT_BOOT_DIR,
 		WORKBENCH_DIR,
 		BACKUP_DIR,
 		VAR_ADDON_DIR,

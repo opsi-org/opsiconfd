@@ -9,24 +9,7 @@ websocket
 
 from __future__ import annotations
 
-from asyncio.events import AbstractEventLoop
-from typing import Any
-
-from uvicorn.config import Config
-from uvicorn.protocols.websockets.websockets_impl import WebSocketProtocol
 from uvicorn.protocols.websockets.wsproto_impl import WSProtocol
-from uvicorn.server import ServerState
-
-from opsiconfd.config import config as opsiconfd_config
-
-
-# Extend WebSocketProtocol to set the open_timeout from opsiconfd_config.
-class WebSocketProtocolOpsiconfd(WebSocketProtocol):
-	def __init__(
-		self, config: Config, server_state: ServerState, app_state: dict[str, Any], _loop: AbstractEventLoop | None = None
-	) -> None:
-		super().__init__(config, server_state, app_state, _loop)
-		self.open_timeout = opsiconfd_config.websocket_open_timeout
 
 
 # Extend WSProtocol to add peer certificate information to the scope if available.

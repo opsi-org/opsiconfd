@@ -16,7 +16,6 @@ from uuid import uuid4
 
 import pytest
 from opsi.compression import compress, decompress
-from opsi.exception import OpsiServiceConnectionError
 from opsi.logging import get_logger
 from opsi.opsi.messagebus import (
 	CONNECTION_SESSION_CHANNEL,
@@ -69,37 +68,6 @@ from .utils import (  # noqa: F401
 )
 
 logger = get_logger()
-
-
-@pytest.mark.parametrize(
-	"websocket_protocol, websocket_open_timeout, expect_timeout",
-	[
-		("websockets_opsiconfd", 2, True),
-		("websockets_opsiconfd", 5, False),
-		# Cannot set timeout for wsproto
-		("wsproto_opsiconfd", 5, False),
-	],
-)
-def test_websocket_open_timeout(websocket_protocol: str, websocket_open_timeout: int, expect_timeout: bool) -> None:
-	with opsiconfd_server(
-		{
-			"websocket_protocol": websocket_protocol,
-			"websocket_open_timeout": websocket_open_timeout,
-			"development_options": ["delay-get-session"],  # Delays get_session for 3 seconds
-		}
-	) as server_conf:
-		with ServiceClient(
-			address=f"https://localhost:{server_conf.port}",
-			username=ADMIN_USER,
-			password=ADMIN_PASS,
-			verify=ServiceVerificationFlags.ACCEPT_ALL,
-			connect_timeout=5,
-		) as client:
-			if expect_timeout:
-				with pytest.raises(OpsiServiceConnectionError):
-					client.connect_messagebus()
-			else:
-				client.connect_messagebus()
 
 
 @pytest.mark.parametrize("compression", ("", "lz4", "gzip"))
@@ -950,7 +918,7 @@ async def test_messagebus_close_on_session_deleted(
 				assert session.deleted
 
 
-@pytest.mark.parametrize("websocket_protocol", ("websockets_opsiconfd", "wsproto_opsiconfd"))
+@pytest.mark.parametrize("websocket_protocol", ("websockets-sansio", "wsproto_opsiconfd"))
 def test_messagebus_ping(websocket_protocol: str) -> None:
 	with (
 		opsiconfd_server(

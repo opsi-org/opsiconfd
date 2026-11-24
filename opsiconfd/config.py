@@ -1824,14 +1824,14 @@ class Config:
 			env_var="OPSICONFD_WEBSOCKET_PROTOCOL",
 			default="wsproto_opsiconfd",
 			help=self._help("expert", "Set the websocket protocol."),
-			choices=("wsproto_opsiconfd", "websockets_opsiconfd", "wsproto", "websockets", "websockets-sansio"),
+			choices=("wsproto_opsiconfd", "wsproto", "websockets-sansio"),
 		)
 		self._parser.add_argument(
 			"--websocket-open-timeout",
 			env_var="OPSICONFD_WEBSOCKET_OPEN_TIMEOUT",
 			type=int,
 			default=30,
-			help=self._help("expert", "Set the websocket open timeout, in seconds."),
+			help=self._help("expert", "Deprecated and without effect. Kept for compatibility with existing configurations."),
 		)
 		self._parser.add_argument(
 			"--websocket-queue-size",

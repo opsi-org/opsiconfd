@@ -935,3 +935,52 @@ def test_create_user_without_agent(
 	)
 	assert res.status_code == 200
 	assert backend.user_getObjects(id="normal-user1")[0].groups == expected_groups
+
+
+@pytest.mark.parametrize(
+	"params, expected",
+	(
+		({"description": "Build server agent"}, "Build server agent"),
+		({"description": ""}, None),
+		({}, None),
+		({"description": "x" * 255}, "x" * 255),
+		({"description": "Build server agent", "agent": True}, "Build server agent"),
+	),
+)
+def test_create_user_description(
+	backend: UnprotectedBackend,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	params: dict[str, Any],
+	expected: str | None,
+) -> None:
+	res = test_client.post(
+		"/admin/create-user", auth=(ADMIN_USER, ADMIN_PASS), json={"user_id": "description-user1", "password": "Secret123!", **params}
+	)
+	assert res.status_code == 200
+	assert backend.user_getObjects(id="description-user1")[0].description == expected
+
+	res = test_client.get("/admin/user-list", auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == 200
+	entry = {entry["id"]: entry for entry in res.json()}["description-user1"]
+	assert entry["description"] == expected
+	for secret in ("otpSecret", "tokenHash", "passwordHash", "encryptedPassword"):
+		assert secret not in entry
+
+
+@pytest.mark.parametrize(
+	"description, http_status",
+	(("x" * 256, 422), (123, 400), (["a"], 400)),
+)
+def test_create_user_invalid_description(
+	backend: UnprotectedBackend,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	description: Any,
+	http_status: int,
+) -> None:
+	res = test_client.post(
+		"/admin/create-user",
+		auth=(ADMIN_USER, ADMIN_PASS),
+		json={"user_id": "description-user2", "password": "Secret123!", "description": description},
+	)
+	assert res.status_code == http_status
+	assert not backend.user_getObjects(id="description-user2")

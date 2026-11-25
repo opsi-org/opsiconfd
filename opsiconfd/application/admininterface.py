@@ -58,6 +58,7 @@ from opsiconfd.utils.fastapi import iter_routes
 
 admin_interface_router = APIRouter()
 welcome_interface_router = APIRouter()
+USER_DESCRIPTION_MAX_LENGTH = 255
 
 
 def admin_interface_setup(app: FastAPI) -> None:
@@ -714,6 +715,15 @@ async def create_user(request: Request) -> RESTResponse:
 	if params.get("agent") and (params.get("admin") or params.get("readonly")):
 		return RESTErrorResponse(message="An agent cannot be admin or readonly", http_status=status.HTTP_400_BAD_REQUEST)
 
+	description = params.get("description")
+	if description is not None and not isinstance(description, str):
+		return RESTErrorResponse(message="Invalid request", http_status=status.HTTP_400_BAD_REQUEST)
+	if description and len(description) > USER_DESCRIPTION_MAX_LENGTH:
+		return RESTErrorResponse(
+			message=f"Description must not be longer than {USER_DESCRIPTION_MAX_LENGTH} characters",
+			http_status=status.HTTP_422_UNPROCESSABLE_CONTENT,
+		)
+
 	backend = get_unprotected_backend()
 	users: list[User] = await backend.async_call("user_getObjects", id=params.get("user_id"))
 	if users:
@@ -738,6 +748,7 @@ async def create_user(request: Request) -> RESTResponse:
 		if password
 		else None,
 		groups=groups,
+		description=description or None,
 	)
 	await backend.async_call("user_createObjects", users=[user])
 

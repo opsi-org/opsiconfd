@@ -104,6 +104,26 @@ test("renderUserTable renders text safely and keeps actions callable", () => {
 	assert.equal(container.querySelector(".action-menu-button").textContent, "Actions");
 });
 
+test("renderUserTable shows the description as text and an empty cell without one", () => {
+	const dom = loadAdmininterface();
+	const { window } = dom;
+
+	window.renderUserTable([
+		{ id: "user1", groups: [], description: "Build <b>server</b> agent", internal_auth: true, token_auth: false },
+		{ id: "user2", groups: [], description: null, internal_auth: true, token_auth: false }
+	], "user-table-div");
+
+	const container = window.document.getElementById("user-table-div");
+	const headers = Array.from(container.querySelectorAll("th")).map(th => th.textContent);
+	const column = headers.indexOf("Description");
+	assert.notEqual(column, -1);
+
+	const rows = container.querySelectorAll("tr");
+	assert.equal(rows[1].querySelectorAll("td")[column].textContent, "Build <b>server</b> agent");
+	assert.equal(rows[1].querySelectorAll("b").length, 0);
+	assert.equal(rows[2].querySelectorAll("td")[column].textContent, "");
+});
+
 test("create user dialog offers admin, readonly and agent as exclusive roles", () => {
 	const dom = loadAdmininterface();
 	const { window } = dom;
@@ -127,14 +147,43 @@ test("createUser sends the selected role", () => {
 	assert.equal(window.__ajaxRequests[0][0], "POST");
 	assert.equal(window.__ajaxRequests[0][1], "/admin/create-user");
 	assert.deepEqual({ ...window.__ajaxRequests[0][2] }, {
-		user_id: "agent1", password: "Secret123!", admin: false, readonly: false, agent: true
+		user_id: "agent1", password: "Secret123!", admin: false, readonly: false, agent: true, description: ""
 	});
 
 	window.__ajaxRequests = [];
 	window.createUser("admin1", "Secret123!", "Secret123!");
 	assert.deepEqual({ ...window.__ajaxRequests[0][2] }, {
-		user_id: "admin1", password: "Secret123!", admin: true, readonly: false, agent: false
+		user_id: "admin1", password: "Secret123!", admin: true, readonly: false, agent: false, description: ""
 	});
+
+	window.__ajaxRequests = [];
+	window.createUser("agent2", "Secret123!", "Secret123!", false, false, true, "Build server agent");
+	assert.equal(window.__ajaxRequests[0][2].description, "Build server agent");
+});
+
+test("create user dialog has an optional description input limited to 255 characters", () => {
+	const dom = loadAdmininterface();
+	const { window } = dom;
+
+	window.showCreateUserDialog("user1", true, false, false);
+
+	const input = window.document.getElementById("new-user-description");
+	assert.equal(input.maxLength, 255);
+	assert.equal(input.value, "");
+});
+
+test("create user dialog keeps the description unchanged when shown again after an error", () => {
+	const dom = loadAdmininterface();
+	const { window } = dom;
+	const description = `say "hi" <b>bold</b> & 'more'`;
+
+	// Password mismatch shows the dialog again
+	window.createUser("user1", "Secret123!", "Other123!", true, false, false, description);
+
+	const input = window.document.getElementById("new-user-description");
+	assert.equal(input.value, description);
+	assert.equal(window.document.querySelectorAll("#confirm-overlay-body b").length, 0);
+	assert.equal(window.__ajaxRequests.length, 0);
 });
 
 test("showDialogOverlay displays message and safely accepts DOM body", () => {

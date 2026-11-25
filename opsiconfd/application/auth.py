@@ -88,6 +88,7 @@ async def logout(request: Request) -> RESTResponse:
 	return RESTResponse("session deleted")
 
 
+@auth_router.head("/session_id")
 @auth_router.get("/session_id")
 @auth_router.post("/session_id")
 @rest_api
@@ -109,6 +110,7 @@ async def authenticated(request: Request) -> RESTResponse:
 	return RESTResponse(False, http_status=status.HTTP_401_UNAUTHORIZED)
 
 
+@auth_router.head("/wait_authenticated")
 @auth_router.get("/wait_authenticated")
 @auth_router.post("/wait_authenticated")
 @rest_api(default_error_status_code=status.HTTP_401_UNAUTHORIZED)

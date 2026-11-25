@@ -23,6 +23,7 @@ import re
 import secrets
 import shlex
 import signal
+import ssl
 import string
 import sys
 import sysconfig
@@ -47,6 +48,8 @@ from opsi.opsi.service.model.type import to_string_lower
 from opsi.process import ProcessError, run_command, run_script
 from opsi.system.info import is_ucs
 from opsi.system.network import prepare_proxy_environment
+from requests.adapters import HTTPAdapter
+from urllib3.util.ssl_ import create_urllib3_context
 
 from opsiconfd import __version__
 from opsiconfd.utils.ucs import get_server_role as get_ucs_server_role
@@ -57,6 +60,8 @@ config = None
 opsi_config = None
 
 if TYPE_CHECKING:
+	from requests.adapters import _HostParams, _PoolKwargs
+
 	from opsiconfd.config import Config, OpsiConfig
 
 	config: Config | None = None
@@ -900,6 +905,25 @@ class DataclassCapableJSONEncoder(JSONEncoder):
 		return super().default(o)
 
 
+class _NonStrictHTTPAdapter(HTTPAdapter):
+	"""Disable strict X.509 checks without disabling certificate verification."""
+
+	def __init__(self) -> None:
+		"""Create an adapter with a private, non-strict TLS context."""
+		super().__init__()
+		self._ssl_context = create_urllib3_context()
+		self._ssl_context.verify_flags &= ~ssl.VERIFY_X509_STRICT
+
+	def build_connection_pool_key_attributes(
+		self, request: requests.PreparedRequest, verify: bool | str, cert: str | tuple[str, str] | None = None
+	) -> tuple[_HostParams, _PoolKwargs]:
+		"""Use the TLS context for both direct and proxied verified connections."""
+		host_params, pool_kwargs = super().build_connection_pool_key_attributes(request, verify, cert)
+		if verify:
+			pool_kwargs["ssl_context"] = self._ssl_context
+		return host_params, pool_kwargs
+
+
 def get_requests_session(hostname: str) -> requests.Session:
 	"""
 	Get a configured requests session for the specified hostname.
@@ -911,7 +935,10 @@ def get_requests_session(hostname: str) -> requests.Session:
 		requests.Session: The configured session.
 	"""
 	session = prepare_proxy_environment(hostname)
-	session.verify = get_config().ssl_trusted_certs
+	config = get_config()
+	session.verify = config.ssl_trusted_certs
+	if not config.ssl_verify_x509_strict:
+		session.mount("https://", _NonStrictHTTPAdapter())
 	session.headers.update({"User-Agent": f"opsiconfd {__version__}"})
 	return session
 

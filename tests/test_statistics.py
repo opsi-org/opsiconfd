@@ -386,6 +386,47 @@ def test_node_metrics_collector() -> None:
 	assert metrics_collector._values["node:avg_mysql_queries"]
 
 
+@pytest.mark.parametrize(
+	"cpu_times, expected",
+	[
+		([(1.0, 1.0), (1.5, 1.5)], 1.0),
+		# Counter reset after Redis restart must not produce a negative value
+		([(100.0, 50.0), (0.5, 0.25)], 0.75),
+	],
+)
+def test_node_metrics_collector_redis_cpu_time(cpu_times: list[tuple[float, float]], expected: float) -> None:
+	metrics_collector = NodeMetricsCollector()
+	added: list[float] = []
+
+	async def add_value(metric_id: str, value: float, *args: Any, **kwargs: Any) -> None:
+		if metric_id == "node:avg_redis_cpu_time":
+			added.append(value)
+
+	redis = MagicMock()
+	infos = iter([{"used_cpu_sys": sys, "used_cpu_user": user} for sys, user in cpu_times])
+
+	async def info(section: str) -> dict[str, float]:
+		return next(infos)
+
+	redis.info = info
+
+	async def run() -> None:
+		for _ in cpu_times:
+			await metrics_collector._get_redis_metrics()
+
+	async def async_redis_client() -> MagicMock:
+		return redis
+
+	with (
+		patch("opsiconfd.metrics.collector.async_redis_client", async_redis_client),
+		patch.object(metrics_collector, "add_value", add_value),
+		patch.object(metrics_collector, "_metrics", {"node:avg_redis_cpu_time": MagicMock()}),
+	):
+		asyncio.run(run())
+
+	assert added == [expected]
+
+
 def test_disable_metrics() -> None:
 	MetricsRegistry.reset_singleton()
 	metrics_registry = MetricsRegistry()

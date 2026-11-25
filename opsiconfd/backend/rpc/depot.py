@@ -48,7 +48,7 @@ from opsiconfd import __version__, contextvar_client_session
 
 # deprecated can be used in extension config files
 from opsiconfd.backend.rpc import rpc_method
-from opsiconfd.config import BOOT_DIR, DEPOT_DIR, PACKAGE_SCRIPT_TIMEOUT, TMP_DIR, WORKBENCH_DIR, config, opsi_config
+from opsiconfd.config import BOOT_DIR, DEPOT_DIR, PACKAGE_SCRIPT_TIMEOUT, PRODUCT_BOOT_DIR, TMP_DIR, WORKBENCH_DIR, config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.redis import decode_redis_result, redis_client, redis_lock
 from opsiconfd.utils import get_disk_usage, get_file_md5sum
@@ -133,21 +133,21 @@ def replace_directory(new_dir: Path, target: Path, old_dir: Path) -> None:
 	os.rename(new_dir, target)
 
 
-class ClientDataReplacement:
+class DirectoryReplacement:
 	"""
-	Context manager to replace the client data directory of a product atomically.
+	Context manager to replace a directory of a product (client data or boot files) atomically.
 
 	The new data is staged next to the target directory and swapped in with `replace`.
 	The previous data is kept until the context exits without an error and is restored otherwise.
 
 	Attributes:
-		target: The client data directory of the product.
+		target: The directory to replace.
 	"""
 
 	def __init__(self, target: Path) -> None:
 		"""
 		Args:
-			target: The client data directory of the product.
+			target: The directory to replace.
 		"""
 		self.target = target
 		self._staging_dir = target.with_name(f".{target.name}.new")
@@ -164,12 +164,17 @@ class ClientDataReplacement:
 		Replace the target directory with new data.
 
 		Args:
-			new_data: Directory containing the new client data.
+			new_data: Directory containing the new data.
 		"""
 		# Moving to the staging directory may copy the data if it is on another file system.
 		# This does not affect the target, the final swap is a rename.
 		shutil.move(new_data, self._staging_dir)
 		replace_directory(self._staging_dir, self.target, self._backup_dir)
+
+	def remove(self) -> None:
+		"""Remove the target directory. The previous data is restored if the context exits with an error."""
+		if self.target.exists():
+			os.rename(self.target, self._backup_dir)
 
 	def __exit__(self, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: TracebackType | None) -> None:
 		"""Discard the previous data on success, restore it on error."""
@@ -178,11 +183,11 @@ class ClientDataReplacement:
 			shutil.rmtree(self._backup_dir, ignore_errors=True)
 			return
 
-		logger.warning("Installation error. Restoring previous client data dir '%s'", self.target)
+		logger.warning("Installation error. Restoring previous directory '%s'", self.target)
 		try:
 			replace_directory(self._backup_dir, self.target, self._staging_dir)
 		except Exception as err:
-			logger.error("Failed to restore client data dir '%s': %s", self.target, err, exc_info=True)
+			logger.error("Failed to restore directory '%s': %s", self.target, err, exc_info=True)
 			return
 		shutil.rmtree(self._staging_dir, ignore_errors=True)
 
@@ -800,7 +805,7 @@ class DepotserverPackageManager:
 					continue
 				# Copy .../SERVER_DATA/tmp/foo/bar to /tmp/foo/bar
 				destination = Path("/") / source.relative_to(server_data)
-				if destination.parents[0] in (Path("/tftpboot"), Path("/$BOOT_DIR")):
+				if destination.parents[0] == Path("/tftpboot"):
 					destination = Path(BOOT_DIR) / destination.relative_to(destination.parents[0])
 
 				allowed = False
@@ -858,10 +863,12 @@ class DepotserverPackageManager:
 					logger.info("Creating product in backend")
 					self.backend.product_createObjects(product)
 					product_path = Path(DEPOT_DIR) / product_id
+					product_boot_path = Path(PRODUCT_BOOT_DIR) / product_id
 
 					with (
 						lock_product(product, self._depot_id, force) as product_on_depot,
-						ClientDataReplacement(product_path) as client_data,
+						DirectoryReplacement(product_path) as client_data,
+						DirectoryReplacement(product_boot_path) as boot_data,
 					):
 						logger.info("Checking package dependencies")
 						self.check_dependencies(opsi_package)
@@ -874,7 +881,18 @@ class DepotserverPackageManager:
 						}
 						with run_package_scripts(opsi_package, tmp_unpack_dir, product_path, env=env):
 							logger.info("Replacing client-data dir")
+							# Packages may contain no CLIENT_DATA (e.g. BOOT only), the product dir is then empty
+							(tmp_unpack_dir / "CLIENT_DATA").mkdir(exist_ok=True)
 							client_data.replace(tmp_unpack_dir / "CLIENT_DATA")
+
+							if (tmp_unpack_dir / "BOOT").is_dir():
+								logger.info("Replacing boot dir '%s'", product_boot_path)
+								product_boot_path.parent.mkdir(parents=True, exist_ok=True)
+								boot_data.replace(tmp_unpack_dir / "BOOT")
+							else:
+								# Boot files are bound to the package version. SERVER_DATA is copied afterwards.
+								logger.info("Package has no BOOT dir, removing boot dir '%s'", product_boot_path)
+								boot_data.remove()
 
 							if (tmp_unpack_dir / "SERVER_DATA").exists():
 								logger.info("Unpacking SERVER_DATA")
@@ -1085,6 +1103,11 @@ class DepotserverPackageManager:
 						client_data_dir = os.path.join(DEPOT_DIR, element)
 						logger.info("Deleting client data dir '%s'", client_data_dir)
 						shutil.rmtree(client_data_dir)
+
+				product_boot_path = Path(PRODUCT_BOOT_DIR) / product_id
+				if product_boot_path.is_dir():
+					logger.info("Deleting boot dir '%s'", product_boot_path)
+					shutil.rmtree(product_boot_path)
 
 			self.backend.productOnDepot_deleteObjects(product_on_depot)
 		except Exception as err:

@@ -1,5 +1,7 @@
 ---
+name: code-review
 description: "Perform a code review"
+disable-model-invocation: true
 ---
 <!-- Based on https://github.com/NikiforovAll/dotnet-copilot-rules/blob/main/.vscode/prompts/code-review.prompt.md -->
 

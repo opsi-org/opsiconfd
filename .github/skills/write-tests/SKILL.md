@@ -1,6 +1,7 @@
 ---
-mode: 'agent'
+name: write-tests
 description: 'Write tests for the selected code.'
+disable-model-invocation: true
 ---
 Write tests for the selected code in ${file}.
 

@@ -13,6 +13,7 @@ update-alternatives --set editor /usr/bin/vim.basic
 
 mkdir -p /var/log/opsi
 mkdir -p /var/lib/opsi/depot
+mkdir -p /var/lib/opsi/boot
 mkdir -p /var/lib/opsi/public
 mkdir -p /var/lib/opsi/repository
 mkdir -p /var/lib/opsi/workbench

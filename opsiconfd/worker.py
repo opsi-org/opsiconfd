@@ -46,7 +46,7 @@ from opsiconfd.metrics.collector import WorkerMetricsCollector
 from opsiconfd.redis import async_redis_client, pool_disconnect_connections, reset_redis_pools
 from opsiconfd.session import load_auth_module
 from opsiconfd.utils import asyncio_create_task, patch_markupsafe
-from opsiconfd.websocket import WebSocketProtocolOpsiconfd, WSProtocolOpsiconfd
+from opsiconfd.websocket import WSProtocolOpsiconfd
 
 if TYPE_CHECKING:
 	from uvicorn.server import Protocols
@@ -67,7 +67,6 @@ class H11ProtocolOpsiconfd(H11Protocol):
 
 
 WS_PROTOCOLS["wsproto_opsiconfd"] = WSProtocolOpsiconfd  # ty: ignore
-WS_PROTOCOLS["websockets_opsiconfd"] = WebSocketProtocolOpsiconfd  # ty: ignore
 WS_PROTOCOLS["websockets-sansio"] = WebSocketsSansIOProtocol  # ty: ignore
 HTTP_PROTOCOLS["h11_opsiconfd"] = H11ProtocolOpsiconfd  # ty: ignore
 
@@ -87,7 +86,7 @@ def get_uvicorn_config() -> Config:
 		"loop": "uvloop",
 		"interface": "asgi3",
 		"http": "h11_opsiconfd",  # h11_opsiconfd / h11 / httptools
-		"ws": config.websocket_protocol,  # wsproto_opsiconfd / wsproto / websockets_opsiconfd / websockets / websockets-sansio
+		"ws": config.websocket_protocol,  # wsproto_opsiconfd / wsproto / websockets-sansio
 		"host": config.interface,
 		"port": config.port,
 		"workers": config.workers,

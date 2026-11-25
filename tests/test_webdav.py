@@ -62,10 +62,12 @@ def test_options_request_for_index(test_client: OpsiconfdTestClient) -> None:  #
 	(
 		("/dav", 207),
 		("/dav/depot", 207),
+		("/dav/boot", 207),
 		("/dav/workbench", 207),
 		("/dav/repository", 207),
 		("/dav/public", 207),
 		("/depot", 207),
+		("/boot", 207),
 		("/workbench", 207),
 		("/repository", 207),
 		("/public", 207),
@@ -151,7 +153,7 @@ def test_client_permission(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 	size = 1024
 	data = ("".join(random.choice(ascii_letters) for i in range(size))).encode("ascii")
 	headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
-	for path in ("workbench", "repository", "depot"):
+	for path in ("workbench", "repository", "depot", "boot"):
 		url = f"/{path}/test_file_client.bin"
 
 		res = test_client.put(url=url, content=data, headers=headers, auth=(ADMIN_USER, ADMIN_PASS))
@@ -162,7 +164,7 @@ def test_client_permission(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 		assert res.status_code == 401
 
 		res = test_client.get(url=url, auth=(client_id, client_key))
-		assert res.status_code == 200 if path == "depot" else 401
+		assert res.status_code == 200 if path in ("depot", "boot") else 401
 
 		res = test_client.delete(url=url, auth=(client_id, client_key))
 		assert res.status_code == 401
@@ -323,6 +325,7 @@ def test_webdav_virtual_folder(test_client: OpsiconfdTestClient) -> None:  # noq
 	assert res.status_code == 200
 
 	assert "/depot" in res.text
+	assert "/boot" in res.text
 	assert "/public" in res.text
 	assert "/repository" in res.text
 	assert "/workbench" in res.text

@@ -343,6 +343,7 @@ CREATE TABLE IF NOT EXISTS `USER` (
 	`encryptedPassword` varchar(128) DEFAULT NULL,
 	`tokenHash` varchar(128) DEFAULT NULL,
 	`groups` varchar(1024) DEFAULT NULL,
+	`description` varchar(255) DEFAULT NULL,
 	PRIMARY KEY (`userId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -1539,5 +1540,10 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 				columns=[column],
 			)
 		remove_index(session=session, database=mysql.database, table="AUDIT_LOG", index="index_audit_log_created_eventType")
+
+		# schema_version 27
+		if "description" not in mysql.tables["USER"]:
+			logger.info("Adding column 'description' on table USER.")
+			session.execute("ALTER TABLE `USER` ADD `description` varchar(255) DEFAULT NULL")
 
 		# Be sure to update MySQLConnection.schema_version as well when changing this function.

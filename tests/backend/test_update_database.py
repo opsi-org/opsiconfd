@@ -414,6 +414,63 @@ def test_update_database() -> None:
 				session.execute(f"DROP DATABASE IF EXISTS `{database}`")
 
 
+def test_update_database_user_description_upgrade() -> None:
+	# USER created by versions before schema version 27 has no column description
+	database = "opsiupgradetest"
+	mysql = MySQLConnection()
+	mysql.database = database
+
+	with mysql.connection():
+		with mysql.session() as session:
+			session.execute(f"DROP DATABASE IF EXISTS `{database}`")
+			session.execute(f"CREATE DATABASE IF NOT EXISTS `{database}`")
+			session.execute(f"USE `{database}`")
+			session.execute(CREATE_TABLES_SQL)
+			session.execute("INSERT INTO `USER` (`userId`) VALUES ('existing.user')")
+			assert not session.execute("SHOW COLUMNS FROM `USER` LIKE 'description'").fetchone()
+
+		try:
+			update_database(mysql)
+
+			with mysql.session() as session:
+				column = session.execute("SHOW COLUMNS FROM `USER` LIKE 'description'").fetchone()
+				assert column
+				assert column[1] == "varchar(255)"
+				assert column[2] == "YES"
+				row = session.execute("SELECT `description` FROM `USER` WHERE `userId` = 'existing.user'").fetchone()
+				assert row[0] is None
+
+			# A second run must not fail on the existing column
+			update_database(mysql)
+		finally:
+			with mysql.session() as session:
+				session.execute(f"DROP DATABASE IF EXISTS `{database}`")
+
+
+def test_update_database_user_description_fresh() -> None:
+	database = "opsiupgradetest"
+	mysql = MySQLConnection()
+	mysql.database = database
+
+	with mysql.connection():
+		with mysql.session() as session:
+			session.execute(f"DROP DATABASE IF EXISTS `{database}`")
+			session.execute(f"CREATE DATABASE IF NOT EXISTS `{database}`")
+			session.execute(f"USE `{database}`")
+
+		try:
+			update_database(mysql)
+
+			with mysql.session() as session:
+				column = session.execute("SHOW COLUMNS FROM `USER` LIKE 'description'").fetchone()
+				assert column
+				assert column[1] == "varchar(255)"
+				assert column[2] == "YES"
+		finally:
+			with mysql.session() as session:
+				session.execute(f"DROP DATABASE IF EXISTS `{database}`")
+
+
 def test_update_database_audit_log_without_host_id() -> None:
 	# AUDIT_LOG created by versions before 4.3.56.10 has no column hostId
 	database = "opsiupgradetest"

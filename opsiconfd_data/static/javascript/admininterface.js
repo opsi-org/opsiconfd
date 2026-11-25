@@ -950,7 +950,7 @@ function updateUserTokenAuth(userId, enable) {
 }
 
 
-function showCreateUserDialog(userId, admin, readonly, agent, errorMessage = null) {
+function showCreateUserDialog(userId, admin, readonly, agent, description = "", errorMessage = null) {
 	let html = "";
 	if (errorMessage) {
 		html += `<p style="color:red;">${errorMessage}</p>`;
@@ -962,6 +962,8 @@ function showCreateUserDialog(userId, admin, readonly, agent, errorMessage = nul
 	html += `<input type="password" id="new-user-new-password" autocomplete="new-password" /><br/>`;
 	html += `<label for="new-user-confirm-password" style="width: 150px; display: inline-block;">Confirm password:</label>`;
 	html += `<input type="password" id="new-user-confirm-password" autocomplete="new-password" /><br/>`;
+	html += `<label for="new-user-description" style="width: 150px; display: inline-block;">Description:</label>`;
+	html += `<input type="text" id="new-user-description" maxlength="255" /><br/>`;
 	html += `<input type="radio" name="new-user-role" id="new-user-admin" ${admin ? "checked" : ""} /> Admin<br/>`;
 	html += `<input type="radio" name="new-user-role" id="new-user-readonly" ${readonly ? "checked" : ""} /> Readonly<br/>`;
 	html += `<input type="radio" name="new-user-role" id="new-user-agent" ${agent ? "checked" : ""} /> Agent<br/>`;
@@ -978,27 +980,30 @@ function showCreateUserDialog(userId, admin, readonly, agent, errorMessage = nul
 			document.getElementById('new-user-confirm-password').value,
 			document.getElementById('new-user-admin').checked,
 			document.getElementById('new-user-readonly').checked,
-			document.getElementById('new-user-agent').checked
+			document.getElementById('new-user-agent').checked,
+			document.getElementById('new-user-description').value
 		)
 	});
+	// Set as property, not interpolated into the HTML, so that quotes and markup stay literal
+	document.getElementById("new-user-description").value = description || "";
 }
 
-function createUser(userId = null, password = null, confirmPassword = null, admin = true, readonly = false, agent = false) {
+function createUser(userId = null, password = null, confirmPassword = null, admin = true, readonly = false, agent = false, description = "") {
 	if (!userId || password !== confirmPassword) {
 		let errorMessage = null;
 		if (password !== confirmPassword) {
 			errorMessage = "The provided passwords do not match. Please try again.";
 		}
-		showCreateUserDialog(userId, admin, readonly, agent, errorMessage);
+		showCreateUserDialog(userId, admin, readonly, agent, description, errorMessage);
 	}
 	else {
-		let req = ajaxRequest("POST", "/admin/create-user", { "user_id": userId, "password": password, "admin": admin, "readonly": readonly, "agent": agent });
+		let req = ajaxRequest("POST", "/admin/create-user", { "user_id": userId, "password": password, "admin": admin, "readonly": readonly, "agent": agent, "description": description });
 		req.then((result) => {
 			showNotification("New user successfully created", "user-edit", "success", 3);
 			loadUserTable();
 		}, (error) => {
 			let errorMessage = `Failed to create user: ${error.message || error.detail || JSON.stringify(error)}`;
-			showCreateUserDialog(userId, admin, readonly, agent, errorMessage);
+			showCreateUserDialog(userId, admin, readonly, agent, description, errorMessage);
 			showNotification(errorMessage, "user-edit", "error", 10);
 			loadUserTable();
 		});
@@ -1148,6 +1153,7 @@ function renderUserTable(data, htmlId) {
 		const headerRow = createElement("tr");
 		[
 			"User-ID",
+			"Description",
 			"Groups",
 			"Last login",
 			"Internal Authentication",
@@ -1166,6 +1172,7 @@ function renderUserTable(data, htmlId) {
 			let actions = [];
 			const row = createElement("tr");
 			row.appendChild(createElement("td", { className: "user-td" }, [user.id]));
+			row.appendChild(createElement("td", { className: "user-td" }, [user.description || ""]));
 			row.appendChild(createElement("td", { className: "user-td", style: { maxWidth: "150px" } }, [(user.groups || []).join(", ")]));
 			row.appendChild(createElement("td", { className: "user-td" }, [user.lastLogin ? formatDate(parseUTCDate(user.lastLogin)) : "never"]));
 			row.appendChild(createElement("td", { className: "user-td" }, [user.internal_auth ? "yes" : "no"]));

@@ -200,7 +200,8 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 
 				device_table = f"HARDWARE_DEVICE_{hardware_class.upper()}"
 				config_table = f"HARDWARE_CONFIG_{hardware_class.upper()}"
-				columns = self._mysql.get_columns(tables=[device_table, config_table], ace=ace, attributes=attributes)
+				# The config table has to be first, it holds the hostId column used to restrict access of "self" ACEs
+				columns = self._mysql.get_columns(tables=[config_table, device_table], ace=ace, attributes=attributes)
 
 				if not return_hardware_ids and "hardware_id" in columns:
 					del columns["hardware_id"]

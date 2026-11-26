@@ -96,3 +96,40 @@ def test_hwaudit(
 
 	by_ident = {a["ident"]: a for a in res["result"]}
 	assert sorted(audit_hardware_on_hosts_by_ident[host_id2]) == sorted(by_ident)
+
+
+@pytest.mark.parametrize("method", ("auditHardwareOnHost_getObjects", "auditHardwareOnHost_getHashes"))
+def test_hwaudit_client_can_only_read_own_data(
+	method: str,
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	host_id1 = "test-backend-rpc-host-1.opsi.test"
+	host_key1 = "5913c501a2854587dec4e60d57676892"
+	host_id2 = "test-backend-rpc-host-2.opsi.test"
+	host_key2 = "e692485913c587de0d57676501a285c4"
+
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	clients = [
+		{"type": "OpsiClient", "id": host_id1, "opsiHostKey": host_key1},
+		{"type": "OpsiClient", "id": host_id2, "opsiHostKey": host_key2},
+	]
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [clients]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	hwaudit_template = Path("tests/data/hwaudit/hwaudit.json").read_text(encoding="utf-8")
+	for host_id, host_key in ((host_id1, host_key1), (host_id2, host_key2)):
+		test_client.reset_cookies()
+		test_client.auth = (host_id, host_key)
+		audit_hardware_on_hosts = json.loads(hwaudit_template.replace("{{host_id}}", host_id))
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditHardwareOnHost_updateObjects", "params": [audit_hardware_on_hosts]}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+
+	# host 2 must only see its own data, with and without a filter for host 1
+	for filter_host_id, expect_rows in ((None, True), (host_id1, False), ([host_id1, host_id2], True)):
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": method, "params": [[], {"hostId": filter_host_id} if filter_host_id else {}]}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+		assert bool(res["result"]) == expect_rows
+		assert all(row["hostId"] == host_id2 for row in res["result"])

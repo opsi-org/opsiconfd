@@ -578,6 +578,11 @@ class MySQLConnection:
 	def get_columns(
 		self, tables: list[str], ace: list[RPCACE], attributes: list[str] | tuple[str, ...] | None = None
 	) -> dict[str, ColumnInfo]:
+		"""Build the column info for the given tables.
+
+		The client id column used for "self" ACEs is taken from the first table,
+		so the table holding the client id must be listed first.
+		"""
 		res: dict[str, ColumnInfo] = {}
 		first_table = tables[0]
 		client_id_column = self._client_id_column.get(first_table)

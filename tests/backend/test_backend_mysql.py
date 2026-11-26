@@ -13,15 +13,18 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from threading import Thread
+from types import SimpleNamespace
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from opsi.opsi.service.model.object import OpsiClient
 from sqlalchemy.event import listen
 
+from opsiconfd import contextvar_client_session
 from opsiconfd.backend.auth import RPCACE
 from opsiconfd.backend.mysql import MySQLConnection
+from opsiconfd.backend.rpc.obj_audit_hardware_on_host import RPCAuditHardwareOnHostMixin
 from tests.utils import UnprotectedBackend, backend, get_config  # noqa: F401
 
 
@@ -456,6 +459,33 @@ def test_get_columns() -> None:
 					assert info.select == f"IF(`HOST`.`hostId`='{client_id}',`HOST`.`{info.column}`,NULL)"
 			else:
 				assert info.select is None
+
+
+@pytest.mark.parametrize("filter", ({}, {"hostId": "client1.opsi.org"}, {"hostId": ["client1.opsi.org", "client2.opsi.org"]}))
+def test_audit_hardware_on_host_get_restricted_to_self(filter: dict[str, Any]) -> None:
+	con = MySQLConnection.__new__(MySQLConnection)
+	con.tables = {
+		"HARDWARE_DEVICE_COMPUTER_SYSTEM": {"hardware_id": {}, "vendor": {}},
+		"HARDWARE_CONFIG_COMPUTER_SYSTEM": {"hardware_id": {}, "hostId": {}, "state": {}, "firstseen": {}, "lastseen": {}},
+	}
+	con._client_id_column = {"HARDWARE_DEVICE_COMPUTER_SYSTEM": "", "HARDWARE_CONFIG_COMPUTER_SYSTEM": "hostId"}
+	con._column_to_attribute = {}
+	session = MagicMock()
+	session.__enter__.return_value = session
+	session.execute.return_value.fetchall.return_value = []
+	con.session = MagicMock(return_value=session)  # type: ignore[method-assign]
+	fake_backend = SimpleNamespace(_mysql=con, _audit_hardware_database_config={"COMPUTER_SYSTEM": {"vendor": {"Scope": "g"}}})
+
+	ace = [RPCACE(method_re=re.compile(".*"), type="self", id="client2.opsi.org")]
+	token = contextvar_client_session.set(SimpleNamespace(host_id="client2.opsi.org"))  # type: ignore[arg-type]
+	try:
+		RPCAuditHardwareOnHostMixin._audit_hardware_on_host_get(fake_backend, ace=ace, return_type="dict", filter=dict(filter))  # type: ignore[arg-type]
+	finally:
+		contextvar_client_session.reset(token)
+
+	query, params = session.execute.call_args.args[0], session.execute.call_args.kwargs["params"]
+	assert "`HARDWARE_CONFIG_COMPUTER_SYSTEM`.`hostId` IN :" in query
+	assert ["client2.opsi.org"] in params.values()
 
 
 def test_get_objects_orders_by_multiple_attributes_and_limits() -> None:

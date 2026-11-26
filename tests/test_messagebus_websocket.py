@@ -1098,7 +1098,11 @@ def test_messagebus_agent_boot_get_config(
 				).to_msgpack()
 			)
 			reader.wait_for_message(count=2, timeout=10.0)
-			responses = {res.rpc_id: res for res in (Message.from_dict(msg) for msg in reader.get_messages())}  # ty: ignore[unresolved-attribute]
+			responses: dict[str | int, JSONRPCResponseMessage] = {}
+			for msg in reader.get_messages():
+				res = Message.from_dict(msg)
+				assert isinstance(res, JSONRPCResponseMessage)
+				responses[res.rpc_id] = res
 
 			assert responses["1"].error is None
 			assert responses["1"].result["client_id"] is None

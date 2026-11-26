@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from threading import Thread
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -474,12 +474,12 @@ def test_audit_hardware_on_host_get_restricted_to_self(filter: dict[str, Any]) -
 	session.__enter__.return_value = session
 	session.execute.return_value.fetchall.return_value = []
 	con.session = MagicMock(return_value=session)  # type: ignore[method-assign]
-	fake_backend = SimpleNamespace(_mysql=con, _audit_hardware_database_config={"COMPUTER_SYSTEM": {"vendor": {"Scope": "g"}}})
+	fake_backend: Any = SimpleNamespace(_mysql=con, _audit_hardware_database_config={"COMPUTER_SYSTEM": {"vendor": {"Scope": "g"}}})
 
 	ace = [RPCACE(method_re=re.compile(".*"), type="self", id="client2.opsi.org")]
-	token = contextvar_client_session.set(SimpleNamespace(host_id="client2.opsi.org"))  # type: ignore[arg-type]
+	token = contextvar_client_session.set(cast(Any, SimpleNamespace(host_id="client2.opsi.org")))
 	try:
-		RPCAuditHardwareOnHostMixin._audit_hardware_on_host_get(fake_backend, ace=ace, return_type="dict", filter=dict(filter))  # type: ignore[arg-type]
+		RPCAuditHardwareOnHostMixin._audit_hardware_on_host_get(fake_backend, ace=ace, return_type="dict", filter=dict(filter))
 	finally:
 		contextvar_client_session.reset(token)
 

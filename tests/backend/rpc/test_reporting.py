@@ -129,6 +129,7 @@ def test_get_clients_client_sees_only_own_hardware_and_software(
 		"subVersion": "lin:",
 		"language": "en",
 		"architecture": "x64",
+		"isOperatingSystem": True,
 	}
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditSoftware_createObjects", "params": [[audit_software]]}
 	assert "error" not in test_client.post("/rpc", json=rpc).json()
@@ -163,13 +164,16 @@ def test_get_clients_client_sees_only_own_hardware_and_software(
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	by_id = get_clients()
 	assert by_id[host_id1]["device_vendor"] == by_id[host_id2]["device_vendor"] is not None
+	assert by_id[host_id1]["operating_system"] == by_id[host_id2]["operating_system"] == "Debian 12"
 
 	# Client 2 sees only its own data
 	test_client.reset_cookies()
 	test_client.auth = (host_id2, host_key2)
 	by_id = get_clients()
 	assert by_id[host_id2]["device_vendor"] is not None
+	assert by_id[host_id2]["operating_system"] == "Debian 12"
 	assert by_id[host_id1]["device_vendor"] is None
 	assert by_id[host_id1]["device_model"] is None
 	assert by_id[host_id1].get("operating_system") is None
 	assert by_id[host_id1].get("device_sn") is None
+	assert by_id[host_id1].get("device_ram") is None

@@ -539,6 +539,8 @@ class MessagebusWebsocket(WebSocketEndpoint):
 				event.event = "user_connected"
 				event.channel = "event:user_connected"
 				event.data["user"] = {"id": session.username, "username": session.username}
+		elif session.username and session.user_type == "agent":
+			self._messagebus_user_id = get_user_id_for_user(session.username)
 		else:
 			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid session")
 
@@ -584,7 +586,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 					"type": session.host_type,
 					"id": session.host_id,
 				}
-		elif session.username:
+		elif session.username and session.is_admin:
 			connected = bool(await get_websocket_connected_users(user_ids=[session.username], user_type="user"))
 			if not connected:
 				event.event = "user_disconnected"

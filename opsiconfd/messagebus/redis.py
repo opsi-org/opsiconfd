@@ -254,7 +254,9 @@ async def update_websocket_count(session: OPSISession, increment: int) -> None:
 			state_key = f"{config.redis_key('messagebus')}:connections:clients:{session.host_id}"
 		elif session.host_type == "OpsiDepotserver":
 			state_key = f"{config.redis_key('messagebus')}:connections:depots:{session.host_id}"
-	else:
+	elif session.is_agent:
+		state_key = f"{config.redis_key('messagebus')}:connections:agents:{session.username}"
+	elif session.is_admin:
 		state_key = f"{config.redis_key('messagebus')}:connections:users:{session.username}"
 
 	if not state_key:
@@ -267,7 +269,7 @@ async def update_websocket_count(session: OPSISession, increment: int) -> None:
 
 
 async def get_websocket_connected_users(
-	user_ids: list[str] | None = None, user_type: Literal["client", "depot", "user"] | None = None
+	user_ids: list[str] | None = None, user_type: Literal["client", "depot", "user", "agent"] | None = None
 ) -> list[str]:
 	redis = await async_redis_client()
 

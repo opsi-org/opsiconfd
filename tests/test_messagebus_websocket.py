@@ -43,7 +43,10 @@ from opsi.opsi.messagebus import (
 from opsi.opsi.service.client import Messagebus, MessagebusListener, ServiceClient, ServiceVerificationFlags
 from opsi.opsi.service.client._service_client import WebSocket
 from opsi.opsi.service.model.object import OpsiClient, UnicodeConfig
+from starlette.testclient import WebSocketTestSession
+from starlette.websockets import WebSocketDisconnect
 
+from opsiconfd.backend.auth import RPCACE
 from opsiconfd.backend.rpc.main import Backend
 from opsiconfd.config import get_configserver_id
 from opsiconfd.messagebus.websocket import _check_message_type_access
@@ -62,6 +65,7 @@ from .utils import (  # noqa: F401
 	clean_redis,
 	config,
 	create_client_via_jsonrpc,
+	default_acl,
 	get_config,
 	opsiconfd_server,
 	test_client,
@@ -889,6 +893,230 @@ def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 					assert msg["channel"] == "event:config_created"
 					assert msg["event"] == "config_created"
 					assert msg["data"] == {"id": "test.config"}
+
+
+def _create_user(test_client: OpsiconfdTestClient, user_id: str, **params: bool) -> str:  # noqa: F811
+	password = "Secret123!"
+	res = test_client.post("/admin/create-user", auth=(ADMIN_USER, ADMIN_PASS), json={"user_id": user_id, "password": password, **params})
+	assert res.status_code == 200
+	test_client.reset_cookies()
+	return password
+
+
+def _agent_connections(config: Config, username: str) -> int:  # noqa: F811
+	count = redis_client().hget(f"{config.redis_key('messagebus')}:connections:agents:{username}", "websocket_count")
+	return int(count or 0)
+
+
+def _wait_agent_connections(config: Config, username: str, expected: int, timeout: float = 10.0) -> None:  # noqa: F811
+	start = time()
+	while _agent_connections(config, username) != expected and time() - start < timeout:
+		sleep(0.1)
+	assert _agent_connections(config, username) == expected
+
+
+def test_messagebus_agent_connect(
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	password = _create_user(test_client, "msgbus-agent1", agent=True)
+	test_client.auth = ("msgbus-agent1", password)
+	with test_client as client, client.websocket_connect("/messagebus/v1") as websocket:
+		with WebSocketMessageReader(websocket) as reader:
+			reader.wait_for_message(count=1)
+			msg = next(reader.get_messages())
+			assert msg["type"] == "channel_subscription_event"
+			assert not msg.get("error")
+			assert len(msg["subscribed_channels"]) == 2
+			assert "user:msgbus-agent1" in msg["subscribed_channels"]
+			assert any(channel.startswith("session:") for channel in msg["subscribed_channels"])
+			assert _agent_connections(config, "msgbus-agent1") == 1
+
+			with client.websocket_connect("/messagebus/v1") as websocket2, WebSocketMessageReader(websocket2) as reader2:
+				reader2.wait_for_message(count=1)
+				_wait_agent_connections(config, "msgbus-agent1", 2)
+				# Disconnects are only processed completely while the test client context is open
+				websocket2.close()
+				_wait_agent_connections(config, "msgbus-agent1", 1)
+
+			websocket.close()
+			_wait_agent_connections(config, "msgbus-agent1", 0)
+	assert not redis_client().exists(f"{config.redis_key('messagebus')}:connections:users:msgbus-agent1")
+
+
+def test_messagebus_connect_rejected_sessions(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	# A database user that is neither admin nor agent
+	password = _create_user(test_client, "msgbus-normal-user1")
+	with get_config({"auth_allowed_groups": []}), test_client as client:
+		client.auth = ("msgbus-normal-user1", password)
+		with client.websocket_connect("/messagebus/v1") as websocket:
+			response = websocket.receive()
+		assert response["type"] == "websocket.http.response.start"
+		assert response["status"] == 403
+
+		# Authentication failure
+		client.reset_cookies()
+		client.auth = ("msgbus-normal-user1", "wrong-password")
+		with pytest.raises(WebSocketDisconnect) as excinfo, client.websocket_connect("/messagebus/v1"):
+			pass
+		assert excinfo.value.code == 1008
+		assert excinfo.value.reason == "Authentication error"
+
+
+def test_messagebus_agent_no_connection_events(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	agent_password = _create_user(test_client, "msgbus-agent2", agent=True)
+	admin_password = _create_user(test_client, "msgbus-admin2", admin=True)
+
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	with test_client as client, client.websocket_connect("/messagebus/v1") as websocket:
+		with WebSocketMessageReader(websocket) as reader:
+			websocket.send_bytes(
+				ChannelSubscriptionRequestMessage(
+					sender=CONNECTION_USER_CHANNEL,
+					channel="service:messagebus",
+					channels=["event:user_connected", "event:user_disconnected"],
+					operation="add",
+				).to_msgpack()
+			)
+			reader.wait_for_message(count=2)
+			list(reader.get_messages())
+
+			client.reset_cookies()
+			client.auth = ("msgbus-agent2", agent_password)
+			with client.websocket_connect("/messagebus/v1") as agent_websocket:
+				agent_websocket.receive_bytes()
+				agent_websocket.close()
+				sleep(1)
+			reader.wait_for_message(count=1, timeout=2.0, error_on_timeout=False)
+			assert not list(reader.get_messages())
+
+			client.reset_cookies()
+			client.auth = ("msgbus-admin2", admin_password)
+			with client.websocket_connect("/messagebus/v1") as admin_websocket:
+				admin_websocket.receive_bytes()
+				admin_websocket.close()
+				sleep(1)
+			reader.wait_for_message(count=2)
+			messages = list(reader.get_messages())
+			assert [(msg["type"], msg["event"]) for msg in messages] == [("event", "user_connected"), ("event", "user_disconnected")]
+			assert all(msg["data"]["user"]["id"] == "msgbus-admin2" for msg in messages)
+
+
+def test_messagebus_agent_access(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	configserver_id = get_configserver_id()
+	opsi_client = OpsiClient(id="msgbus-agent-test-client.opsi.test", opsiHostKey="f0240d7c5e229cde51085d9e08cd9c04")
+	backend.host_createObjects([opsi_client])
+	password = _create_user(test_client, "msgbus-agent3", agent=True)
+	_create_user(test_client, "msgbus-agent4", agent=True)
+
+	def send_and_receive(websocket: WebSocketTestSession, reader: WebSocketMessageReader, message: Message) -> Message:
+		reader.purge_messages()
+		websocket.send_bytes(message.to_msgpack())
+		reader.wait_for_message(count=1, timeout=10.0)
+		return Message.from_dict(next(reader.get_messages()))
+
+	def jsonrpc_request(channel: str) -> JSONRPCRequestMessage:
+		return JSONRPCRequestMessage(sender=CONNECTION_USER_CHANNEL, channel=channel, rpc_id="1", method="accessControl_userIsAdmin")
+
+	test_client.auth = ("msgbus-agent3", password)
+	with test_client as client, client.websocket_connect("/messagebus/v1") as websocket:
+		with WebSocketMessageReader(websocket) as reader:
+			reader.wait_for_message(count=1)
+
+			# Writing to the config service is allowed
+			response = send_and_receive(websocket, reader, jsonrpc_request("service:config:jsonrpc"))
+			assert isinstance(response, JSONRPCResponseMessage)
+
+			# Subscription of event channels is denied
+			response = send_and_receive(
+				websocket,
+				reader,
+				ChannelSubscriptionRequestMessage(
+					sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=["event:host_connected"], operation="add"
+				),
+			)
+			assert isinstance(response, ChannelSubscriptionEventMessage)
+			assert response.error
+			assert response.error.message == "Write access to channel 'event:host_connected' denied"
+
+			# Channels of hosts, other agents and users are denied
+			for channel in (f"host:{opsi_client.id}", "user:msgbus-agent4", f"user:{ADMIN_USER}"):
+				response = send_and_receive(websocket, reader, jsonrpc_request(channel))
+				assert isinstance(response, GeneralErrorMessage)
+				assert response.error.message == f"Read access to channel {channel!r} denied"
+
+			# Terminal, process and file transfer are denied
+			for message, message_type in (
+				(
+					TerminalOpenRequestMessage(
+						sender=CONNECTION_USER_CHANNEL, channel="service:config:jsonrpc", terminal_id=str(uuid4()), rows=20, cols=150
+					),
+					"terminal_open_request",
+				),
+				(
+					ProcessStartRequestMessage(sender=CONNECTION_USER_CHANNEL, channel="service:config:jsonrpc", command=("echo", "test")),
+					"process_start_request",
+				),
+				(
+					FileDownloadRequestMessage(sender=CONNECTION_USER_CHANNEL, channel="service:config:jsonrpc", path="/etc/hostname"),
+					"file_download_request",
+				),
+			):
+				response = send_and_receive(websocket, reader, message)
+				assert isinstance(response, GeneralErrorMessage)
+				assert response.error.message == f"Access to message type {message_type!r} denied - check permission, config and license"
+
+			for channel in (f"service:depot:{configserver_id}:terminal", f"service:depot:{configserver_id}:process"):
+				response = send_and_receive(
+					websocket,
+					reader,
+					ProcessStartRequestMessage(sender=CONNECTION_USER_CHANNEL, channel=channel, command=("echo", "test")),
+				)
+				assert isinstance(response, GeneralErrorMessage)
+				assert response.error.message == f"Read access to channel {channel!r} denied"
+
+
+def test_messagebus_agent_boot_get_config(
+	default_acl: dict[str, list[RPCACE]],  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	password = _create_user(test_client, "msgbus-agent5", agent=True)
+	test_client.auth = ("msgbus-agent5", password)
+	with test_client as client, client.websocket_connect("/messagebus/v1") as websocket:
+		with WebSocketMessageReader(websocket) as reader:
+			reader.wait_for_message(count=1)
+			list(reader.get_messages())
+
+			websocket.send_bytes(
+				JSONRPCRequestMessage(
+					sender=CONNECTION_USER_CHANNEL,
+					channel="service:config:jsonrpc",
+					rpc_id="1",
+					method="boot_getConfig",
+					params=(None, None, 4, None, None, None, "unknown-client.opsi.test"),
+				).to_msgpack()
+			)
+			websocket.send_bytes(
+				JSONRPCRequestMessage(
+					sender=CONNECTION_USER_CHANNEL, channel="service:config:jsonrpc", rpc_id="2", method="host_getObjects"
+				).to_msgpack()
+			)
+			reader.wait_for_message(count=2, timeout=10.0)
+			responses: dict[str | int, JSONRPCResponseMessage] = {}
+			for msg in reader.get_messages():
+				res = Message.from_dict(msg)
+				assert isinstance(res, JSONRPCResponseMessage)
+				responses[res.rpc_id] = res
+
+			assert responses["1"].error is None
+			assert responses["1"].result["client_id"] is None
+			assert responses["1"].result["depot_id"]
+
+			assert responses["2"].result is None
+			assert responses["2"].error["message"] == "No permission for method 'host_getObjects'"
 
 
 async def test_messagebus_close_on_session_deleted(

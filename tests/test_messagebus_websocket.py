@@ -908,6 +908,13 @@ def _agent_connections(config: Config, username: str) -> int:  # noqa: F811
 	return int(count or 0)
 
 
+def _wait_agent_connections(config: Config, username: str, expected: int, timeout: float = 10.0) -> None:  # noqa: F811
+	start = time()
+	while _agent_connections(config, username) != expected and time() - start < timeout:
+		sleep(0.1)
+	assert _agent_connections(config, username) == expected
+
+
 def test_messagebus_agent_connect(
 	config: Config,  # noqa: F811
 	test_client: OpsiconfdTestClient,  # noqa: F811
@@ -927,13 +934,13 @@ def test_messagebus_agent_connect(
 
 			with client.websocket_connect("/messagebus/v1") as websocket2, WebSocketMessageReader(websocket2) as reader2:
 				reader2.wait_for_message(count=1)
-				assert _agent_connections(config, "msgbus-agent1") == 2
-			sleep(1)
-			assert _agent_connections(config, "msgbus-agent1") == 1
+				_wait_agent_connections(config, "msgbus-agent1", 2)
+				# Disconnects are only processed completely while the test client context is open
+				websocket2.close()
+				_wait_agent_connections(config, "msgbus-agent1", 1)
 
-		websocket.close()
-	sleep(1)
-	assert _agent_connections(config, "msgbus-agent1") == 0
+			websocket.close()
+			_wait_agent_connections(config, "msgbus-agent1", 0)
 	assert not redis_client().exists(f"{config.redis_key('messagebus')}:connections:users:msgbus-agent1")
 
 

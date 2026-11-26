@@ -590,3 +590,25 @@ async def test_get_websocket_connected_users() -> None:
 		"depot1.opsi.test",
 		"depot2.opsi.test",
 	]
+
+
+async def test_get_websocket_connected_users_agent() -> None:
+	agent = OPSISession("172.16.1.6")
+	agent.username = "agent-user"
+	agent.is_agent = True
+	admin = OPSISession("172.16.1.7")
+	admin.username = "admin-user"
+	admin.is_admin = True
+
+	await update_websocket_count(agent, 1)
+	await update_websocket_count(admin, 1)
+	assert await get_websocket_connected_users(user_type="agent") == ["agent-user"]
+	assert await get_websocket_connected_users(user_type="user") == ["admin-user"]
+
+	await update_websocket_count(agent, 1)
+	await update_websocket_count(agent, -1)
+	assert await get_websocket_connected_users(user_type="agent") == ["agent-user"]
+
+	await update_websocket_count(agent, -1)
+	assert await get_websocket_connected_users(user_type="agent") == []
+	assert await get_websocket_connected_users(user_type="user") == ["admin-user"]

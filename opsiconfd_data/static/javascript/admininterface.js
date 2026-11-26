@@ -1198,7 +1198,7 @@ function renderUserTable(data, htmlId) {
 			if (databaseAuth) {
 				actions.push({ label: "Delete user", onClick: () => deleteUser(user.id) });
 			}
-			let connected = messagebusConnectedUsers.includes(user.id);
+			let connected = messagebusConnectedUsers.includes(user.id) || messagebusConnectedAgents.includes(user.id);
 			let cls = "user-" + (connected ? "connected" : "not-connected");
 			row.appendChild(createElement("td", {
 				className: `user-td ${cls}`,
@@ -2268,6 +2268,7 @@ function messagebusSendMessage() {
 var messagebusConnectedDepots = [];
 var messagebusConnectedClients = [];
 var messagebusConnectedUsers = [];
+var messagebusConnectedAgents = [];
 function getMessagebusConnectedClients(callback) {
 	let req = ajaxRequest("GET", "/admin/messagebus-connected-clients");
 	req.then((result) => {
@@ -2275,6 +2276,7 @@ function getMessagebusConnectedClients(callback) {
 		messagebusConnectedDepots = result.depot_ids;
 		messagebusConnectedClients = result.client_ids;
 		messagebusConnectedUsers = result.user_ids;
+		messagebusConnectedAgents = result.agent_ids || [];
 		updateMessagebusConnectedHosts();
 		updateMessagebusConnectedUsers();
 		if (callback) {
@@ -2308,12 +2310,26 @@ function updateMessagebusConnectedHosts() {
 		clientList.appendChild(client);
 	});
 	clients.appendChild(clientList);
+
+	if (messagebusConnectedAgents.length > 0) {
+		const agentsHeading = document.createElement("strong");
+		agentsHeading.textContent = "Agents";
+		clients.appendChild(agentsHeading);
+		const agentList = document.createElement("ul");
+		messagebusConnectedAgents.sort();
+		messagebusConnectedAgents.forEach(agentId => {
+			const agent = document.createElement("li");
+			agent.textContent = agentId;
+			agentList.appendChild(agent);
+		});
+		clients.appendChild(agentList);
+	}
 }
 
 function updateMessagebusConnectedUsers() {
 	let states = document.querySelectorAll('[id^="user-messagebus-state-"]');
 	states.forEach(element => {
-		let connected = messagebusConnectedUsers.includes(element.dataset.userId);
+		let connected = messagebusConnectedUsers.includes(element.dataset.userId) || messagebusConnectedAgents.includes(element.dataset.userId);
 		element.textContent = connected ? 'connected' : 'not connected';
 		if (connected) {
 			element.classList.remove("user-not-connected");

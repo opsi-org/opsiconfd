@@ -184,7 +184,8 @@ async def get_messagebus_connected_clients() -> RESTResponse:
 	depot_ids = await get_websocket_connected_users(user_type="depot")
 	client_ids = await get_websocket_connected_users(user_type="client")
 	user_ids = await get_websocket_connected_users(user_type="user")
-	return RESTResponse(data={"depot_ids": depot_ids, "client_ids": client_ids, "user_ids": user_ids})
+	agent_ids = await get_websocket_connected_users(user_type="agent")
+	return RESTResponse(data={"depot_ids": depot_ids, "client_ids": client_ids, "user_ids": user_ids, "agent_ids": agent_ids})
 
 
 @admin_interface_router.post("/messagebus-channel-info")

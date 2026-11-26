@@ -923,6 +923,21 @@ def test_create_agent_user_with_admin_or_readonly_is_rejected(
 	assert not backend.user_getObjects(id="agent-user2")
 
 
+def test_messagebus_connected_clients_agent_ids(config: Config, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	redis = redis_client()
+	prefix = f"{config.redis_key('messagebus')}:connections"
+	redis.hincrby(f"{prefix}:agents:agent-user3", "websocket_count", 1)
+	redis.hincrby(f"{prefix}:users:admin-user3", "websocket_count", 1)
+
+	res = test_client.get("/admin/messagebus-connected-clients", auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == 200
+	data = res.json()
+	assert data["agent_ids"] == ["agent-user3"]
+	assert data["user_ids"] == ["admin-user3"]
+	assert data["client_ids"] == []
+	assert data["depot_ids"] == []
+
+
 @pytest.mark.parametrize("params, expected_groups", (({"admin": True}, ["{admingroup}"]), ({"readonly": True}, ["{readonly}"]), ({}, [])))
 def test_create_user_without_agent(
 	backend: UnprotectedBackend,  # noqa: F811

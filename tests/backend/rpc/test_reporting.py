@@ -11,6 +11,7 @@ import asyncio
 import json
 from pathlib import Path
 
+import pytest
 from opsi.opsi.service.model.object import (
 	AuditHardware,
 	AuditSoftware,
@@ -101,3 +102,63 @@ def test_host_getClients(backend: UnprotectedBackend) -> None:  # noqa: F811
 
 	clients = backend.reporting_getClients(depots=[depot.id])
 	assert len(clients) == 1
+
+
+@pytest.mark.parametrize("method", ("reporting_getClients", "host_getClients"))
+def test_get_clients_client_sees_only_own_hardware_and_software(
+	method: str,
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	host_id1 = "test-get-clients-1.opsi.test"
+	host_key1 = "5913c501a2854587dec4e60d57676892"
+	host_id2 = "test-get-clients-2.opsi.test"
+	host_key2 = "e692485913c587de0d57676501a285c4"
+
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	clients = [
+		{"type": "OpsiClient", "id": host_id1, "opsiHostKey": host_key1},
+		{"type": "OpsiClient", "id": host_id2, "opsiHostKey": host_key2},
+	]
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [clients]}
+	assert "error" not in test_client.post("/rpc", json=rpc).json()
+
+	hwaudit_template = Path("tests/data/hwaudit/hwaudit.json").read_text(encoding="utf-8")
+	for host_id, host_key in ((host_id1, host_key1), (host_id2, host_key2)):
+		test_client.reset_cookies()
+		test_client.auth = (host_id, host_key)
+		audit_hardware_on_hosts = json.loads(hwaudit_template.replace("{{host_id}}", host_id))
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditHardwareOnHost_updateObjects", "params": [audit_hardware_on_hosts]}
+		assert "error" not in test_client.post("/rpc", json=rpc).json()
+		software = {
+			"type": "AuditSoftwareOnClient",
+			"clientId": host_id,
+			"name": "Debian 12",
+			"version": "12.0",
+			"subVersion": "lin:",
+			"language": "en",
+			"architecture": "x64",
+		}
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditSoftwareOnClient_createObjects", "params": [[software]]}
+		assert "error" not in test_client.post("/rpc", json=rpc).json()
+
+	def get_clients() -> dict[str, dict]:
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": method, "params": []}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+		return {c["id"]: c for c in res["result"]}
+
+	# Admin sees all data
+	test_client.reset_cookies()
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	by_id = get_clients()
+	assert by_id[host_id1]["device_vendor"] == by_id[host_id2]["device_vendor"] is not None
+
+	# Client 2 sees only its own data
+	test_client.reset_cookies()
+	test_client.auth = (host_id2, host_key2)
+	by_id = get_clients()
+	assert by_id[host_id2]["device_vendor"] is not None
+	assert by_id[host_id1]["device_vendor"] is None
+	assert by_id[host_id1]["device_model"] is None
+	assert by_id[host_id1].get("operating_system") is None
+	assert by_id[host_id1].get("device_sn") is None

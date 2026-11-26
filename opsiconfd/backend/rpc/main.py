@@ -339,6 +339,16 @@ class Backend(
 	def _get_client_id(self) -> str | None:
 		return None
 
+	def _filter_client_ids_by_acl(self, method: str, client_ids: list[str]) -> list[str]:
+		"""Return the subset of `client_ids` the caller may read according to the ACL of `method`."""
+		try:
+			allowed_client_ids = self._mysql.get_allowed_client_ids(self._get_ace(method))
+		except BackendPermissionDeniedError:
+			return []
+		if allowed_client_ids is None:
+			return list(client_ids)
+		return [client_id for client_id in client_ids if client_id in allowed_client_ids]
+
 	@lru_cache  # noqa: B019 - Backend is a long-lived singleton, no memory leak.
 	def _module_available(self, module: str) -> bool:
 		return module in self._available_modules

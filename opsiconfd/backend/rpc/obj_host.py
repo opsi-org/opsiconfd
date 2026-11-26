@@ -776,6 +776,8 @@ class RPCHostMixin(Protocol):
 				clients[client_id].smart_cache = True
 				clients[client_id].wan_vpn = False
 
+		hardware_client_ids = self._filter_client_ids_by_acl("auditHardwareOnHost_getObjects", list(clients))
+		software_client_ids = self._filter_client_ids_by_acl("auditSoftwareOnClient_getObjects", list(clients))
 		with self._mysql.session() as session:
 			for row in session.execute(
 				"""
@@ -786,7 +788,7 @@ class RPCHostMixin(Protocol):
 				LEFT JOIN HARDWARE_DEVICE_CHASSIS AS hdc ON hdc.hardware_id = hcc.hardware_id
 				WHERE hccs.hostId in :client_ids
 				""",
-				params={"client_ids": list(clients)},
+				params={"client_ids": hardware_client_ids},
 			).fetchall():
 				clients[row[0]].device_vendor = device_vendor = row[1]
 				clients[row[0]].device_model = device_model = row[2]
@@ -817,7 +819,7 @@ class RPCHostMixin(Protocol):
 				JOIN SOFTWARE AS s ON s.software_id = sc.software_id
 				WHERE s.isOperatingSystem = 1 and sc.clientId in :client_ids
 				""",
-				params={"client_ids": list(clients)},
+				params={"client_ids": software_client_ids},
 			).fetchall():
 				clients[row[0]].operating_system = row[1]
 				clients[row[0]].operating_system_type = "linux" if row[2] == "lin:" else "macos" if row[2] == "mac:" else "windows"

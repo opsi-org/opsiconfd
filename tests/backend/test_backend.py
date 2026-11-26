@@ -7,13 +7,22 @@
 webdav tests
 """
 
+import re
+from types import SimpleNamespace
+
+import pytest
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
+from opsi.exception import BackendPermissionDeniedError
 
+from opsiconfd import contextvar_client_session
 from opsiconfd.backend import (
 	get_mysql,
 	get_unprotected_backend,
 )
+from opsiconfd.backend.auth import RPCACE
+from opsiconfd.backend.mysql import MySQLConnection
+from opsiconfd.backend.rpc.main import Backend
 
 from ..utils import (  # noqa: F401
 	ADMIN_PASS,
@@ -172,3 +181,35 @@ def test_opsiconfd_backend_host_get_tls_certificate_permitted_domains(
 		# IP addresses are not affected by the CA name constraints
 		assert ip_address in cert_ips
 		assert "10.10.10.10" in cert_ips
+
+
+@pytest.mark.parametrize(
+	"ace_types, host_id, expected",
+	(
+		(["self"], "client1.opsi.test", ["client1.opsi.test"]),
+		(["self"], None, []),
+		(["self", "opsi_client"], "client1.opsi.test", ["client1.opsi.test", "client2.opsi.test"]),
+		(["sys_group"], None, ["client1.opsi.test", "client2.opsi.test"]),
+		([], None, ["client1.opsi.test", "client2.opsi.test"]),
+	),
+)
+def test_filter_client_ids_by_acl(ace_types: list[str], host_id: str | None, expected: list[str]) -> None:
+	aces = [RPCACE(method_re=re.compile(".*"), type=ace_type, id=host_id) for ace_type in ace_types]  # type: ignore[arg-type]
+	mysql = MySQLConnection.__new__(MySQLConnection)
+	fake_backend = SimpleNamespace(_mysql=mysql, _get_ace=lambda method: aces)
+	token = contextvar_client_session.set(SimpleNamespace(host_id=host_id))  # type: ignore[arg-type]
+	try:
+		result = Backend._filter_client_ids_by_acl(
+			fake_backend, "auditHardwareOnHost_getObjects", ["client1.opsi.test", "client2.opsi.test"]
+		)  # type: ignore[arg-type]
+	finally:
+		contextvar_client_session.reset(token)
+	assert result == expected
+
+
+def test_filter_client_ids_by_acl_permission_denied() -> None:
+	def get_ace(method: str) -> list[RPCACE]:
+		raise BackendPermissionDeniedError("denied")
+
+	fake_backend = SimpleNamespace(_mysql=MySQLConnection.__new__(MySQLConnection), _get_ace=get_ace)
+	assert Backend._filter_client_ids_by_acl(fake_backend, "auditHardwareOnHost_getObjects", ["client1.opsi.test"]) == []  # type: ignore[arg-type]

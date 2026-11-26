@@ -122,6 +122,17 @@ def test_get_clients_client_sees_only_own_hardware_and_software(
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [clients]}
 	assert "error" not in test_client.post("/rpc", json=rpc).json()
 
+	audit_software = {
+		"type": "AuditSoftware",
+		"name": "Debian 12",
+		"version": "12.0",
+		"subVersion": "lin:",
+		"language": "en",
+		"architecture": "x64",
+	}
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditSoftware_createObjects", "params": [[audit_software]]}
+	assert "error" not in test_client.post("/rpc", json=rpc).json()
+
 	hwaudit_template = Path("tests/data/hwaudit/hwaudit.json").read_text(encoding="utf-8")
 	for host_id, host_key in ((host_id1, host_key1), (host_id2, host_key2)):
 		test_client.reset_cookies()

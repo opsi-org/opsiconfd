@@ -18,16 +18,19 @@ from typing import TYPE_CHECKING, Any, Protocol
 import pyotp
 from opsi.crypt.blowfish import blowfish_encrypt
 from opsi.crypt.hash import PasswordHashAlgorithm, hash_password
-from opsi.exception import BackendMissingDataError
+from opsi.exception import BackendMissingDataError, BackendPermissionDeniedError
 from opsi.logging import secret_filter
-from opsi.opsi.service.model.object import User
+from opsi.opsi.service.model.object import AuditLogAuthenticationLogoutReason, AuditLogEventType, User
 from opsi.opsi.service.model.type import to_host_id, to_list
 from qrcode import QRCode
+from starlette.concurrency import run_in_threadpool
 
+from opsiconfd import contextvar_client_session
+from opsiconfd.audit_log import audit_authentication_event
 from opsiconfd.backend.auth import RPCACE
 from opsiconfd.config import get_configserver_id
 from opsiconfd.logging import logger
-from opsiconfd.utils import get_opsi_config, set_system_user_password
+from opsiconfd.utils import asyncio_create_task, get_opsi_config, set_system_user_password
 from opsiconfd.utils.cryptography import decrypt, encrypt
 
 from . import rpc_method
@@ -122,6 +125,27 @@ class RPCUserMixin(Protocol):
 		idents = self.user_getIdents(returnType="dict", id=id)
 		if idents:
 			self.user_deleteObjects(idents)
+
+	@rpc_method
+	async def user_deleteSelf(self: BackendProtocol) -> None:
+		"""
+		Delete the database user of the calling agent session and end the session.
+		"""
+		self._check_role("agent")
+		session = contextvar_client_session.get()
+		if not session or not session.username:
+			raise BackendPermissionDeniedError("Invalid session")
+
+		# The user is always taken from the session, never from a parameter
+		await run_in_threadpool(self._mysql.delete_objects, table="USER", object_type=User, obj={"id": session.username}, ace=[])
+		await session.delete()
+		asyncio_create_task(
+			audit_authentication_event(
+				scope={"session": session},
+				event_type=AuditLogEventType.AUTHENTICATION_LOGOUT,
+				logout_reason=AuditLogAuthenticationLogoutReason.USER_REQUESTED,
+			)
+		)
 
 	@rpc_method
 	def user_updateMultiFactorAuth(self: BackendProtocol, userId: str, type: str = "totp", returnType: str = "uri") -> str:

@@ -62,6 +62,11 @@ MONITORING_ACL_LINES = (
 )
 
 AGENT_ACL_BOOT_GETCONFIG_LINE = "boot_getConfig           : sys_group({admingroup}); opsi_depotserver; opsi_agent"
+AGENT_ACL_USER_DELETE_SELF_LINE = "user_deleteSelf          : opsi_agent"
+AGENT_ACL_ENTRIES = (
+	("boot_getConfig", AGENT_ACL_BOOT_GETCONFIG_LINE),
+	("user_deleteSelf", AGENT_ACL_USER_DELETE_SELF_LINE),
+)
 
 
 def _get_default_dirs() -> list[str]:
@@ -160,42 +165,48 @@ def migrate_acl_conf_add_monitoring() -> None:
 
 def migrate_acl_conf_add_agent() -> None:
 	"""
-	Add the acl entry for opsi agents to an existing acl.conf.
+	Add the acl entries for opsi agents (`boot_getConfig`, `user_deleteSelf`) to an existing acl.conf.
 
-	The entry for `boot_getConfig` is inserted before the first entry matching this method,
+	Each entry is inserted before the first entry matching its method,
 	otherwise it would never be evaluated.
-	If the acl.conf already contains an entry for `boot_getConfig`, nothing is changed.
+	An entry that already exists for the exact method name is not changed.
 	"""
 	acl_file = Path(config.acl_file)
 	if not acl_file.exists():
 		return
 
-	lines = acl_file.read_text(encoding="utf-8").split("\n")
-	patterns: dict[int, str] = {}
-	for idx, line in enumerate(lines):
-		match = re.match(r"^\s*([^#:\s][^:]*?)\s*:", line)
-		if match:
-			patterns[idx] = match.group(1)
+	original = acl_file.read_text(encoding="utf-8")
+	lines = original.split("\n")
+	for method, new_line in AGENT_ACL_ENTRIES:
+		patterns: dict[int, str] = {}
+		for idx, line in enumerate(lines):
+			match = re.match(r"^\s*([^#:\s][^:]*?)\s*:", line)
+			if match:
+				patterns[idx] = match.group(1)
 
-	if "boot_getConfig" in patterns.values():
+		if method in patterns.values():
+			continue
+
+		insert_idx = len(lines)
+		for idx, pattern in patterns.items():
+			try:
+				if re.match(pattern, method):
+					insert_idx = idx
+					break
+			except re.error:
+				continue
+		if insert_idx == len(lines) and lines[-1] == "":
+			insert_idx -= 1
+		lines.insert(insert_idx, new_line)
+
+	migrated = "\n".join(lines)
+	if migrated == original:
 		return
 
-	insert_idx = len(lines)
-	for idx, pattern in patterns.items():
-		try:
-			if re.match(pattern, "boot_getConfig"):
-				insert_idx = idx
-				break
-		except re.error:
-			continue
-	if insert_idx == len(lines) and lines[-1] == "":
-		insert_idx -= 1
-
 	backup_file = acl_file.with_name(f"{acl_file.name}.pre-agent")
-	logger.notice("Adding agent entry to '%s' (backup: '%s')", acl_file, backup_file)
+	logger.notice("Adding agent entries to '%s' (backup: '%s')", acl_file, backup_file)
 	shutil.copy2(acl_file, backup_file)
-	lines.insert(insert_idx, AGENT_ACL_BOOT_GETCONFIG_LINE)
-	acl_file.write_text("\n".join(lines), encoding="utf-8")
+	acl_file.write_text(migrated, encoding="utf-8")
 
 
 def setup_files() -> None:

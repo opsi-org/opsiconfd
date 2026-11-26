@@ -29,6 +29,7 @@ from opsiconfd.setup import cleanup_log_files, setup_file_permissions, setup_lim
 from opsiconfd.setup import setup as opsiconfd_setup
 from opsiconfd.setup.files import (
 	AGENT_ACL_BOOT_GETCONFIG_LINE,
+	AGENT_ACL_USER_DELETE_SELF_LINE,
 	migrate_acl_conf_add_agent,
 	migrate_acl_conf_if_default,
 )
@@ -161,7 +162,7 @@ def test_migrate_acl_conf_if_default(tmp_path: Path) -> None:
 def test_migrate_acl_conf_add_agent(tmp_path: Path) -> None:
 	default_lines = Path("opsiconfd_data/etc/backendManager/acl.conf").read_text(encoding="utf-8").split("\n")
 	# Default acl.conf of a version without agent support
-	old_lines = [line for line in default_lines if not line.startswith("boot_getConfig")]
+	old_lines = [line for line in default_lines if not line.startswith(("boot_getConfig", "user_deleteSelf"))]
 	assert not any("opsi_agent" in line for line in old_lines if not line.startswith("#"))
 	old_acl_conf = "\n".join(old_lines)
 	acl_file = tmp_path / "acl.conf"
@@ -171,12 +172,17 @@ def test_migrate_acl_conf_add_agent(tmp_path: Path) -> None:
 		migrate_acl_conf_add_agent()
 		migrated = acl_file.read_text(encoding="utf-8")
 		migrated_lines = migrated.split("\n")
-		assert migrated_lines.count(AGENT_ACL_BOOT_GETCONFIG_LINE) == 1
+		agent_lines = (AGENT_ACL_BOOT_GETCONFIG_LINE, AGENT_ACL_USER_DELETE_SELF_LINE)
+		for agent_line in agent_lines:
+			assert migrated_lines.count(agent_line) == 1
 		# Only inserted before the first entry matching the method
 		assert migrated_lines.index(AGENT_ACL_BOOT_GETCONFIG_LINE) < next(
 			idx for idx, line in enumerate(migrated_lines) if line.startswith(".*_get.*")
 		)
-		assert [line for line in migrated_lines if line != AGENT_ACL_BOOT_GETCONFIG_LINE] == old_lines
+		assert migrated_lines.index(AGENT_ACL_USER_DELETE_SELF_LINE) < next(
+			idx for idx, line in enumerate(migrated_lines) if line.startswith("user_.*")
+		)
+		assert [line for line in migrated_lines if line not in agent_lines] == old_lines
 		assert (tmp_path / "acl.conf.pre-agent").read_text(encoding="utf-8") == old_acl_conf
 
 		# Second run changes nothing
@@ -200,11 +206,56 @@ def test_migrate_acl_conf_add_agent(tmp_path: Path) -> None:
 
 		assert agent_aces(migrated_acl, "boot_getConfig") == agent_aces(default_acl, "boot_getConfig")
 		assert agent_aces(migrated_acl, "boot_getConfig")
+		assert agent_aces(migrated_acl, "user_deleteSelf") == agent_aces(default_acl, "user_deleteSelf")
+		assert agent_aces(migrated_acl, "user_deleteSelf")
 		assert not agent_aces(migrated_acl, "host_get.*")
+		assert not agent_aces(migrated_acl, "user_.*")
+
+
+def test_migrate_acl_conf_add_agent_user_delete_self_only(tmp_path: Path) -> None:
+	user_line = "user_.* : sys_group({admingroup}); opsi_depotserver"
+	host_get_line = "host_get.* : sys_group({admingroup}); opsi_client"
+	old_lines = [AGENT_ACL_BOOT_GETCONFIG_LINE, host_get_line, user_line, ""]
+	acl_file = tmp_path / "acl.conf"
+	acl_file.write_text("\n".join(old_lines), encoding="utf-8")
+	with get_config({"acl_file": str(acl_file)}):
+		migrate_acl_conf_add_agent()
+		migrated = acl_file.read_text(encoding="utf-8")
+		assert migrated.split("\n") == [
+			AGENT_ACL_BOOT_GETCONFIG_LINE,
+			host_get_line,
+			AGENT_ACL_USER_DELETE_SELF_LINE,
+			user_line,
+			"",
+		]
+
+		# Second run changes nothing
+		(tmp_path / "acl.conf.pre-agent").unlink()
+		migrate_acl_conf_add_agent()
+		assert acl_file.read_text(encoding="utf-8") == migrated
+		assert not (tmp_path / "acl.conf.pre-agent").exists()
+
+
+def test_migrate_acl_conf_add_agent_existing_user_delete_self_entry(tmp_path: Path) -> None:
+	acl_conf = "user_deleteSelf : sys_group({admingroup})\nuser_.* : sys_group({admingroup})\n"
+	acl_file = tmp_path / "acl.conf"
+	acl_file.write_text(acl_conf, encoding="utf-8")
+	with get_config({"acl_file": str(acl_file)}):
+		migrate_acl_conf_add_agent()
+	# Only the missing boot_getConfig entry is added
+	assert acl_file.read_text(encoding="utf-8").split("\n") == [
+		"user_deleteSelf : sys_group({admingroup})",
+		"user_.* : sys_group({admingroup})",
+		AGENT_ACL_BOOT_GETCONFIG_LINE,
+		"",
+	]
 
 
 def test_migrate_acl_conf_add_agent_existing_entry(tmp_path: Path) -> None:
-	acl_conf = "boot_getConfig : sys_group({admingroup})\nhost_get.* : sys_group({admingroup})\n.* : sys_group({admingroup})\n"
+	acl_conf = (
+		"boot_getConfig : sys_group({admingroup})\nuser_deleteSelf : sys_group({admingroup})\n"
+		"host_get.* : sys_group({admingroup})\n.* : sys_group({admingroup})\n"
+	)
 	acl_file = tmp_path / "acl.conf"
 	acl_file.write_text(acl_conf, encoding="utf-8")
 	with get_config({"acl_file": str(acl_file)}):
@@ -223,6 +274,7 @@ def test_migrate_acl_conf_add_agent_keeps_host_get_entry(tmp_path: Path) -> None
 		host_get_line,
 		"log_.* : sys_group({admingroup})",
 		AGENT_ACL_BOOT_GETCONFIG_LINE,
+		AGENT_ACL_USER_DELETE_SELF_LINE,
 		"",
 	]
 

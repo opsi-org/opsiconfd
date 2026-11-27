@@ -58,6 +58,8 @@ def test_agent_user_access_with_default_acl(
 		("host_getHashes", []),
 		("host_getIdents", ["str"]),
 		("user_getObjects", []),
+		("user_delete", ["e2e-agent1"]),
+		("user_deleteObjects", [[{"type": "User", "id": "e2e-agent1"}]]),
 		("config_getObjects", []),
 		("productOnClient_getObjects", []),
 		("host_updateObjects", host_params),
@@ -66,3 +68,26 @@ def test_agent_user_access_with_default_acl(
 		res = rpc(method, params)
 		assert "error" in res
 		assert "No permission for method" in res["error"]["message"], method
+
+	# user_deleteSelf is allowed by the ACL for agents only
+	assert [ace.type for ace in default_acl["user_deleteSelf"]] == ["opsi_agent"]
+
+
+def test_user_deleteSelf_denied_for_other_host_types(
+	default_acl: dict[str, list[RPCACE]],  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	client = OpsiClient(id="test-agent-access-client1.opsi.test", opsiHostKey="4587dec5913c501a28560d576768924e")
+	depot = OpsiDepotserver(id="test-agent-access-depot1.opsi.test", opsiHostKey="3d58924c50167a2ec547de0976855861")
+	backend.host_createObjects([client, depot])
+
+	for auth in (
+		(ADMIN_USER, ADMIN_PASS),
+		(client.id, client.opsiHostKey),
+		(depot.id, depot.opsiHostKey),
+	):
+		test_client.reset_cookies()
+		test_client.auth = auth  # ty: ignore[invalid-assignment]
+		res = test_client.post("/rpc", json={"jsonrpc": "2.0", "id": 1, "method": "user_deleteSelf", "params": []}).json()
+		assert "No permission for method" in res["error"]["message"], auth[0]

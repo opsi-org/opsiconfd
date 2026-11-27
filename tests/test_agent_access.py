@@ -88,6 +88,6 @@ def test_user_deleteSelf_denied_for_other_host_types(
 		(depot.id, depot.opsiHostKey),
 	):
 		test_client.reset_cookies()
-		test_client.auth = auth
+		test_client.auth = auth  # ty: ignore[invalid-assignment]
 		res = test_client.post("/rpc", json={"jsonrpc": "2.0", "id": 1, "method": "user_deleteSelf", "params": []}).json()
 		assert "No permission for method" in res["error"]["message"], auth[0]

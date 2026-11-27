@@ -98,7 +98,7 @@ def test_user_bulk_insert_without_description(backend: UnprotectedBackend) -> No
 	# Objects from backups created before the attribute existed have no description
 	user_ids = ["test-user-backup-1", "test-user-backup-2"]
 	try:
-		backend.user_bulkInsertObjects(
+		backend.user_bulkInsertObjects(  # ty: ignore[invalid-argument-type]
 			[
 				{"type": "User", "id": user_ids[0], "groups": ["opsiadmin"]},
 				{"type": "User", "id": user_ids[1], "groups": [], "description": "Restored"},
